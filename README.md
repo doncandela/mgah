@@ -1,6 +1,6 @@
 # mgah
 
-A rather "cheat sheet" with selected info on using MPI, GPUs, Apptainer, and HPC
+A "cheat sheet" with selected info on using MPI, GPUs, Apptainer, and HPC
 
 - The main document in the repo is **mgah.md**.
 
