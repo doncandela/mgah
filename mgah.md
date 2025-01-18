@@ -26,13 +26,13 @@ Although there may be some information useful for the following topics, this doc
 
 - Other than brief mentions, the use of OpenMP (a multithreading package not to be confused with OpenMPI) and/or the Python Mutiproccessing package for parallelization on the cores of a single computer.
 
-- Operating systems other than Linux (Windows, MacOS...).
+- Operating systems other than Linux (Windows, macOS...).
 
-- Computer languages other than Python.
+- Computer languages other than Python such as C++.
 
-- Direct, low-level programming of GPUs in CUDA  (as opposed to the use of GPU-aware Python packages like CuPy and PyTorch, which is covered).
+- Direct, low-level programming of GPUs in CUDA-C++  (as opposed to the use of GPU-aware Python packages like CuPy and PyTorch, which is covered).
 
-- "Higher level" packages for using computer clusters such as Spark, Dask, Charm4Py/Charm++...).
+- "Higher level" (than MPI) packages for using computer clusters such as Spark, Dask, Charm4Py/Charm++...).
 
 - Cloud computing (Amazon Web Services, Microsoft Azure...). 
 
