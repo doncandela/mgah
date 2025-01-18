@@ -20,7 +20,7 @@ This the cheat sheet I recorded as I learned to combine several tools for **para
 
 - **Apptainer** is a **container** system that allows user code and most of its dependencies (OS version, packages like NumPy) to be packaged together into a single large "image" file, which should then be usable  without modification or detailed environment configuration on many different computer systems from a Linux PC to a large cluster.
 
-- High-performance Computing (**HPC**) typically refers to using a large cluster of connected computers assembled and maintained by Universities and other organizations for the use of their communities.  This document only discusses an HPC cluster running Linux and managed by  **Slurm** scheduling software, with  the the **UMass Unity cluster** as the specific HPC system used here.
+- High-performance Computing (**HPC**) typically refers to using a large cluster of connected computers assembled and maintained by Universities and other organizations for the use of their communities.  This document only discusses an HPC cluster running Linux and managed by  **Slurm** scheduling software, with  the the **UMass Unity cluster** as the specific HPC system described here.
 
 Although there may be some information useful for the following topics, this document **does not cover:**
 
@@ -34,7 +34,7 @@ Although there may be some information useful for the following topics, this doc
 
 - Cloud computing (Amazon Web Services, Microsoft Azure...) 
 
-- The Kubernetes scheduling/managment typically used rather than Slurm in commerical settings.
+- The Kubernetes scheduling/management software typically used rather than Slurm in commercial settings.
 
 - The Docker container system, other than as a source for building Apptainer containers.
 
