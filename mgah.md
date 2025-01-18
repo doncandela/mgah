@@ -24,6 +24,8 @@ This the cheat sheet I recorded as I learned to combine several tools for **para
 
 Although there may be some information useful for the following topics, this document **does not cover:**
 
+- Other than brief mentions, the use of OpenMP and/or the Python Mutiproccessing package for parallelization on the cores of a single computer.
+
 - Operating systems other than Linux (Windows, MacOS...)
 
 - Computer languages other than Python.
@@ -32,11 +34,8 @@ Although there may be some information useful for the following topics, this doc
 
 - Cloud computing (Amazon Web Services, Microsoft Azure...) 
 
-- Kubernetes scheduling/managment typically used rather than Slurm in commerical settings.
+- The Kubernetes scheduling/managment typically used rather than Slurm in commerical settings.
 
 - The Docker container system, other than as a source for building Apptainer containers.
-
-
-
 
 ## Part 1: foo<a id="part1"></a>
