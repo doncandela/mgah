@@ -1,16 +1,17 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   1/17a/25
+mgah.md  D. Candela   1/18/25
 
 - [Introduction](#intro)
-  - [What is this?](#whatis)
-  - [What are these things?](#whatare)
-  - [Abbreviations, etc. in this document](#abbrev)
-- [Part 1: Git+Github without the CLI](#part1)
+  - [What is this?](#what-is)
+  - [Types of parallel computing](#parcomp)
+  - [PCs and test programs used](#pcs-test)
+- [Part 1: MPI, GPU, and Apptainer on a Linux PC](#on-pc)
+- [Part 2: Moving code to a Slurm HPC cluster (Unity)](#on-hpc)
 
 ## Introduction <a id="intro"></a>
 
-### What is this?<a id="whatis"></a>
+### What is this?<a id="what-is"></a>
 
 This the cheat sheet I recorded as I learned to combine several tools for **parallel computing** in **Python** on various **Linux** computer systems:
 
@@ -30,7 +31,7 @@ Although there may be some information useful for the following topics, this doc
 
 - Computer languages other than Python such as C++.
 
-- Direct, low-level programming of GPUs in CUDA-C++  (as opposed to the use of GPU-aware Python packages like CuPy and PyTorch, which is covered).
+- Direct, low-level programming of GPUs in CUDA-C++  (as opposed to the use of GPU-aware Python packages like CuPy and PyTorch, which are briefly covered).
 
 - "Higher level" (than MPI) packages for using computer clusters such as Spark, Dask, Charm4Py/Charm++...).
 
@@ -40,4 +41,28 @@ Although there may be some information useful for the following topics, this doc
 
 - The Kubernetes scheduling/management software typically used rather than Slurm in commercial settings, particularly with Docker.
 
-## Part 1: foo<a id="part1"></a>
+### Types of parallel computing<a id="parcomp"></a>
+
+### Hardware and test code<a id="pcs-test"></a>
+
+#### PCs used<a id="pcs-test"></a>
+
+#### Pip and Conda<a id="pip-conda"></a>
+
+#### Test programs and Conda environments<a id="pcs-test"></a>
+
+[A comment?] : #
+
+## Part 1: MPI, GPU, and Apptainer on a Linux PC<a id="on-pc"></a>
+
+### MPI on a PC<a id="mpi-pc"></a>
+
+#### Install OpenMPI on a PC<a id="install-openmpi"></a>
+
+#### Simple MPI test programs: `mpi_hw.py` and `osu_bw.py` <a id="pcs-test"></a>
+
+#### A more elaborate MPI program: `boxpct.py` with the `dem21` package<a id="pcs-test"></a>
+
+## Part 2: Moving code to a Slurm HPC cluster (Unity)<a id="on-hpc"></a>
+
+Part 1: foo
