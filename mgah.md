@@ -30,6 +30,8 @@ Although there may be some information useful for the following topics, this doc
 
 - Computer languages other than Python.
 
+- Direct, low-level programming of GPUs in CUDA  (as opposed to the use of GPU-aware Python packages like CuPy and PyTorch, which is covered).
+
 - "Higher level" packages for using computer clusters such as Spark, Dask, Charm4Py/Charm++...)
 
 - Cloud computing (Amazon Web Services, Microsoft Azure...) 
