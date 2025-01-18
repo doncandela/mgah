@@ -12,12 +12,29 @@ mgah.md  D. Candela   1/17/25
 
 ### What is this?<a id="whatis"></a>
 
-This is an elementary introduction to Git and GitHub, with an emphasis on the concepts that I found confusing when I first learned about these things -- these are the explanations I wish I had when I was getting started.
-The goal is simply to get started using these things; more detailed and advanced documentation is abundantly available elsewhere.
+This the cheat sheet I recorded as I learned to combine several tools to carry out **parallel computing** in **Python** on various **Linux** computer systems:
 
-Unlike many intros to Git+GitHub, this tutorial **goes as far as possible without making use of CLI** (command line interpreter), which is only discussed in the (long) last section.
-Here is [another, more fully developed tutorial](https://jcszamosi.github.io/mcmaster_swc_git_gui/08-conflict/) I have found on **using Git+Github graphically** -- includes screenshots, diagrams, etc., unlike this document.
+- **MPI** allows multiple instances of Python to operate in parallel and communicate with each other, in the cores of a single computer or a cluster of connected computers. Code written to parallelize using MPI can utilize all the cores of a desktop computer and also scale to a larger number of cores in a computer cluster.
 
-### What are these things?<a id="whatare"></a>
+- A **GPU** installed in a single computer can carry out highly parallel computations, so it offers an alternative to (MPI on a cluster of computers) for parallelizing code - but the degree of parallel operation is limited by the model of GPU that is available (unless multiple GPUs and/or GPUS on multiple MPI-connected computers are used, things not discussed in this document).
+
+- **Apptainer** is a **container** system that allows user code and most of its dependencies (packages, OS version) to be packaged into a single large "image" file, which should then be usable  without modification or tedious environment configuration on many different computer systems from a Linux PC to a large cluster.
+
+- High-performance Computing (**HPC**) typically refers to using a large cluster of connected computers assembled and maintained by Universities and other organizations for the use of their communities.  This document only discusses an HPC cluster running Linux and managed by  **Slurm** scheduling software, with  the the **UMass Unity cluster** as the specific HPC system used here.
+
+Although there may be some useful information for the following topics, this document **does not cover:**
+
+- Operating systems other than Linux (Windows, MacOS..)
+
+- Computer languages other than Python.
+
+- "Higher level" packages for using computer clusters such as Spark, Dask, Charm4Py/Charm++..)
+
+- Cloud computing (Amazon Web Services, Microsoft Azure..) and the Kubernetes scheduling/managment software often used with it.
+
+- The Docker container system, other than as a source for building Apptainer containers.
+
+
+
 
 ## Part 1: Git+Github without the CLI<a id="part1"></a>
