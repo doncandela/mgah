@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   1/20/25
+mgah.md  D. Candela   1/21/25
 
 - [Introduction](#intro)  
   
@@ -23,8 +23,9 @@ mgah.md  D. Candela   1/20/25
     - [A more elaborate MPI program: `boxpct.py` with the `dem21` package](#boxpct-dem21)
   - [Using an NVIDIA GPU on a Linux PC](#gpu-pc)
     - [Why do it](#why-gpu-pc)
+    - [Non-NVIDIA GPUs](#non-nvidia)
     - [Installing NVIDIA drivers](#nvidia-drivers)
-    - [Installing CUDA-aware Python packages: PyTorch, CuPy...](#cupy-pytorch)
+    - [Installing CUDA-aware Python packages: PyTorch, CuPy...](#pytorch-cupy)
     - [Testing the GPU and comparing its speed to that of the CPU](#test-gpu)
     - [A few of NVDIA's many GPUS, with test results](#gpu-list)
   - [Using Apptainer on a Linux PC](#apptainer-pc)
@@ -51,7 +52,7 @@ mgah.md  D. Candela   1/20/25
     - [Using modules and Conda](#unity-modules-conda)
     - [Running batch jobs: `sbatch`](#run-batch)
     - [Using MPI](#unity-mpi)
-    - [Using a GPU](#unity-gpu")
+    - [Using a GPU](#unity-gpu)
   - [Using Apptainer on the Unity HPC cluster](#unity-apptainer)
     - [Getting container images on the cluster](#images-to-unity)
     - [Running a container interactively or in batch job](#unity-run-container)
@@ -73,7 +74,7 @@ This the cheat sheet I that accumulated as I learned to combine several tools fo
 
 - [**MPI**](https://en.wikipedia.org/wiki/Message_Passing_Interface) allows multiple instances of Python to operate in parallel and communicate with each other, in the cores of a single computer or a cluster of connected computers. Code written to parallelize using MPI can utilize all the cores of a desktop computer and also scale to a larger number of cores in an HPC computer cluster.
 
-- A **GPU** installed in a single computer can carry out highly parallel computations, so it offers an alternative to "MPI on a cluster of computers"" for parallelizing code - but the degree of parallel operation is limited by the model of GPU that is available (unless multiple GPUs and/or GPUs on multiple MPI-connected computers are used, things not discussed in this document).
+- A **GPU** installed in a single computer can carry out highly parallel computations, so it offers an alternative to "MPI on a cluster of computers" for parallelizing code - but the degree of parallel operation is limited by the model of GPU that is available (unless multiple GPUs and/or GPUs on multiple MPI-connected computers are used, things not discussed in this document).
 
 - [**Apptainer**](https://apptainer.org/) is a **container** system that allows user code and most of its dependencies (OS version, packages like NumPy) to be packaged together into a single large "image" file, which should then be usable  without modification or detailed environment configuration on many different computer systems from a Linux PC to a large cluster.
 
@@ -88,6 +89,8 @@ Although there may be some information useful for the following topics, this doc
 - Operating systems other than Linux (Windows, macOS...).
 
 - Computer languages other than Python such as C++.
+
+- GPUs other than NVIDIA, except some brief mentions of AMD ROCm and Mac MPS support in the section [Non-NVIDIA GPUs](#non-nvidia) below.
 
 - Direct, low-level programming of GPUs in CUDA-C++  (as opposed to the use of GPU-aware Python packages like CuPy and PyTorch, which are briefly covered).
 
@@ -113,7 +116,9 @@ Be that as it may, the premise of this document is **speeding up Python code** b
 
 (b) **by using a GPU** which is a highly-parallel computational device which however does not directly run Python code (or C++ code, for that matter, although a specialized hybrid language called [CUDA C++](https://docs.nvidia.com/cuda/cuda-c-programming-guide/) is often used to program GPUs).
 
-For case (a) the individual, simultaneously-executing copies of a Python program can each take advantage of packages like Numpy and SciPy, providing parallel speedup in addition to that provided by such packages. Conversely for case (b) packages like Numpy and SciPy are **replaced** by GPU-aware packages like CuPy and PyTorch.
+For case (a) the individual, simultaneously-executing copies of a Python program can each take advantage of packages like Numpy and SciPy, providing parallel speedup in addition to that provided by such packages.  For this approach, you need to figure out how to split your problem into many pieces that can profitably run in parallel, how the pieces will be set up, controlled, and communicate with each other, etc.
+
+ Conversely for case (b) a  **GPU-aware Python package** like CuPy, PyTorch, or PyCUDA can be installed. The first two of these completely take care of parallelization in a manner transparent to the Python programmer, who however must keep track of which objects are on the GPU and which are on the CPU - a relatively simple thing.
 
 it is important to distinguish between **multithreading** and **multiprocessing**:
 
@@ -146,10 +151,10 @@ Finally, some Python jargon: A text file with extension `.py` containing Python 
 
 #### PCs<a id="pcs"></a>
 
-The PCs commands and test programs shown in this document were tested on one or more of these PCs (only two of these have GPUs):
+The commands and test programs shown in this document were tested on one or more of these PCs (only two of these have GPUs):
 
-- **candela-20:** Assembled from parts 9/19, 3.6 GHz AMD Ryzen 5 3600 6-core CPU, 32 GB RAM, EVGA GPU similar to NVIDIA GeForce GTX 1050 Ti, running Ubuntu 24.04.
-- **candela-21:** Assembled from parts 11/22, 3.4 GHz AMD Ryzen 9 5950X 16-core CPU, 64 GB RAM, EVGA GPU similar to NVIDIA GeForce GTX 1060 6 GB VRAM, running Ubuntu 24.04.
+- **candela-20:** Assembled from parts 9/19, 3.6 GHz AMD Ryzen 5 3600 6-core CPU, 32 GB RAM, GPU similar to NVIDIA GeForce GTX 1050 Ti, running Ubuntu 24.04.
+- **candela-21:** Assembled from parts 11/22, 3.4 GHz AMD Ryzen 9 5950X 16-core CPU, 64 GB RAM, GPU similar to NVIDIA GeForce GTX 1060 6 GB VRAM, running Ubuntu 24.04.
 - **hoffice:** Lenovo A10 510-23 purch 11/17, 2.4 GHz Intel Core i5 4-core CPU, 8 GB RAM, no NVIDIA-type GPU, running Ubuntu 24.04.
 
 #### GPUs<a id="gpus"></a>
@@ -159,15 +164,15 @@ A more detailed version of this table is in the section [A few of NVDIA's many G
 | NVIDIA Model: | GeForce GTX 1050 Ti | GeForce GTX 1660 | Tesla T4                     | Tesla V100 DGXS    | Tesla A100 SMX4    | Hopper H100 SXM5 |
 | ------------- | ------------------- | ---------------- | ---------------------------- | ------------------ | ------------------ | ---------------- |
 | Where:        | candela-20 GPU      | candela-21 GPU   | Best free GPU on Colab 10/23 | Available on Unity | Available on Unity | Exists on Unity  |
-| Price:        | $250 9/19           | $297 11/22       | $2000 10/23                  | $1500 10/23        | $15,00 10/23       | $30,000 10/23    |
+| Price:        | $250 9/19           | $297 11/22       | $2,000 10/23                 | $1,500 10/23       | $15,000 10/23      | $30,000 10/23    |
 
 #### Unity HPC cluster<a id="unity-intro"></a>
 
-The HPC commands shown in this document were tested on the [Unity cluster](https://unity.rc.umass.edu/index.php) at UMass, Amherst. Unity runs the [Slurm](https://slurm.schedmd.com/overview.html) job scheduling sytem and as of 1/25 had roughly:
+The HPC commands shown in this document were tested on the [Unity cluster](https://unity.rc.umass.edu/index.php) at UMass, Amherst. Unity runs the [Slurm](https://slurm.schedmd.com/overview.html) job scheduling sytem and as of 1/25 had:
 
-- 350 general-access nodes plus another 350 “preempt” nodes belonging to groups but available for general access when not otherwise being used (also additional nodes never available for general access).
-- 20,000 total cores in the general-access and preempt nodes, with individual nodes mostly having two CPUs and between 24 and 192 cores.
-- GPUs on half of the nodes, with individual nodes having between 2 and 8 GPUs giving about 1000 total GPUs.  The GPU models (thus capabilities) vary widely, with the newest/best GPUs on the preempt modes as might be expected.
+- About 350 general-access nodes plus another 350 “preempt” nodes belonging to groups but available for general access when not otherwise being used (also additional nodes never available for general access).
+- About 20,000 total cores in the general-access and preempt nodes, with individual nodes mostly having two CPUs and between 24 and 192 cores.
+- GPUs on about half of the nodes, with individual nodes having between 2 and 8 GPUs giving about 1000 total GPUs.  The GPU models (thus capabilities) varied widely, with the newest/best GPUs on the preempt modes as might be expected.
   Detailed information on using Unity is in the section [Unity cluster at UMass, Amherst](#unity-cluster) below.
 
 ### Test code used<a id="test-code"></a>
@@ -243,7 +248,7 @@ Using MPI, multiple copies of a Python program can run in parallel on the cores 
 
 What MPI can do (and `multiprocessing` cannot do) is increase the parallelism to copies of Python running on **multiple computers connected by a network** - i.e. multiple nodes of an HPC cluster. Therefore a possible reason for developing MPI-parallel code on a PC is to enable eventual expansion to a higher degree of parallelism on an HPC cluster.
 
-Note, however, that parallelism across all the cores of any single node of an HPC cluster could be accomplished without MPI by using the `multprocessing` package.  (Unity nodes currently have up to 128 cores.)
+Note, however, that parallelism across all the cores of any single node of an HPC cluster could be accomplished without MPI by using the `multprocessing` package -- Unity nodes currently have up to 128 cores.
 
 #### Installing OpenMPI<a id="install-openmpi"></a>
 
@@ -263,9 +268,13 @@ TODO MPI stuff from 9/22 cheat-sheet
 
 #### Why do it<a id="why-gpu-pc"></a>
 
-A relatively inexpensive GPU can offer significant speedups. For example in [test results](#gpu-list) on the candela-21 PC assembled in 2022 the \$300 GPU was about four times faster than the \$550 16-core CPU chip for operations on large dense and sparse matrices.
+A relatively inexpensive GPU can offer significant speedups. For example in test results [shown below](#gpu-list) on the candela-21 PC assembled in 2022 the \$300 GPU was about four times faster than the \$550 16-core CPU chip for operations on large dense and sparse matrices.
 
 If the code might eventually be transferred to an HPC cluster, the more capable GPUs on the HPC nodes should offer even greater speed-ups than this.
+
+#### Non-NVIDIA GPUs<a id="non-nvidia"></a>
+
+Both PyTorch and CuPy can use AMD GPUs, which use [ROCm](https://rocm.docs.amd.com/en/latest/what-is-rocm.html) drivers (vs CUDA drivers for NVIDIA GPUs).  It seems PyTorch can also use an MPS GPU on a Mac. I don't have an AMD GPU  or a Mac and haven't tried these things.
 
 #### Installing NVIDIA drivers<a id="nvidia-drivers"></a>
 
@@ -277,22 +286,160 @@ These steps are only need once on a given PC, unless updating to newer versions.
   $ sudo lshw -C display
   ```
 
-- By default Ubuntu will use the open-source X driver for NVIDIA hardware, but this seems not to be appropriate when using the GPU for computation, and sometimes even just for graphics (e.g. Mayavi did not function correctly on candela-21 with the X driver).
+- By default Ubuntu will use the open-source X driver for NVIDIA hardware, but this seems not to be appropriate when using the GPU for computation, and sometimes even just for graphics (e.g. Mayavi did not function correctly on candela-21 with the X driver). Thus a **proprietary NVIDIA driver** should be installed.
 
 - It’s possible to [download and install drivers from NVIDIA](https://www.nvidia.com/download/index.aspx) but this will require stopping the X driver, etc (didn’t try).
 
 - Instead it’s easier to install from Linux channels following e.g. [instructions here](https://www.cyberciti.biz/faq/ubuntu-linux-install-nvidia-driver-latest-proprietary-driver/). This can be done in Terminal, but easiest to use the Ubuntu graphical **Software and Updates** app: The **Additional Drivers** tab should show the GPU and available drivers (from NVIDIA as well as X) – pick most recent (proprietary, tested) NVIDIA driver, Apply Changes, then when completed reboot system.
 
-- Now you can use the text-based and/or graphical apps supplied by NVIDIA to check that driver is functioning and get info on the GPU:
+- Now you can use the text-based and/or graphical apps supplied by NVIDIA to check that the driver is functioning and get info on the GPU:
   
   ```
   $ nvidia-smi         # text-based
   $ nvidia-settings    # graphical
   ```
   
-  Note the **CUDA Version** from nvida-smi (was 12.0 in 10/23)
+  Note the **CUDA Version** from nvida-smi (was 12.2 on candela-20 PC 1/25)
 
 #### Installing  CUDA-aware Python packages: PyTorch, CuPy...<a id="pytorch-cupy"></a>
+
+- To use the GPU in Python programs, a Python package must be installed that knows how to access and use the GPU.  Three such packages are discussed briefly here:
+  
+  - **PyCUDA**, for running CUDA-C++ code from a Python program.
+  - **PyTorch**, a popular machine-learning platform that **can be used with or without a GPU**.
+  - **CuPy**, which provides GPU-accelerated replacements for many NumPy and SciPy functions.
+
+- [**PyCUDA**](https://pypi.org/project/pycuda/) enables a Python program to directly operate an NVIDIA GPU in the [**CUDA-C++**](https://docs.nvidia.com/cuda/cuda-c-programming-guide/) language.  CUDA-C++ code is passed to PyCUDA functions as multiline strings, for example:
+  
+  ```
+  mod = SourceModule("""
+  __global__ void doublify(float *a)
+  {
+    int idx = threadIdx.x + threadIdx.y*4;
+    a[idx] *= 2;
+  }
+  """)
+  ```
+  
+  To used PyCUDA you will need to learn about the NVIDIA GPU architecture with its kernels, threads, streams, etc.
+  I have not used PyCUDA and it is not discussed further in this document.
+
+- [**PyTorch**](https://pytorch.org/) is a machine-learning platform that can be used with or without a GPU. 
+  
+  - **Installing Pytorch on a Linux PC.**  First we make a Conda environment `pyt`  in which to run PyTorch,  with other packages that will be used -- here we have chosen Numpy, SciPy, Matplotlib, and Jupyter Notebook but I think none of these are required:
+    
+    ```
+    (base)..$ conda update conda 
+    (base)..$ conda create -n pyt python=3                   # 1/25 installed python 3.13.1
+    (base)..$ conda activate pyt
+    (pyt)..$ conda install numpy scipy matplotlib jupyter    # this downgraded python to 3.12.8
+    (pyt)..$ jupyter notebook                                # check that JN works
+    ```
+    
+    Next run the install PyTorch using the appropriate command from the [Pytorch Getting Started page](https://pytorch.org/get-started/locally/). The installation command depends on which version of CUDA is installed, if any -- since CUDA 12.2 was installed I selected the nearest version no later than 12.2 which was 12.1:
+    
+    ```
+    (pyt-gmem)..$ pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+    ```
+    
+    To check that PyTorch is usable, run this code in a JN which creates a small tensor filled with random numbers:
+    
+    ```
+    import torch
+    x = torch.rand(5, 3)
+    print(x)
+    
+    tensor([[0.3366, 0.6316, 0.7751],
+            [0.6390, 0.9224, 0.9920],
+            [0.3413, 0.4789, 0.9909],
+            [0.3987, 0.7204, 0.1965],
+            [0.7794, 0.5492, 0.6764]])
+    ```
+  
+  - **Using the GPU in PyTorch.** The fundamental objects in PyTorch are **tensors**, which are NumPy arrays with lots of additional features added: the ability to store gradients, participate in backpropagation, etc.  A tensor can exist on either the CPU or the GPU, and you cannot do operations between tensors in two different places (e.g. multiply a tensor on the CPU by a tensor on the GPU).  PyTorch makes it easy to move tensors to the GPU if it exists, otherwise leave them on the CPU as this example (run in a JN) shows.
+    
+    First we set a string `DEVICE` to be `'cuda'` if an NVIDIA GPU is available, otherwise `'cpu`'
+    
+    ```
+    import torch
+    DEVICE = ('cuda' if torch.cuda.is_available()              # Nvidia GPU with CUDA
+              else 'mps' if torch.backends.mps.is_available()  # MAC GPU with MPS
+              else 'cpu')                                      # no GPU
+    print(f'Availble device: {DEVICE}')
+    
+    Availble device: cuda
+    ```
+    
+    Next we make two $3\times3$ tensors on the CPU, and get versions of them that are moved to the available device (CPU or GPU):
+    
+    ```
+    x = torch.rand(3,3)
+    y = torch.rand(3,3)
+    xdvc = x.to(DEVICE)
+    ydvc = y.to(DEVICE)
+    x.device,xdvc.device
+    
+    (device(type='cpu'), device(type='cuda', index=0))
+    ```
+    
+    We can multiply the two tensors moved to the available device.  **This code works whether or not a GPU is available.**
+    
+    ```
+    torch.mm(xdvc,ydvc)
+    
+    tensor([[0.7678, 0.7135, 0.3886],
+            [0.9471, 0.4305, 0.3549],
+            [0.5254, 0.4289, 0.2599]], device='cuda:0')
+    ```
+    
+    If we try to multiply a tensor on the CPU by a tensor on the GPU, we get an error:
+    
+    ```
+    torch.mm(x,ydvc)
+    
+    ---------------------------------------------------------------------------
+    RuntimeError                              Traceback (most recent call last)
+    Cell In[10], line 1
+    ----> 1 torch.mm(x,ydvc)
+    
+    RuntimeError: Expected all tensors to be on the same device...
+    ```
+    
+    Going the other way, we can use `xdvc.cpu().numpy()` to get the Numpy array part of a tensor or `xdvc[1,1].item()` to get the float value of a tensor element -- the results will be on the CPU, whether or not `xdvc` is on the GPU.
+    
+    This is as far as we will go with PyTorch in this document. 
+
+- [**CuPy**](https://cupy.dev/) provides "drop-in" substitutes for many NumPy and SciPy array functions (many with the same function names and call signatures) which however run on an NVIDIA GPU and use the highly-optimized [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) libraries.  Thus CuPy provides a fairly painless way to achieve GPU acceleration for NumPy/SciPy code, although one must keep track of where arrays are (GPU vs CPU) and transfer them as necessary.  CuPy also provides some "low level" GPU capabilities which have no NumPy/SciPy analogs such as creating CUDA **events**, writing CUDA **kernels**, etc.
+  
+  - **Installing CuPy on a Linux PC.** First we make a Conda environment `gpu`  in which to run Python programs using CuPy,  with other packages that will be used -- here we have chosen Numpy and SciPy so they can be compared with CuPy and Jupyter Notebook to use for the examples below.  We install CuPy from [conda-forge](https://conda-forge.org/) because (as of 1/25) only a very outdated version of CuPy was available from the default Conda channel.
+    
+    ```
+    (base)..$ conda update conda 
+    (base)..$ conda create -n gpu python=3
+    (base)..$ conda activate gpu
+    (gpu)..$ conda install numpy scipy jupyter
+    (gpu)..$ conda install -c conda-forge cupy
+    (gpu)..$ conda list              # see versions of installed packaged
+    ```
+    
+    In 1/25 after these commands the installed versions were: Python 3.11.11, NumPy 2.2.1, SciPy 1.15.1, Jupyter 1.1.0, CuPy 13.3.0.
+  
+  - **Simple examples of CuPy.**  This code run in a Jupyter Notebook imports `cupy` as well as `cupyx` (needed if SciPy-equivalent functions will be used) and prints out the [CUDA compute capability](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#compute-capabilities) of the installed NVIDIA GPU -- this was the small GPU on the candela-20 PC with a compute capability of 6.1.  This code will fail if there is no GPU, or CUDA is not installed.
+    
+    ```
+    import numpy as np
+    import scipy
+    import cupy as cp         # numpy-equiv and CUDA GPU funcs
+    import cupyx              # scipy-equive GPU funcs
+    
+    # Optional code to get some info on the GPU.
+    gpudevice = cp.cuda.Device()
+    print(f'GPU has compute capacity {gpudevice.compute_capability}')
+    
+    GPU has compute capacity 61
+    ```
+
+- **A more elaborate CuPy program: `gputest.py`.**
 
 #### Testing the GPU and comparing its speed to that of the CPU<a id="test-gpu"></a>
 
@@ -327,7 +474,7 @@ Probably the best reason for containerizing code is to make it easy to run the c
 In general one uses an HPC cluster to get more computational power (e.g. if doing simulations carry out bigger and/or more simulations) than might be otherwise possible, due to one or more of the following factors:
 
 - For code can only run on one computer but can use multiple cores, an HPC cluster typically will have computers with high core count (up to 128 cores per node on Unity).
-- For code that can use MPI to run on more than one networked computer, an HPC cluster can offer even larger core counts since by a cluster consists of many computers networked together.
+- For code that can use MPI to run on more than one networked computer, an HPC cluster can offer even larger core counts since a cluster consists of many computers networked together.
 - For code that can use a GPU to speed up computations, an HPC cluster may include higher-performance models of GPU than otherwise available.
 - For code that requires a lot of memory, HPC clusters are typically configured with considerable memory.
 - Even if none of the situations above is true, multiple jobs can be run simultaneously on an HPC cluster.
