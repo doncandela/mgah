@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   1/21/25
+mgah.md  D. Candela   1/22/25
 
 - [Introduction](#intro)  
   
@@ -10,9 +10,8 @@ mgah.md  D. Candela   1/21/25
     - [PCs](#pcs)
     - [GPUs](#gpus)
     - [Unity HPC cluster](#unity-intro)
-  - [Test code used](#test-code)
-    - [Pip and Conda](#pip-conda)
-    - [Test programs and Conda environments used](#testprogs-conda)
+  - [Pip and Conda](#pip-conda)
+  - [Conda environments and test code used in this document](#envs-testprogs)
 
 - [Part 1: MPI, GPU, and Apptainer on a Linux PC](#on-linux-pc)
   
@@ -26,7 +25,6 @@ mgah.md  D. Candela   1/21/25
     - [Non-NVIDIA GPUs](#non-nvidia)
     - [Installing NVIDIA drivers](#nvidia-drivers)
     - [Installing CUDA-aware Python packages: PyTorch, CuPy...](#pytorch-cupy)
-    - [Testing the GPU and comparing its speed to that of the CPU](#test-gpu)
     - [A few of NVDIA's many GPUS, with test results](#gpu-list)
   - [Using Apptainer on a Linux PC](#apptainer-pc)
     - [Why do it](#why-apptainer-pc)
@@ -175,9 +173,7 @@ The HPC commands shown in this document were tested on the [Unity cluster](https
 - GPUs on about half of the nodes, with individual nodes having between 2 and 8 GPUs giving about 1000 total GPUs.  The GPU models (thus capabilities) varied widely, with the newest/best GPUs on the preempt modes as might be expected.
   Detailed information on using Unity is in the section [Unity cluster at UMass, Amherst](#unity-cluster) below.
 
-### Test code used<a id="test-code"></a>
-
-#### Pip and Conda<a id="pip-conda"></a>
+### Pip and Conda<a id="pip-conda"></a>
 
 - [**Pip**](https://pypi.org/project/pip/) (package installer for Python) installs Python packages by default from [**PyPI**](https://pypi.org/), the open-source Python Package Index.
   
@@ -234,9 +230,14 @@ The HPC commands shown in this document were tested on the [Unity cluster](https
     - If you do specify a Python version, use an earlier version more likely to be compatible with the available Conda versions of the other packages you need.
     - An IDE like Spyder has many complex dependencies. But when used only to edit files (as opposed to running them) Spyder can be run from the base or no environment, so there is no need to install it in your environments.
 
-#### Test programs and Conda environments used<a id="testprogs-conda"></a>
+### Conda environments and test code used in this document<a id="envs-testcode"></a>
 
-- TODO add here as added below
+- The following Conda environments are used in this document:
+  - **`p39`** (defined just above) has Python 3.9, Numpy, SciPy, etc but does not have OpenMPI, PyTorch, or CuPy.
+  - **`pyt`** (defined in [Installing CUDA-aware Python packages...](#pytorch-cupy) below) adds PyTorch.
+  - **`gpu`** (also defined in [Installing CUDA-aware Python packages...](#pytorch-cupy) below) adds CuPy.
+- The following test code is used:
+  - **`gputest.py`** makes dense and sparse matrices of various sizes and floating-point types, and times operations using these matrices on the CPU and (if available) the GPU. If run in an environment without CuPy like **`p39`**, only CPU tests will be run. But if run in **`gpu`** and a GPU can be initialized, will also run GPU tests.
 
 ## Part 1: MPI, GPU, and Apptainer on a Linux PC<a id="on-linux-pc"></a>
 
@@ -434,16 +435,149 @@ These steps are only need once on a given PC, unless updating to newer versions.
     
     # Optional code to get some info on the GPU.
     gpudevice = cp.cuda.Device()
-    print(f'GPU has compute capacity {gpudevice.compute_capability}')
+    print(f'GPU has compute capability {gpudevice.compute_capability}')
     
-    GPU has compute capacity 61
+    GPU has compute capability 61
+    ```
+    
+    Next (after doing the inputs as above), we make two $3\times3$ arrays of random numbers -- one using `np.random.rand` which gives a regular NumPy array (type `numpy.ndarray`) and the other using `cp.random.rand` which gives a CuPy array on the GPU (type `cp.ndarray`).  Notes: (a) the syntax is identical for the NumPy and CuPy functions, and (b) CuPy arrays always live on the GPU (unlike PyTorch tensors, which can be either on the CPU or on the GPU).
+    
+    ```
+    x = np.random.rand(3,3)
+    ygpu = cp.random.rand(3,3)
+    print('x=\n',x,type(x))
+    print('\nygpu=\n',ygpu,type(ygpu))
+    
+    x=
+      [[0.69443384 0.79801011 0.30639659]
+      [0.73035583 0.42256363 0.8435655 ]
+      [0.05977241 0.69179361 0.03713523]] <class 'numpy.ndarray'>
+    
+    ygpu=
+      [[0.17523124 0.84222265 0.18135991]
+      [0.9385187  0.03738684 0.48680856]
+      [0.96396622 0.4795829  0.97488979]] <class 'cupy.ndarray'>
+    ```
+    
+    We cannot multiply `x` by `ygpu` without first moving one or the other of them so they are on the same device (CPU or GPU).  First we use the `get` method of a CuPy array, which returns a copy of `ygpu`  as a NumPy array (on the CPU) so we can multiply the matrices using `np.matmul`:
+    
+    ```
+    z = np.matmul(x,ygpu.get())
+    print('z=\n',z,type(z))
+    
+    z=
+      [[1.16598987 0.76164555 0.81312352]
+      [1.33773368 1.03548014 1.16054826]
+      [0.69553234 0.09401508 0.38381413]] <class 'numpy.ndarray'>
+    ```
+    
+    Next we use the function `cp.asarray` to copy the Numpy array `x` to a CuPy array on the GPU, so we can multiply the matrices using `cp.matmul`:
+    
+    ```
+    zgpu = cp.matmul(cp.asarray(x),ygpu)
+    print('zgpu=\n',zgpu,type(zgpu))
+    
+    zgpu=
+      [[1.16598987 0.76164555 0.81312352]
+      [1.33773368 1.03548014 1.16054826]
+      [0.69553234 0.09401508 0.38381413]] <class 'cupy.ndarray'>
     ```
 
-- **A more elaborate CuPy program: `gputest.py`.**
-
-#### Testing the GPU and comparing its speed to that of the CPU<a id="test-gpu"></a>
+- **A more elaborate CuPy program: `gputest.py`.**  This program test the speed of the CPU and (if available) the GPU by timing the muliplication of matrices -- both dense and sparse -- of various sizes and data types.  See the comments in `gputest.py` for details:
+  
+  ```
+  (gpu) $ python gputest.py
+  Running: gputest.py 11/22/23 D.C.
+  Local time: Mon Jan  6 14:24:54 2025
+  GPU 0 has compute capacity 6.1, 6 SMs, 4.23 GB RAM, guess model = GeForce GTX 1050
+  CPU timings use last 10 of 11 trials
+  GPU timings use last 25 of 28 trials
+  
+  ***************** Doing test dense_mult ******************
+  Multiply M*M=N element dense matrices
+  *********************************************************
+  
+  ************ Using float64 **************
+           N     flop make mats  CPU test *CPU op/s*  GPU test *GPU op/s*  GPU xfer xfer rate
+      99,856 6.30e+07 3.39e-03s 5.05e-04s 1.25e+11/s 1.23e-03s 5.12e+10/s 3.27e-02s  0.10GB/s
+   1,000,000 2.00e+09 2.92e-02s 8.69e-03s 2.30e+11/s 2.85e-02s 7.02e+10/s 1.01e-02s  3.17GB/s
+                                          ...
+  ```
 
 #### A few of NVDIA's many GPUS, with test results<a id="gpu-list"></a>
+
+NVIDA has made many different GPUs. This table shows includes the relatively small GPUs in my PCs, a somewhat bigger GPU available for free on Google Colab, and a few more powerful GPUs available on the Unity HPC cluster.
+
+| NVIDIA Model:                      | GeForce GTX 1050 Ti    | GeForce GTX 1660        | Tesla T4                 | Tesla V100 DGXS    | Tesla A100 SMX4    | Hopper H100 SXM5 |
+| ---------------------------------- | ---------------------- | ----------------------- | ------------------------ | ------------------ | ------------------ | ---------------- |
+| Where:                             | candela-20 GPU         | candela-21 GPU          | Best free on Colab 10/23 | Available on Unity | Available on Unity | Exists on Unity  |
+| Price:                             | $250 9/19              | $297 11/22              | $2,000 10/23             | $1,500 10/23       | $15,000 10/23      | $30,000 10/23    |
+| Release date:                      | 10/16                  | 3/19                    | 9/18                     | 3/18               | 5/20               | 3/22             |
+| GPU chip, arch:                    | Pascal                 | TU116, Turing           | TU104, Turing            | GV100, Volta       | GA 100, Ampere     | GH100, Hopper    |
+| Fab procces:                       | 14 nm                  | 12 nm                   | 12 nm                    | 12 nm              | 7 nm               | 4 nm             |
+| Transistors:                       | 3.3e9                  | 6.6e9                   | 1.4e10                   | 2.1e10             | 5.4e10             | 8e10             |
+| CUDA compute:                      | 6.1                    | 7.5                     | 7.5                      | 7.0                | 8.0                | 9.0              |
+| Streaming Multiprocs:              | 6                      | 22                      | 40                       | 80                 | 108                | 144              |
+| CUDA cores:                        | 768 (128/SM)           | 1,408 (64/SM)           | 2,560 (64/SM)            | 5,120 (64/SM)      | 6,912 (64/SM)      | 16,896           |
+| Tensor cores:                      | 0                      | 0                       | 320                      |                    |                    |                  |
+| Ray tracing cores:                 | 0                      | 0                       | 40                       |                    |                    |                  |
+| Memory:                            | 4 GB                   | 6 GB GDDR5              | 15 GB GDDR6              | 16 GB HBM2         | 40 GB HBM2e        | 96 GB HBM3       |
+| Memory width:                      | 128-bit                | 192-bit                 | 256-bit                  | 4,096-bit          | 5,120-bit          | 5,120-bit        |
+| Memory BW:                         | 112 GB/s               | 192 GB/s                | 320 GB/s                 | 897 GB/s           | 1,555 GB/s         | 1,681 GB/s       |
+| Max float64 FLOPS:                 | 0.067 TF               | 0.157 TF                | ?                        | 6.6 TF             | 9.7 TF             | 33.5 TF          |
+| **Max float32 FLOPS:**             | **2.14 TF**            | **5.03 TF**             | **8.1 TF**               | **13.2 TF**        | **19.5 TF**        | **66.9 TF**      |
+| Max tf32 FLOPS:                    |                        |                         | 64.8 TF                  | 105.7 TF           | 312 TF             | 989 TF           |
+| Max int32 OPS:                     |                        |                         |                          | 17.7 TO            | 19.7 TO            |                  |
+| **Test results from `gputest.py`** |                        |                         |                          |                    |                    |                  |
+| **System:**                        | **candela-20**         | **candela-21**          | **Google Colab**         | **Unity HPC**      | **Unity HPC**      |                  |
+| **CPU or GPU:**                    | **6-core 3.8 GHz CPU** | **16-core 3.4 GHz CPU** | **Tesla T4 GPU**         | **Tesla V100 GPU** | **Tesla A100 GPU** |                  |
+| Dense matrix multiplication        |                        |                         |                          |                    |                    |                  |
+| float64 CPU / GPU:                 | 0.22 / 0.07 TF         | **0.34 /0.14 TF**       | 0.06 /0.128 TF           | 0.64 /4.8 TF       | **0.41 /11.6 TF**  |                  |
+| float32 CPU /GPU:                  | 0.55 /1.86 TF          | **0.78 /3.00 TF**       | 0.06 / 5.6 TF            | 1.26 / 9.2 TF      | **1.28 / 15.2 TF** |                  |
+| Bond vectors using Numpy Indexing  |                        |                         |                          |                    |                    |                  |
+| float64 CPU / GPU:                 | 0.12 / 0.40 GF         | **0.12 /0.66 GF**       | 0.06 / 1.17 GF           | 0.07 /6.2 GF       | **0.115 /15.6 GF** |                  |
+| float32 CPU /GPU:                  | 0.19 /0.52 GF          | **0.22 /0.97 GF**       | 0.05 / 3.3 GF            | 0.11 / 3.5 GF      | **0.21 / 24 GF**   |                  |
+| Bond vectors using CSR matrix      |                        |                         |                          |                    |                    |                  |
+| float64 CPU / GPU:                 |                        | **0.24 /0.67 GF**       | 0.07 / 1.12 GF           | 0.07 /5.6 GF       | **0.22 /13.7 GF**  |                  |
+| float32 CPU /GPU:                  |                        | **0.26 /0.94 GF**       | 0.09 / 3.0 GF            | 0.10 / 11.9 GF     | **0.26 / 21 GF**   |                  |
+| Node forces using CSR matrix       |                        |                         |                          |                    |                    |                  |
+| float64 CPU / GPU:                 |                        | **0.55 /1.28 GF**       | 0.14 / 1.96 GF           | 0.13 /7.9 GF       | **0.36 /31 GF**    |                  |
+| float32 CPU /GPU:                  |                        | **0.66 /1.41 GF**       | 0.22 / 3.82 GF           | 0.23 / 13.8 GF     |                    |                  |
+| **0.43 / 55 GF**                   |                        |                         |                          |                    |                    |                  |
+
+These test results used arrays with $10^6$ elements.  Here TF = TFLOPS = $10^{12}$ FP ops/s, GF = GFLOPS = $10^9$ FP ops/s. 
+
+- Conclusions from this testing:
+  
+  - **float32 vs float64:** This only makes a big difference when doing dense matrix calculations, which operate at close to theoretical maximum FLOPS for each type of GPU.  Sparse operations (bond vectors and of node forces) have 300-1,000 times less FLOPS, suggesting they are dominated by memory access rather than FLOP capability, and the speed doesn’t depend much on float32/float64. For **dense matrix operations**:
+    
+    - Using **float64**, candela-21 GPU is terrible and shouldn’t be used. A100 GPU is 34 times faster than candela-21 CPU.
+    - Using **float32** (already 2.3 times faster than float64 on candela-21 CPU), candela-21 GPU is 3.8 times faster and A100 GPU is 19 times faster than candela-21 CPU  (so using GPUs A100 is only 5 times faster than candela-21).
+  
+  - **Speedup of float32 over float64** on various systems:
+    
+    - **candela-21** float32 speedup is **8.8 for dense operations** (float32 on GPU vs float64 on CPU), only **1.1-1.5 for sparse operations** (all on GPU).
+    - **Unity using A100 GPU** float32 speedup is **1.3 for dense operations, 1.5-1.8 for sparse operations**.
+  
+  - **CSR matrix vs numpy indexing:** When calculating bond vectors from node positions, no advantage to using CSR matrix over numpy indexing.
+  
+  - **Sparse operations.**  These are float32 speedups with numpy indexing for bond vectors, float64 and or CSR for bond vectors only modestly different. CPU-GPU transfer times are ignored here:
+    
+    - **Calculating bond vectors from differences of node positions.**  candela-21 GPU is 3.6 times faster and A100 GPU is 81 times faster than candela-21 CPU (so using GPUs A100 is 22 times faster than candela-21).
+    - **Calculating node forces by summing bond forces.**  candela-21 GPU is 2.1 times faster and A100 GPU is 83 times faster than candela-21 CPU (so using GPUs A100 is 39 times faster than candela-21).
+  
+  - **Comparison of available GPUs** using **float32** and **candela-21 GPU** as reference:
+    
+    - **candela-20** is **1.5 times slower for dense and sparse operations**.
+    - **T4** (best GPU available free on Colab as of 11/23) is **1.9 times faster for dense operations, 1.3-3.2 times faster for sparse operations**. But **CPU operations were much slower on Colab+T4 than on candela-21.**
+    - **V100** (good GPU sometimes available on Unity as of 11/23) is **3 times faster for dense operations, 4-10 times faster for sparse operations**. But again **CPU operations were slower than on candela-21.**
+    - **A100** (very good GPU sometimes available on Unity as of 11/23) is **5 times faster for dense operations, 20-40 times faster for sparse operations. CPU operations were similar** to candela-21.
+
+- **Running CuPy in a Google Colab notebook.** This was quite simple, as it seems compatible Numpy, CUDA and CuPy are installed by default:
+  
+  - Paste Python code that imports CuPy into a code cell (for example the GPU test program `testgpu.py` can simply be pasted into a cell).
+  - Select a GPU runtime.  As of 10/23, the only GPU type available for free on Colab was the Tesla T4. Tesla V100 and Tesla A100 GPUs were available but only on a paid tier.
+  - Hit run.
 
 ### Using Apptainer on a Linux PC<a id="apptainer-pc"></a>
 
