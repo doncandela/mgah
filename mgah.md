@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   1/22/25
+mgah.md  D. Candela   1/23/25
 
 - [Introduction](#intro)  
   
@@ -118,7 +118,7 @@ For case (a) the individual, simultaneously-executing copies of a Python program
 
  Conversely for case (b) a  **GPU-aware Python package** like CuPy, PyTorch, or PyCUDA can be installed. The first two of these completely take care of parallelization in a manner transparent to the Python programmer, who however must keep track of which objects are on the GPU and which are on the CPU - a relatively simple thing.
 
-it is important to distinguish between **multithreading** and **multiprocessing**:
+It is important to distinguish between **multithreading** and **multiprocessing**:
 
 - A **process** is an independently-running program with its own memory space and other resources. Each process can run an independent Python program. Each core of a CPU can run multiple processes, but only one at a time (i.e. serially) - running multiple processes in parallel requires multiple cores.
 
@@ -171,7 +171,8 @@ The HPC commands shown in this document were tested on the [Unity cluster](https
 - About 350 general-access nodes plus another 350 “preempt” nodes belonging to groups but available for general access when not otherwise being used (also additional nodes never available for general access).
 - About 20,000 total cores in the general-access and preempt nodes, with individual nodes mostly having two CPUs and between 24 and 192 cores.
 - GPUs on about half of the nodes, with individual nodes having between 2 and 8 GPUs giving about 1000 total GPUs.  The GPU models (thus capabilities) varied widely, with the newest/best GPUs on the preempt modes as might be expected.
-  Detailed information on using Unity is in the section [Unity cluster at UMass, Amherst](#unity-cluster) below.
+
+Detailed information on using Unity is in the section [Unity cluster at UMass, Amherst](#unity-cluster) below.
 
 ### Pip and Conda<a id="pip-conda"></a>
 
@@ -238,6 +239,12 @@ The HPC commands shown in this document were tested on the [Unity cluster](https
   - **`gpu`** (also defined in [Installing CUDA-aware Python packages...](#pytorch-cupy) below) adds CuPy.
 - The following test code is used:
   - **`gputest.py`** makes dense and sparse matrices of various sizes and floating-point types, and times operations using these matrices on the CPU and (if available) the GPU. If run in an environment without CuPy like **`p39`**, only CPU tests will be run. But if run in **`gpu`** and a GPU can be initialized, will also run GPU tests.
+  - **`np-version.py`** is a very short program that imports Numpy and prints out its version.
+- The following Apptainer definition files are used:
+  - **`os-only.def`** makes a container that contains only the Ubuntu OS.
+  - **`pack.def`** makes a container that contains Linux, Conda, and the Miniconda package distribution, and installs a few selected packages in the container.
+  - **`tprogs.def`** makes a container...TODO change name??
+  - **`gputest.def`** makes a container that imports CuPy and so can use a GPU.
 
 ## Part 1: MPI, GPU, and Apptainer on a Linux PC<a id="on-linux-pc"></a>
 
@@ -412,7 +419,7 @@ These steps are only need once on a given PC, unless updating to newer versions.
 
 - [**CuPy**](https://cupy.dev/) provides "drop-in" substitutes for many NumPy and SciPy array functions (many with the same function names and call signatures) which however run on an NVIDIA GPU and use the highly-optimized [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) libraries.  Thus CuPy provides a fairly painless way to achieve GPU acceleration for NumPy/SciPy code, although one must keep track of where arrays are (GPU vs CPU) and transfer them as necessary.  CuPy also provides some "low level" GPU capabilities which have no NumPy/SciPy analogs such as creating CUDA **events**, writing CUDA **kernels**, etc.
   
-  - **Installing CuPy on a Linux PC.** First we make a Conda environment `gpu`  in which to run Python programs using CuPy,  with other packages that will be used -- here we have chosen Numpy and SciPy so they can be compared with CuPy and Jupyter Notebook to use for the examples below.  We install CuPy from [conda-forge](https://conda-forge.org/) because (as of 1/25) only a very outdated version of CuPy was available from the default Conda channel.
+  - **Installing CuPy on a Linux PC.** First we make a Conda environment `gpu`  in which to run Python programs using CuPy,  with other packages that will be used -- here we have chosen Numpy and SciPy so they can be compared with CuPy, and Jupyter Notebook to use for the examples below.  We install CuPy from [conda-forge](https://conda-forge.org/) because (as of 1/25) only a very outdated version of CuPy was available from the default Conda channel.
     
     ```
     (base)..$ conda update conda 
@@ -440,7 +447,7 @@ These steps are only need once on a given PC, unless updating to newer versions.
     GPU has compute capability 61
     ```
     
-    Next (after doing the inputs as above), we make two $3\times3$ arrays of random numbers -- one using `np.random.rand` which gives a regular NumPy array (type `numpy.ndarray`) and the other using `cp.random.rand` which gives a CuPy array on the GPU (type `cp.ndarray`).  Notes: (a) the syntax is identical for the NumPy and CuPy functions, and (b) CuPy arrays always live on the GPU (unlike PyTorch tensors, which can be either on the CPU or on the GPU).
+    Next (after doing the inports as above), we make two $3\times3$ arrays of random numbers -- one using `np.random.rand` which gives a regular NumPy array (type `numpy.ndarray`) and the other using `cp.random.rand` which gives a CuPy array on the GPU (type `cp.ndarray`).  Notes: (a) the syntax is identical for the NumPy and CuPy functions, and (b) CuPy arrays always live on the GPU (unlike PyTorch tensors, which can be either on the CPU or on the GPU).
     
     ```
     x = np.random.rand(3,3)
@@ -589,11 +596,227 @@ Probably the best reason for containerizing code is to make it easy to run the c
 
 #### Apptainer history<a id="apptainer-history"></a>
 
+- **Singularity** (the original name) developed in 2015 at LBL by Gregory Kurtzer et al. and became popular on HPC clusters 2016-2018.
+- 2018 Kurtzer founded [Sylabs](https://sylabs.io/) and released Singularity 3.0 rewritten in Go.
+- 5/21 Sylabs forked Singularity 3.8.? to **SingularityCE** “community edition”, they also have a pay-for version called SingularityPRO:
+  - First version SingularityCE 3.8.0 5/26/21
+  - Current version SingularityCE 4.2 as of 1/25
+- 11/21 Singularity renamed [**Apptainer**](https://apptainer.org/).
+  - Last Singularity version 3.8.7 3/17/22
+  - First Apptainer version 1.0.1 3/2/22
+  - Current Apptainer version 1.3.6 12/24
+- Apptainer versions on various systems, as of 1/25:
+  - My Linux PCs at work and home, installed as below: Apptainer 1.3.4
+  - Unity: Apptainer 1.3.4
+
 #### Installing Apptainer<a id="install-apptainer"></a>
+
+1/25 Installed Apptainer 1.3.4 on [my three PCs  running Ubuntu 24.04](#pcs):
+
+- Followed the instructions in the Install Ubuntu Packages section in the Installing Apptainer section of the Apptainer Admin Guide in the [documentation](https://apptainer.org/documentation/) at the Apptainer site.  These were the steps for a **non-setuid** installation, which generally seems to be recommended:
+  
+  ```
+  $ sudo add-apt-repository -y ppa:apptainer/ppa
+  $ sudo apt update
+  $ sudo apt install -y apptainer
+  ```
+
+- This should eventually be unneccesary, but as of 1/25 trying to run Apptainer freshly installed as above as a regular (non-sudo) user under Ubuntu 24.04 fails with the following messages:
+  
+  ```
+  ERROR  : Could not write info to setgroups: Permission denied
+  ERROR  : Error while waiting event for user namespace mappings: no event received
+  ```
+  
+  - The source of this problem - a security upgrade when Ubuntu went to 24.04 that requires an apparmor profile for Apptainer which was omitted from the Apptainer distribution for Ubuntu - is discussed in these links:
+    
+    - https://github.com/apptainer/apptainer/issues/2608
+    - https://github.com/apptainer/apptainer/blob/main/INSTALL.md#apparmor-profile-ubuntu-2404
+    - https://github.com/apptainer/apptainer/issues/2360
+  
+  - From these links I found the problem could be fixed by adding a file called `apptainer` to the directory `/etc/apparmor.d` with these contents…
+    
+    ```
+    # Permit unprivileged user namespace creation for apptainer starter
+    abi <abi/4.0>,
+    include <tunables/global>
+    profile apptainer /usr/libexec/apptainer/bin/starter{,-suid} 
+        flags=(unconfined) {
+      userns,
+      # Site-specific additions and overrides. See local/README for details.
+      include if exists <local/apptainer> 
+    }
+    ```
+    
+    ...then re-booting or running this command:
+    
+    ```
+    $ sudo systemctl reload apparmor
+    ```
+  
+  - On **Unity** this problem does not exist or was fixed by administrators -- non-superusers are allowed to run Apptainer containers.
+
+- Check the Apptainer version.  I also checked the Singularity version, which on my PCs was still the pre-fork version installed in 2022 (not used in the rest of this document):
+  
+  ```
+  $ apptainer --version
+  apptainer version 1.3.4
+  $ singularity --version
+  singularity version 3.7.4
+  ```
+
+- On **Unity** `singularity` is aliased to `apptainer`, meaning Singularity commands actually run Apptainer.  Logged into Unity:
+  
+  ```
+  $ apptainer --version
+  apptainer version 1.3.4
+  $ singularity --version
+  apptainer version 1.3.4
+  ```
+  
+  For this document I decided not to do this, but rather to use `apptainer` commands directly.
 
 #### Testing the install: An OS-only container<a id="os-only-container"></a>
 
+- Here is a [short tutorial](https://medium.com/@dcat52/making-your-first-container-81b832d82a6f).
+
+- The specifications for building a container are in a small text file (a `.def` file), while the container itself is a large Singularity image file (a `.sif` file). Typically containers are “bootstrapped” from a **Docker** container found on [Docker Hub](https://hub.docker.com/) -- the `apptainer build` command will convert the Docker container to an Apptainer container, then add more things to it as specified by the `.def` file. For a minimal definition file that bootstraps the official container for Ubuntu 24.04 and doesn’t add anything further to it, make a file **`os-only.def`** with these contents:
+  
+  ```
+  Bootstrap: docker
+  From: ubuntu:24.04
+  ```
+  
+  These statements tell Apptainer to use the container `ubuntu:24.04` from Docker Hub, where you can find many other starting containers to use for your builds (for example, containers  with other flavors or versions of Linux, with Conda and the Miniconda distribution, with other applications...).
+
+- Because container images (`.sif` files) can be fairly large (up to several GB), it is often helpful to keep them in a separately backed up directory. To avoid repetitive typing set a shell variable `SIFS` to point to this directory:
+  
+  ```
+  $ export SIFS="/home/..."        # directory where .sif files will be put
+  ```
+  
+  If this path includes any spaces it must be quoted as shown here and below, otherwise the quotes can
+  be omitted.
+
+- Build the container image: In the directory that contains the definition file `os-only.def` do the following command. **Root privilege is necessary to build a container image, but not to use it.** (According to the Apptainer docs it should be possible to build a container without root privilege by using the `--fakeroot` option, but I haven’t tried this.)
+  
+  ```
+  $ sudo apptainer build "$SIFS"/os-only.sif os-only.def
+  ```
+
+- This created a 30 MB image file `$SIFS/os-only.sif`. We can open a shell running inside the container using the `apptainer shell` command.  This gives a prompt `Apptainer>` from which we can issue shell commands that will run inside the container:
+  
+  ```
+  $ apptainer shell "$SIFS"/os-only.sif
+  Apptainer> pwd
+  /home/...
+  ```
+  
+  The current working directory inside the container is the same as is was before the container was started (more on this below), making it easy for commands run in the container to work with files outside the container.
+
+- The following example shows
+  
+  - Python is not installed inside this bare-bones container.
+  
+  - The OS inside the container is Ubuntu 24.04 as set in the definition file `os-only.def`, independent of what the OS is outside the container. Either of the outside and inside OS versions can be newer (within broad limits set by kernel versions) or they can be the same.
+  
+  - A command (here `touch`) run inside the container accesses the directory outside the container from which the container was started.  
+  
+  - To exit the container shell do `ctrl-D`. Outside the container we see that Python is installed (unlike inside), and the file created by the `touch` command now exists.
+    
+    ```
+    Apptainer> python --version
+    bash: python: command not found
+    Apptainer> cat /etc/os-release
+    PRETTY_NAME="Ubuntu 24.04.1 LTS"
+           ...
+    Apptainer> pwd
+    /home/..          (will be directory in which “apptainer shell” was run)
+    Apptainer> touch foo
+    Apptainer>        (hit ctrl-D to exit the container)
+    exit
+    $ python --version
+    Python 3.11.11
+    $ ls
+    ...  foo  ...
+    ```
+    
+    Possible point of confusion: The container has its own file system with its own root, independent of the file system outside the container.  Thus `/etc/os-release` in the `cat` command above prints a file that exists inside the container with OS information.  However, for convenience, **certain directories inside the container are automatically bound to directories outside the container with the same names** when the container is run. Typically these will include **the user's current working and home directories** -- making it possible to access the same files and directories from inside the container as outside.
+    
+    I believe these two things: (a) the ability to run a container as a non-superuser, and (b) the ability to access files outside the container are among the primary differences between Apptainer and Docker containers, making Apptainer more suitable for use on a shared HPC system.  I think Docker containers are most frequently run in cloud-based virtual machines for which the user will have superuser access.
+    
+    **Note on the initial working directory in an Apptainer container.**  In 2023 when Unity was newer, the current working directory (CWD) inside an Apptainer container was not automatically bound to the CWD from which the container was run, if it was run from a subdirectory of `/work` (the normal place for job I/O) - I think because `/work` is not under `/home` unlike the work directories for some other HPC clusters like the former USMC.  But as of 1/25 this seems to have been fixed -- even when run from a directory under `/work`, the CWD is bound as usual.
+
 #### A container including chosen Python packages<a id="packages-container"></a>
+
+- It is possible to install Pip, Python, etc. into a bare-bones Ubuntu container as created above, but it is easier to start with a container that has Python, pip, Conda, and the Miniconda package distribution pre-installed. Docker images of such containers are available from the Anaconda folks. Make a file **`pack.def`** with these contents:
+  
+  ```
+  Bootstrap: docker
+  From: continuumio/miniconda3
+  
+  %post
+    conda install numpy matplotlib scipy
+  ```
+  
+  This has a new **`%post`** section which lists Linux commands that will be **run during the container-build process**, establishing an "environment" with the needed packages inside the container which will be available wherever the container is run. There is no need to make a Conda environment -- the container itself provides the environment.
+
+- Build the container as above:
+  
+  ```
+  $ sudo apptainer build "$SIFS"/pack.sif pack.def
+  ```
+  
+  The container has grown considerably in size – without the conda install command the container size is 235 MB, and with the full definition shown above it is 1.4 GB.
+
+- Shelling into the container we can find the versions of things and verify that we have a working Python installation:
+  
+  ```
+  $ apptainer shell "$SIFS"/pack.sif
+  
+  Apptainer> cat /etc/os-release
+  PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"
+         ...
+  Apptainer> python --version
+  Python 3.12.8
+  Apptainer> pip list
+  Package                  Version
+  ------------------------ -----------
+  matplotlib               3.9.2
+  numpy                    2.1.3
+  scipy                    1.14.1
+           ...
+  Apptainer> python
+           ...
+  >>> print('Hello from this container')
+  Hello from this container
+  ```
+  
+   From this we see that in the container we are running Debian 12 Linux (not Ubuntu as above), Python 3.12.8, etc. If an earlier version of Python is needed for compatibility, there are more specific versions of continuumio/miniconda3 that can be bootstrapped from Docker Hub.
+
+- **Using the container to run Python scripts outside the container.**
+  
+  - Here is simple program **`np-version.py`** that imports Numpy and prints out its version:
+    
+    ```
+    import numpy as np
+    print(f'numpy version = {np.__version__}')
+    ```
+    
+    Running it in a terminal showed that Numpy 1.24.3 was installed on my PC:
+    
+    ```
+    $ python np-version.py
+    numpy version = 1.24.3
+    ```
+  - Rather than shelling into the container with **`apptainer shell`**, we we can use **`apptainer exec`** (invoked outside the container) to run `np-version.py` inside the container -- even though the file `np-version.py` is located outside the container. This reports the version of Numpy inside the container:
+    
+    ```
+    $ apptainer exec "$SIFS"/pack.sif python np-version.py
+    numpy version = 2.1.3
+    ```
+    
+    This works because the actual program being run is `python`, which is installed inside the container, and `np-version.py` is an input file to `python`.  Thus our program will be run with the Python version and package environment that exists inside the container.
 
 #### A container with a local Python package included and installed<a id="local-package-container"></a>
 
@@ -629,6 +852,8 @@ Finally, the computational resources of an HPC cluster are only useful if availa
 
 #### Slurm on Unity<a id="unity-slurm"></a>
 
+TODO add seff
+
 #### Running jobs interactively: `salloc` or `unity-compute`<a id="run-interactive"></a>
 
 #### Using `.bashrc` and `.bash_aliases`<a id="rc-files"></a>
@@ -647,6 +872,8 @@ Finally, the computational resources of an HPC cluster are only useful if availa
 
 #### Running a container interactively or in a batch job<a id="unity-run-container"></a>
 
+TODO see what files can be accessed inside a container in unity - maybe not directories in work above starting directory?
+
 #### Running a container that uses MPI<a id="unity-mpi-container"></a>
 
 #### Running a container the uses a GPU<a id="unity-gpu-container"></a>
@@ -660,3 +887,11 @@ Finally, the computational resources of an HPC cluster are only useful if availa
 ### Strong and weak scaling<a id="strong-weak-scaling"></a>
 
 ### Estimating MPI communication overhead<a id="estimate-mpi-overhead"></a>
+
+```
+
+```
+
+```
+
+```

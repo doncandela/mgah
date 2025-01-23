@@ -1,0 +1,6 @@
+Bootstrap: docker
+From: continuumio/miniconda3
+
+%post
+    conda install numpy matplotlib scipy
+    conda install -c conda-forge cupy
