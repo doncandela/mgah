@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   1/23a/25
+mgah.md  D. Candela   1/24/25
 
 - [Introduction](#intro)  
   
@@ -80,7 +80,21 @@ This the cheat sheet I that accumulated as I learned to combine several tools fo
 
 - High-performance Computing (**HPC**) typically refers to using a large cluster of connected computers assembled and maintained by Universities and other organizations for the use of their communities.  This document only discusses an HPC cluster running Linux and managed by  [**Slurm**](https://slurm.schedmd.com/overview.html) scheduling software, with  the the [**UMass Unity cluster**](https://unity.rc.umass.edu/index.php) as the specific HPC system used here.
 
-Why Python?  Why Linux? Because those are what I use, and this is my cheat sheet.
+Why Python?  Why Linux? Because those are what I use, and this is my cheat sheet.  So this document is geared towards this work flow:
+
+- Write some Python code and get it working on a Linux PC.
+
+- (If desired) to get some parallel speedup either:
+  
+  - add MPI code and get that working on the multiple cores of the PC, or
+  
+  - start using a GPU-aware package like CuPy or PyTorch and get that working using the PC's GPU.
+
+- (If desired) to move the code to an HPC cluster like Unity:
+  
+  - Optionally use Apptainer to containerize the code - this document shows how to do this if the code uses MPI, a GPU, or neither.
+  
+  - Copy the (already working) code, containerized or not, to the HPC cluster and run it there.
 
 Although there may be some information useful for the following topics, this document **does not cover:**
 
@@ -245,10 +259,10 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
   - **`np-version.py`** is a very short program that imports Numpy and prints out its version.
   - **`dcfuncs`** is small package of utility functions, used in this document as an example of a Python package [installed locally](#local-package). 
 - The following Apptainer definition files are used:
-  - **`os-only.def`** makes a container that contains only the Ubuntu OS.
-  - **`pack.def`** makes a container that contains Linux, Conda, and the Miniconda package distribution, and installs a few selected packages in the container.
-  - **`tprogs.def`** makes a container...TODO change name??
-  - **`gputest.def`** makes a container that imports CuPy and so can use a GPU.
+  - **`os-only.def`** makes a container that contains only the **Ubuntu OS**.
+  - **`pack.def`** makes a container that contains Linux, Conda, and the **Miniconda** package distribution, and installs a few selected packages in the container.
+  - **`dfs.def`** makes a container with the local package **`dcfuncs`** installed in it
+  - **`gpu.def`** makes a container that imports **CuPy** so it can use a GPU.
 
 ### Installing a local package<a id="local-package"></a>
 
@@ -281,7 +295,7 @@ In other sections of this document it is shown how a local package like this can
   (dfs)..$ conda install numpy          # needed by dcfuncs
   ```
 
-- Download this package and go to the subdirectory **`test`** Before the package is installed, running any of the `test-...` programs will give a `ModuleNotFound` error:
+- Download this package and go to the subdirectory **`test`**. Before the package is installed, running any of the `test-...` programs will give a `ModuleNotFound` error:
   
   ```
   (dfs)..test$ python test-util.py
@@ -301,7 +315,7 @@ In other sections of this document it is shown how a local package like this can
 - Now the test programs run without error:
   
   ```
-  (dfuncs)..test$ python test-util.py
+  (dfs)..test$ python test-util.py
   This is: dutil.py 8/19/24 D.C.
   Using: util.py 8/18/24 D.C.
   
@@ -887,6 +901,12 @@ Probably the best reason for containerizing code is to make it easy to run the c
     This works because the actual program being run is `python`, which is installed inside the container, and `np-version.py` is just an input file to `python`.  Thus our program will be run with the Python version and package environment that exists inside the container.
 
 #### A container with a local Python package installed<a id="local-package-container"></a>
+
+- Next we make a container with the local package **`dcfuncs`** installed inside it, so this package can be used by Python code outside the container. See [Installing a local package](#local-package) above, which shows how **`dcfuncs`** is installed and used without a container.
+
+- To **build** the container, the `dcfuncs` repository (directory `dcfuncs` with its files and subdirectories) must be somewhere on the PC so it can be copied into the container.
+
+- Make a definition file **dfs.def** with the following contents:
 
 #### A container that can use MPI<a id="mpi-container"></a>
 

@@ -2,8 +2,7 @@ Bootstrap: docker
 From: continuumio/miniconda3
 
 %files
-    tprogs/gputest /gputest
-    tprogs/dcfuncs /dcfuncs
+    dcfuncs /dcfuncs
 
 %post
     conda install numpy matplotlib scipy
