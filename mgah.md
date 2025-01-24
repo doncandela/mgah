@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   1/23/25
+mgah.md  D. Candela   1/23a/25
 
 - [Introduction](#intro)  
   
@@ -12,6 +12,7 @@ mgah.md  D. Candela   1/23/25
     - [Unity HPC cluster](#unity-intro)
   - [Pip and Conda](#pip-conda)
   - [Conda environments and test code used in this document](#envs-testprogs)
+  - [Installing a local package](#local-package)
 
 - [Part 1: MPI, GPU, and Apptainer on a Linux PC](#on-linux-pc)
   
@@ -32,7 +33,7 @@ mgah.md  D. Candela   1/23/25
     - [Installing Apptainer](#install-apptainer)
     - [Testing the install: An OS-only container](#os-only-container)
     - [A container including chosen Python packages](#packages-container)
-    - [A container with a local Python package included and installed](#local-package-container)
+    - [A container with a local Python package installed](#local-package-container)
     - [A container that can use MPI](#mpi-container)
     - [A container that can use a GPU](#gpu-container)
 
@@ -48,6 +49,7 @@ mgah.md  D. Candela   1/23/25
     - [Running jobs interactively: `salloc` or `unity-compute`](#run-interactive)
     - [Using `.bashrc` and `.bash_aliases`](#rc-files)
     - [Using modules and Conda](#unity-modules-conda)
+    - [Installing a local package](#local-package-unity)
     - [Running batch jobs: `sbatch`](#run-batch)
     - [Using MPI](#unity-mpi)
     - [Using a GPU](#unity-gpu)
@@ -235,16 +237,81 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
 
 - The following Conda environments are used in this document:
   - **`p39`** (defined just above) has Python 3.9, Numpy, SciPy, etc but does not have OpenMPI, PyTorch, or CuPy.
+  - **`dfs`** (define in [Installing a local package](#local-package) below) environment for trying out  the local package `dcfuncs`.
   - **`pyt`** (defined in [Installing CUDA-aware Python packages...](#pytorch-cupy) below) adds PyTorch.
   - **`gpu`** (also defined in [Installing CUDA-aware Python packages...](#pytorch-cupy) below) adds CuPy.
 - The following test code is used:
   - **`gputest.py`** makes dense and sparse matrices of various sizes and floating-point types, and times operations using these matrices on the CPU and (if available) the GPU. If run in an environment without CuPy like **`p39`**, only CPU tests will be run. But if run in **`gpu`** and a GPU can be initialized, will also run GPU tests.
   - **`np-version.py`** is a very short program that imports Numpy and prints out its version.
+  - **`dcfuncs`** is small package of utility functions, used in this document as an example of a Python package [installed locally](#local-package). 
 - The following Apptainer definition files are used:
   - **`os-only.def`** makes a container that contains only the Ubuntu OS.
   - **`pack.def`** makes a container that contains Linux, Conda, and the Miniconda package distribution, and installs a few selected packages in the container.
   - **`tprogs.def`** makes a container...TODO change name??
   - **`gputest.def`** makes a container that imports CuPy and so can use a GPU.
+
+### Installing a local package<a id="local-package"></a>
+
+Somtimes it is convenient to write or otherwise come by a **package of Python modules** (containing class and function definitions), copy the package somewhere on the computer being used, and then make it possible to import the package from any directory on the same computer -- this is a **local package**, as opposed to a package downloaded from a repository of published packages like Anaconda or PyPi.  A way to structure such a local package is outlined in Appendix B of the cheat sheet  [Getting started with Git and GitHub](https://github.com/doncandela/gs-git).
+
+In other sections of this document it is shown how a local package like this can be [installed on an HPC cluster](#local-package-unity) like Unity (in user space), and how it can be [installed in an Apptainer container](#local-package-container) which can then be used on a PC or on an HPC cluster.  As a starting point this section shows how a local package can be installed on a Linux PC , not using Apptainer.
+
+- The package used for these examples is **`dcfuncs`**, a small set of utility functions that can be downloaded from [GitHub - doncandela/dcfuncs](https://github.com/doncandela/dcfuncs) -- hit `Download Zip` under the `<> Code` tab (read the comments to find out what the functions do -- not relevant for present purposes). This repository has the following structure:
+  
+  ```
+  dcfuncs/
+     src/
+        dcfuncs/            # installable package
+           util.py          # utility functions: error exit, profiling, etc.
+           configs.py       # reading yaml configuration files
+        test/               # code to test if package is installed and usable
+           test-util.py
+           test-configs.py
+           test-util.ipynb
+     pyproject.toml
+     setup.py
+  ```
+
+- Make a Conda environment `dfs` in which to install and test the `dcfuncs` package:
+  
+  ```
+  $ conda update conda
+  $ conda create -n dfs python=3
+  $ conda activate dfs
+  (dfs)..$ conda install numpy          # needed by dcfuncs
+  ```
+
+- Download this package and go to the subdirectory **`test`** Before the package is installed, running any of the `test-...` programs will give a `ModuleNotFound` error:
+  
+  ```
+  (dfs)..test$ python test-util.py
+  Traceback (most recent call last):
+    File "test-util.py", line 7, in <module>
+    import dcfuncs.util as dutil
+  ModuleNotFoundError: No module named 'dcfuncs'
+  ```
+
+- Go to the top directory in the repository and use this `pip` command to install the package (the optional `-e` makes the package editable without reinstalling, while the `.` means install from the current directory).
+  
+  ```
+  (dfs)...dcfuncs$ pip install -e .
+  (dfs)...dcfuncs$ pip list               # this will show dcfuncs installed
+  ```
+
+- Now the test programs run without error:
+  
+  ```
+  (dfuncs)..test$ python test-util.py
+  This is: dutil.py 8/19/24 D.C.
+  Using: util.py 8/18/24 D.C.
+  
+  Testing zz:
+  - WARNING from util.py test code - This is just a warning.
+  
+  Testing stoi:
+  stoi results = 93801881091158, 6318, 249613385242335
+         ...
+  ```
 
 ## Part 1: MPI, GPU, and Apptainer on a Linux PC<a id="on-linux-pc"></a>
 
@@ -792,7 +859,7 @@ Probably the best reason for containerizing code is to make it easy to run the c
   Hello from this container
   ```
   
-   From this we see that in the container we are running Debian 12 Linux (not Ubuntu as above), Python 3.12.8, etc. If an earlier version of Python is needed for compatibility, there are more specific versions of continuumio/miniconda3 that can be bootstrapped from Docker Hub.
+   From this we see that in the container we are running Debian 12 Linux (not Ubuntu as above), Python 3.12.8, etc. If an different version of Python is needed for compatibility, there are more specific versions of continuumio/miniconda3 that can be bootstrapped from Docker Hub.
 
 - **Using the container to run Python scripts outside the container.**
   
@@ -809,6 +876,7 @@ Probably the best reason for containerizing code is to make it easy to run the c
     $ python np-version.py
     numpy version = 1.24.3
     ```
+  
   - Rather than shelling into the container with **`apptainer shell`**, we we can use **`apptainer exec`** (invoked outside the container) to run `np-version.py` inside the container -- even though the file `np-version.py` is located outside the container. This reports the version of Numpy inside the container:
     
     ```
@@ -816,9 +884,9 @@ Probably the best reason for containerizing code is to make it easy to run the c
     numpy version = 2.1.3
     ```
     
-    This works because the actual program being run is `python`, which is installed inside the container, and `np-version.py` is an input file to `python`.  Thus our program will be run with the Python version and package environment that exists inside the container.
+    This works because the actual program being run is `python`, which is installed inside the container, and `np-version.py` is just an input file to `python`.  Thus our program will be run with the Python version and package environment that exists inside the container.
 
-#### A container with a local Python package included and installed<a id="local-package-container"></a>
+#### A container with a local Python package installed<a id="local-package-container"></a>
 
 #### A container that can use MPI<a id="mpi-container"></a>
 
@@ -859,6 +927,8 @@ TODO add seff
 #### Using `.bashrc` and `.bash_aliases`<a id="rc-files"></a>
 
 #### Using modules and Conda<a id="unity-modules-conda"></a>
+
+#### Installing a local package<a id="local-package-unity"></a>
 
 #### Running batch jobs: `sbatch`<a id="run-batch"></a>
 
