@@ -258,7 +258,7 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
   - **`gputest.py`** makes dense and sparse matrices of various sizes and floating-point types, and times operations using these matrices on the CPU and (if available) the GPU. If run in an environment without CuPy like **`p39`**, only CPU tests will be run. But if run in **`gpu`** and a GPU can be initialized, will also run GPU tests.
   - **`np-version.py`** is a very short program that imports Numpy and prints out its version.
   - **`dcfuncs`** is small package of utility functions, used in this document as an example of a Python package [installed locally](#local-package). 
-- The following Apptainer definition files are used:
+- The following Apptainer definition files are used. They are all discussed in [Using Apptainer on a Linux PC](#apptainer-pc) below:
   - **`os-only.def`** makes a container that contains only the **Ubuntu OS**.
   - **`pack.def`** makes a container that contains Linux, Conda, and the **Miniconda** package distribution, and installs a few selected packages in the container.
   - **`dfs.def`** makes a container with the local package **`dcfuncs`** installed in it
@@ -528,7 +528,7 @@ These steps are only need once on a given PC, unless updating to newer versions.
     GPU has compute capability 61
     ```
     
-    Next (after doing the inports as above), we make two $3\times3$ arrays of random numbers -- one using `np.random.rand` which gives a regular NumPy array (type `numpy.ndarray`) and the other using `cp.random.rand` which gives a CuPy array on the GPU (type `cp.ndarray`).  Notes: (a) the syntax is identical for the NumPy and CuPy functions, and (b) CuPy arrays always live on the GPU (unlike PyTorch tensors, which can be either on the CPU or on the GPU).
+    Next (after doing the imports as above), we make two $3\times3$ arrays of random numbers -- one using `np.random.rand` which gives a regular NumPy array (type `numpy.ndarray`) and the other using `cp.random.rand` which gives a CuPy array on the GPU (type `cp.ndarray`).  Notes: (a) the syntax is identical for the NumPy and CuPy functions, and (b) CuPy arrays always live on the GPU (unlike PyTorch tensors, which can be either on the CPU or on the GPU).
     
     ```
     x = np.random.rand(3,3)
@@ -571,7 +571,7 @@ These steps are only need once on a given PC, unless updating to newer versions.
       [0.69553234 0.09401508 0.38381413]] <class 'cupy.ndarray'>
     ```
 
-- **A more elaborate CuPy program: `gputest.py`.**  This program test the speed of the CPU and (if available) the GPU by timing the muliplication of matrices -- both dense and sparse -- of various sizes and data types.  See the comments in `gputest.py` for details:
+- **A more elaborate CuPy program: `gputest.py`.**<a id="gputest-py"></a>  This program tests the speed of the CPU and (if available) the GPU by timing the muliplication of matrices -- both dense and sparse -- of various sizes and data types.  See the comments in `gputest.py` for details:
   
   ```
   (gpu) $ python gputest.py
@@ -785,7 +785,7 @@ Probably the best reason for containerizing code is to make it easy to run the c
   $ sudo apptainer build "$SIFS"/os-only.sif os-only.def
   ```
 
-- This created a 30 MB image file `$SIFS/os-only.sif`. We can open a shell running inside the container using the `apptainer shell` command.  This gives a prompt `Apptainer>` from which we can issue shell commands that will run inside the container:
+- This created a 30 MB image file **`os-only.sif`** ` in the directory $SIFS`. We can open a shell running inside the container using the `apptainer shell` command.  This gives a prompt `Apptainer>` from which we can issue shell commands that will run inside the container:
   
   ```
   $ apptainer shell "$SIFS"/os-only.sif
@@ -848,7 +848,7 @@ Probably the best reason for containerizing code is to make it easy to run the c
   $ sudo apptainer build "$SIFS"/pack.sif pack.def
   ```
   
-  The container has grown considerably in size – without the conda install command the container size is 235 MB, and with the full definition shown above it is 1.4 GB.
+  The resulting container **`pack.sif`**  is now considerably in larger – without the conda install command the container size is 235 MB, and with the full definition shown above it is 1.4 GB.
 
 - Shelling into the container we can find the versions of things and verify that we have a working Python installation:
   
@@ -902,15 +902,172 @@ Probably the best reason for containerizing code is to make it easy to run the c
 
 #### A container with a local Python package installed<a id="local-package-container"></a>
 
-- Next we make a container with the local package **`dcfuncs`** installed inside it, so this package can be used by Python code outside the container. See [Installing a local package](#local-package) above, which shows how **`dcfuncs`** is installed and used without a container.
+Next we make a container with the local package **`dcfuncs`** installed inside it, so this package can be used by Python code outside the container. See [Installing a local package](#local-package) above, which shows how **`dcfuncs`** is installed and used without a container.
 
-- To **build** the container, the `dcfuncs` repository (directory `dcfuncs` with its files and subdirectories) must be somewhere on the PC so it can be copied into the container.
+- Make a definition file **`dfs.def`** with the following contents:  
+  
+  ```
+  Bootstrap: docker
+  From: continuumio/miniconda3
+  
+  %files
+      dcfuncs /dcfuncs
+  
+  %post
+      conda install numpy matplotlib scipy
+      cd /dcfuncs
+      pip install .
+  
+  %runscript
+      echo foo!
+  ```
+  
+  In addition to the %post section with Linux commands introduced above, this `.def` file has several new elements:
+  
+  - The **`%files`**  section copies files into the container before the` %post` commands are run -- each line gives a source directory or file outside the container and a copy location inside the container. 
+    
+    - To **build** (as opposed to run) the container, the `dcfuncs` repository (directory `dcfuncs` with its files and subdirectories) must be available on the PC.  For this example copy the repository under the directory containing the definition file:
+      
+      ```
+      dfs.def
+      dcfuncs/
+         src/
+          ...
+      ```
+    
+    - As written in `dfs.def` above the files from `dcfuncs`  will be written into a directory `/dcfuncs` in the container. As a non-superuser we cannot write to the filesystem root `/` outside the container -- but we can write to the filesystem root inside the container.  In other words, we are effectively a superuser inside the container.
+  
+  - The **`%post`** section runs pip to install the dcfuncs package inside the container.
+  
+  - An Apptainer container is an executable file, and the **`%runscript`** section gives the commands that will be executed if it is run.
 
-- Make a definition file **dfs.def** with the following contents:
+- Build the container, resulting in the 1.4 GB image file **`dfs.sif`**:
+  
+  ```
+  $ sudo apptainer build "$SIFS"/dfs.sif dfs.def
+  ```
+  
+  You will see a warning about running `pip` as root -- not a problem here as we are in the confines of the container (I believe -- although you can find an extensive discussion of this point online).
+
+- The simplest thing we can do with this new container is to run it
+  
+  ```
+  $ "$SIFS"/dfs.sif
+  foo!
+  ```
+
+- Shelling into the container we can use `pip list` to verify that the dcfuncs package is installed:
+  
+  ```
+  $ apptainer shell "$SIFS"/dfs.sif
+  Apptainer> pip list
+  Package                  Version
+  ------------------------ -----------
+  dcfuncs                  1.0
+               ...
+  ```
+
+- If we exit the container with `ctrl-D` and try to run the test code for `dcfuncs` with Python outside the container, it will fail with `module not found` (assuming we have not also installed `dcfuncs` outside the container):
+  
+  ```
+  $ python dcfuncs/test/test-util.py
+  Traceback (most recent call last):
+            ...
+  ModuleNotFoundError: No module named 'dcfuncs'
+  ```
+  
+  But now we can use `python` in the container to run the same test code (which lies outside the container) without error:
+  
+  ```
+  $ apptainer exec "$SIFS"/dfs.sif python dcfuncs/test/test-util.py
+  This is: dutil.py 8/19/24 D.C.
+  Using: util.py 8/18/24 D.C.
+  
+  Testing zz:
+  - WARNING from util.py test code - This is just a warning.
+                   ...
+  ```
+  
+    The upshot is that **the** **`dcfuncs` package is available to `python` running in the container, whether or not `dcfuncs` is installed outside the container** – and `python` running in the container can run Python code (`.py` files) outside the container.
+
+- As [shown earlier in this document](#gputest-py) if we run `gputest.py` in the Conda environment `gpu` then the GPU will be found and used:
+  
+  ```
+  ..$ cd ...                 # change to directory where gputest.py is located
+  ..$ conda activate gpu
+  (gpu)..$ python gputest.py 
+  Running: gputest.py 11/22/23 D.C.
+  Local time: Tue Jan 7 16:05:53 2025
+  GPU 0 has compute capacity 6.1, 6 SMs, 4.23 GB RAM, guess model = GeForce GTX 1050
+  CPU timings use last 10 of 11 trials
+  GPU timings use last 25 of 28 trials
+        ...
+  ```
+  
+  Conversely, since we have not installed CuPy inside this container, running the same program with `python` inside the container will not find CuPy and the GPU, even though `gpu` is activated:
+  
+  ```
+  (gpu)..$ apptainer exec "$SIFS"/dfs.sif python gputest.py
+  Running: gputest.py 11/22/23 D.C.
+  Local time: Tue Jan 7 16:09:24 2025
+  Import cupy failed, using CPU only
+  CPU timings use last 10 of 11 trials
+        ...
+  ```
+  
+  The upshot is that **the environment and packages installed outside the container are not available to `python` running in the container.** While this may seem like a disadvantage, it fits in with the main objective of containerization -- providing a consistent environment for running code independent of what is installed outside the container.
 
 #### A container that can use MPI<a id="mpi-container"></a>
 
+TODO
+
 #### A container that can use a GPU<a id="gpu-container"></a>
+
+- Make a definition file **`gpu.def`** with the following contents. As in the previous section we start with a Docker image that includes Python, Conda, and the Miniconda distribution and we install Numpy, Matplotlib, and Scipy. Now we also install CuPy, getting it from conda-forge to be sure it is up-to-date:
+  
+  ```
+  Bootstrap: docker
+  From: continuumio/miniconda3
+  
+  %post
+      conda install numpy matplotlib scipy
+      conda install -c conda-forge cupy
+  ```
+
+- Use `gpu.def` to build the container **`gpu.sif`**:
+  
+  ```
+  $ sudo apptainer build "$SIFS"/gpu.sif gpu.def
+  ```
+  
+  Due to the inclusion of CuPy, this container is considerably larger (3.5 GB vs 1.4 GB without CuPy).  Interestingly, I was able to build this container on  a PC that does not have a GPU (hoffice). Nevertheless when `gpu.sif` was copied to other computers that did have GPUs (my other PCs and Unity), it was able to use the GPU .
+
+- A GPU, the NVIDIA drivers, and CUDA must all be installed outside the container on the computer on which the container is to be run (but it is not necessary for the Python package that will be using the GPU, in this case CuPy, to be installed outside the container).
+  
+  - The section [Installing NVIDIA drivers](#nvidia-drivers) above shows how to install these things on a PC.
+  - When successfully installed it will be possible to run the shell command **`nvidia-smi`** outside the container, which will print information on the installed GPU and CUDA version.
+
+- As documented in [this Apptainer page](https://apptainer.org/docs/user/latest/gpu.html), `apptainer` commands that run the container (`shell`, `exec`..) must include the **`--nv`** option, which will make CUDA installed outside the container available inside.  Here we are in a directory containing `gputest.py`, which will successfully import CuPy and use the GPU when run by `python` in the container `gpu.sif`:
+  
+  ```
+  (base)$ apptainer exec --nv "$SIFS"/gpu.sif python gputest.py
+  Running: gputest.py 11/22/23 D.C.
+  Local time: Wed Jan 15 17:54:50 2025
+  GPU 0 has compute capacity 6.1, 6 SMs, 4.23 GB RAM, guess model = GeForce GTX 1050
+  CPU timings use last 10 of 11 trials
+  GPU timings use last 25 of 28 trials
+  
+  ***************** Doing test dense_mult ******************
+  Multiply M*M=N element dense matrices
+  *********************************************************
+  
+  ************ Using float64 **************
+           N     flop make mats  CPU test *CPU op/s*  GPU test *GPU op/s*  GPU xfer xfer rate
+      99,856 6.30e+07 3.31e-03s 4.72e-04s 1.34e+11/s 1.25e-03s 5.04e+10/s 4.00e-03s  0.80GB/s
+                                      ...
+  ```
+  
+  By using the container, we can run the program `gputest.py` from the `base` environment, which does not have the packages `numpy`, `scipy`, `cupy` that `gputest.py` imports installed (they are all in the container) -- nevertheless the GPU is successfully used.
 
 ## Part 2: Moving code to a Slurm HPC cluster<a id="move-to-hpc"></a>
 
@@ -977,6 +1134,14 @@ TODO see what files can be accessed inside a container in unity - maybe not dire
 ### Strong and weak scaling<a id="strong-weak-scaling"></a>
 
 ### Estimating MPI communication overhead<a id="estimate-mpi-overhead"></a>
+
+```
+
+```
+
+```
+
+```
 
 ```
 
