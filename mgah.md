@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   1/24/25
+mgah.md  D. Candela   1/27/25
 
 - [Introduction](#intro)  
   
@@ -49,7 +49,6 @@ mgah.md  D. Candela   1/24/25
     - [Running jobs interactively: `salloc` or `unity-compute`](#run-interactive)
     - [Using `.bashrc` and `.bash_aliases`](#rc-files)
     - [Using modules and Conda](#unity-modules-conda)
-    - [Installing a local package](#local-package-unity)
     - [Running batch jobs: `sbatch`](#run-batch)
     - [Using MPI](#unity-mpi)
     - [Using a GPU](#unity-gpu)
@@ -122,7 +121,7 @@ Python is a semi-interpreted language (compiled to a byte code, like Java) and s
 
 Therefore good performance on large tasks is often achieved by using **packages** (typically written by others in a compiled language like C++) like [NumPy](https://numpy.org/), [SciPy](https://scipy.org/), [CuPy](https://cupy.dev/), and [PyTorch](https://pytorch.org/), to carry out the time-consuming **inner loops** of algorithms. The same is true of other high-level languages like [MATLAB](https://www.mathworks.com/products/matlab.html) and [Mathematica](https://www.mathematica.org/).   While some think Python is inherently slower than C++, if the time limiting factor is, for example, a large linear algebra operation then in either language it will likely be carried out by the same highly-optimized [BLAS](https://www.netlib.org/blas/) function on a CPU (via NumPy, for Python), or the corresponding [cuBLAS](https://developer.nvidia.com/cublas) function on a GPU (via CuPy).
 
-There are however some murky intermediate situations. For example [Numpy advanced indexing](https://numpy.org/doc/stable/user/basics.indexing.html) allows many complicated operations (e.g. operations on elements meeting complicated conditions) on arrays to be carried out much faster than if they were coded directly in Python -- but maybe slower than would be possible in C++.
+There are however some murky intermediate situations. For example [NumPy advanced indexing](https://numpy.org/doc/stable/user/basics.indexing.html) allows many complicated operations (e.g. operations on elements meeting complicated conditions) on arrays to be carried out much faster than if they were coded directly in Python -- but maybe slower than would be possible in C++.
 
 Be that as it may, the premise of this document is **speeding up Python code** by using one or the other of the following strategies (or potentially both together, although that is not discussed in detail):
 
@@ -130,7 +129,7 @@ Be that as it may, the premise of this document is **speeding up Python code** b
 
 (b) **by using a GPU** which is a highly-parallel computational device which however does not directly run Python code (or C++ code, for that matter, although a specialized hybrid language called [CUDA C++](https://docs.nvidia.com/cuda/cuda-c-programming-guide/) is often used to program GPUs).
 
-For case (a) the individual, simultaneously-executing copies of a Python program can each take advantage of packages like Numpy and SciPy, providing parallel speedup in addition to that provided by such packages.  For this approach, you need to figure out how to split your problem into many pieces that can profitably run in parallel, how the pieces will be set up, controlled, and communicate with each other, etc.
+For case (a) the individual, simultaneously-executing copies of a Python program can each take advantage of packages like NumPy and SciPy, providing parallel speedup in addition to that provided by such packages.  For this approach, you need to figure out how to split your problem into many pieces that can profitably run in parallel, how the pieces will be set up, controlled, and communicate with each other, etc.
 
  Conversely for case (b) a  **GPU-aware Python package** like CuPy, PyTorch, or PyCUDA can be installed. The first two of these completely take care of parallelization in a manner transparent to the Python programmer, who however must keep track of which objects are on the GPU and which are on the CPU - a relatively simple thing.
 
@@ -138,9 +137,9 @@ It is important to distinguish between **multithreading** and **multiprocessing*
 
 - A **process** is an independently-running program with its own memory space and other resources. Each process can run an independent Python program. Each core of a CPU can run multiple processes, but only one at a time (i.e. serially) - running multiple processes in parallel requires multiple cores.
 
-- A **thread** is part of a process, that can sometimes use multiple cores to run in parallel with other threads in the same process. For example BLAS which is called by Numpy to do linear algebra can use **multithreading** to run faster if multiple cores are available to the process.
+- A **thread** is part of a process, that can sometimes use multiple cores to run in parallel with other threads in the same process. For example BLAS which is called by NumPy to do linear algebra can use **multithreading** to run faster if multiple cores are available to the process.
 
-- Although a Python program can call packages like Numpy/BLAS that are sped up by doing multithreading on multiple cores, only one Python interpreter at a time can run in a process (for now - there is a [proposal](https://peps.python.org/pep-0703/) to relax this). Thus to carry out parallel *Python* operations **multiprocessing** is required. This can take several different forms:
+- Although a Python program can call packages like NumPy/BLAS that are sped up by doing multithreading on multiple cores, only one Python interpreter at a time can run in a process (for now - there is a [proposal](https://peps.python.org/pep-0703/) to relax this). Thus to carry out parallel *Python* operations **multiprocessing** is required. This can take several different forms:
   
   - Python has a standard package [**`multiprocessing`**](https://docs.python.org/3/library/multiprocessing.html) that can run parallel processes on the different cores of a single CPU (maybe on all the cores in the typically two CPUs in an HPC node? I’m a bit unclear on this).
   
@@ -182,7 +181,7 @@ A more detailed version of this table is in the section [A few of NVDIA's many G
 
 #### Unity HPC cluster<a id="unity-intro"></a>
 
-The HPC commands shown in this document were tested on the [Unity cluster](https://unity.rc.umass.edu/index.php) at UMass, Amherst. Unity runs the [Slurm](https://slurm.schedmd.com/overview.html) job scheduling sytem and as of 1/25 had:
+The HPC commands shown in this document were tested on the [Unity cluster](https://unity.rc.umass.edu/index.php) at UMass, Amherst. Unity runs the [Slurm](https://slurm.schedmd.com/overview.html) job scheduling system and as of 1/25 had:
 
 - About 350 general-access nodes plus another 350 “preempt” nodes belonging to groups but available for general access when not otherwise being used (also additional nodes never available for general access).
 - About 20,000 total cores in the general-access and preempt nodes, with individual nodes mostly having two CPUs and between 24 and 192 cores.
@@ -213,28 +212,32 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
                                  # can be edited without re-installing
     ```
   
-  - If a **virtual environment** has been created and activated by **venv** or by **conda**, pip will install Python packages “in that environment”, i.e. they will only be visible and importable when that environment is activated.
+  - If a **virtual environment** has been created and activated by **venv** or by **Conda**, pip will install Python packages “in that environment”, i.e. they will only be visible and importable when that environment is activated.
   
   - You often see `python -m pip install package` used rather than the simpler commands listed above. I haven’t found this necessary when using pip inside a virtual environment; a discussion is [here](https://snarky.ca/why-you-should-use-python-m-pip/).
 
 - [**Conda**](https://anaconda.org/anaconda/conda) combines and extends the package-management functions of **pip** and the environment-management functions of **venv**. Conda can install packages and libraries for any language, not just Python, which means Conda can install Python itself.
   
-  - **Anaconda** and **Miniconda** are **distributions** of packages (many, and not so many respectively).
+  - **Anaconda** and **Miniconda** are **distributions** of packages (many, and not so many respectively).   
   
-  - It seems preferable to use Conda to install packages when they are available as Conda packages, but many packages (and more recent versions of packages) are not available as Conda packages and can only be installed using pip. Here is an [article on using Conda and pip together](https://www.anaconda.com/blog/using-pip-in-a-conda-environment); it says **pip should be used *after* Conda**.
+  - It seems preferable to use Conda to install packages when they are available as Conda packages, but many packages (and more recent versions of packages) are not available as Conda packages and can only be installed using pip.
+    
+    - Here is an [article on using Conda and pip together](https://www.anaconda.com/blog/using-pip-in-a-conda-environment); it says **pip should be used *after* Conda**.    
+    - When using pip and Conda together, **the Conda environment should be created including Python** as in all the examples in this document.  Then, if pip is used in this environment it will install things in this environment.  If the Conda environment does not include Python, pip will try to modify the global environment which is usually not what is wanted (and is not allowed on an HPC cluster like Unity).
   
   - Some Conda commands:
     
     ```
-    $ conda update conda                 # good to do this before other conda commands
-    $ conda create -n p39 python=3.9.12  # create environment p39 with specific Python version
-    $ conda activate p39                 # activate environment p39, will change prompt
+    $ conda update conda                  # good to do this before other conda commands
+    $ conda search openmpi                # search for openmpi packages in default channels
+    $ conda search -c conda-forge openmpi # search in channel conda-forge
+    $ conda create -n p39 python=3.9.12   # create environment p39 with specific Python version
+    $ conda activate p39                  # activate environment p39, will change prompt
     (p39)$ conda install matplotlib numba numpy pyyaml scipy  # install packages to current
                                                               # environment p39
     (p39)$ conda install spyder=5.2.2 # install Spyder IDE to this evironment
     (p39)$ conda install -c conda-forge quaternion            # install a package from the
                                                               # Conda-Forge repository
-    (p39)$ conda search packagename     # search for available packages with specified name
     $ conda env list                    # list all defined environments
     $ conda create -n enew –clone eold  # create environment enew by cloning existing eold
     $ conda env remove -n p39           # get rid of environment p39
@@ -249,11 +252,15 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
 
 ### Conda environments and test code used in this document<a id="envs-testcode"></a>
 
-- The following Conda environments are used in this document:
-  - **`p39`** (defined just above) has Python 3.9, Numpy, SciPy, etc but does not have OpenMPI, PyTorch, or CuPy.
-  - **`dfs`** (define in [Installing a local package](#local-package) below) environment for trying out  the local package `dcfuncs`.
+- The following Conda environments are created and used on a PC in this document:
+  - **`p39`** (defined just above) has Python 3.9, NumPy, SciPy, etc but does not have OpenMPI, PyTorch, or CuPy.
+  - **`dfs`** (defined in [Installing a local package](#local-package) below) environment for trying out  the local package `dcfuncs`.
   - **`pyt`** (defined in [Installing CUDA-aware Python packages...](#pytorch-cupy) below) adds PyTorch.
   - **`gpu`** (also defined in [Installing CUDA-aware Python packages...](#pytorch-cupy) below) adds CuPy.
+- The following Conda environments are created and used on the Unity HPC cluster:
+  - **`npsp`** (defined in [Using modules and Conda](#unity-modules-conda)) has NumPy, SciPy, and Matplotlib, but not CuPy.
+  - **`dfs`** (also defined in [Using modules and Conda](#unity-modules-conda)) has NumPy and the local package `dcfuncs` installed.
+  - **`gpu`** (defined in [Running batch jobs: `sbatch`](#run-batch)) includes CuPy, so a GPU can be used.
 - The following test code is used:
   - **`gputest.py`** makes dense and sparse matrices of various sizes and floating-point types, and times operations using these matrices on the CPU and (if available) the GPU. If run in an environment without CuPy like **`p39`**, only CPU tests will be run. But if run in **`gpu`** and a GPU can be initialized, will also run GPU tests.
   - **`np-version.py`** is a very short program that imports Numpy and prints out its version.
@@ -263,6 +270,11 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
   - **`pack.def`** makes a container that contains Linux, Conda, and the **Miniconda** package distribution, and installs a few selected packages in the container.
   - **`dfs.def`** makes a container with the local package **`dcfuncs`** installed in it
   - **`gpu.def`** makes a container that imports **CuPy** so it can use a GPU.
+- The following sbatch scripts are defined for use with Slurm on the Unity cluster:
+  - **`noapp-nogpu.sh`** (defined in [Running batch jobs: `sbatch`](#run-batch)) runs non-Apptainer job that doesn't use a GPU.
+  - **`noapp-gpu.sh`** (defined in [Using a GPU](#unity-gpu)) runs non-Apptainer job that uses a GPU.
+  - **`app-nogpu.sh`** (defined in [Running a container interactively or in batch job](#unity-run-container)) runs an Apptainer (containerized) job that doesn't use a GPU.
+  - **`app-gpu.sh`** (defined in [Running a container the uses a GPU](#unity-gpu-container)) runs an Apptainer job that uses a GPU.
 
 ### Installing a local package<a id="local-package"></a>
 
@@ -341,17 +353,83 @@ Note, however, that parallelism across all the cores of any single node of an HP
 
 #### Installing OpenMPI<a id="install-openmpi"></a>
 
-TODO MPI stuff from 9/22 cheat-sheet
+- The most popular open-source MPI packages seems to be **OpenMPI** and **MPICH**.  Of these, OpenMPI seems a bit more recommended/supported by the Unity HPC cluster (maybe), so for now **only OpenMPI is discussed in this document**.
+
+- On Unity as of 1/25 the available OpenMPI modules on Unity HPC were Open MPI  4.1.6 and 5.0.3, so decided to use these same versions of OpenMPI on my PCs.
+
+- Following commands worked  1/25 to create a conda environment **`ompi5`** on my PCs with Python 3.11.11, OpenMPI 5.0.3, Numpy 1.26.4, SciPy 1.15.1, Matplotlib 3.10.0 (but trying to use Python 3.12 or above did not work).  It also worked to use these same commands but specifying openmpi=4.1.6 to make an environment **`ompi4`**.
+  
+  ```
+  $ conda update conda
+  $ conda create -n ompi5 python=3.11
+  $ conda activate ompi5
+  (opmi5)..$ python --version
+  3.11.11
+  (ompi5)..$ conda install -c conda-forge openmpi=4.1.6 mpi4py
+  (ompi5)..$ conda install numpy scipy matplotlib
+  ```
+  
+  To make `mpirun` (and presumably other OpenMPI commands) usable must do
+  
+  ```
+  $ sudo apt install openmpi-bin
+  ```
 
 #### Simple MPI test programs: `mpi_hw.py` and `osu_bw.py` <a id="mpi-testprogs"></a>
 
-TODO MPI stuff from 9/22 cheat-sheet
+- **`mpi_hw.py`** tests...
+  
+  ```
+  (ompi5)..$ mpirun -n 6 python mpi_hw.py
+  Hello world from rank 0 of 6 on candela-20 running Open MPI v4.1.6
+  Hello world from rank 3 of 6 on candela-20 running Open MPI v4.1.6
+  Hello world from rank 5 of 6 on candela-20 running Open MPI v4.1.6
+  Hello world from rank 2 of 6 on candela-20 running Open MPI v4.1.6
+  Hello world from rank 4 of 6 on candela-20 running Open MPI v4.1.6
+  Hello world from rank 1 of 6 on candela-20 running Open MPI v4.1.6
+  ```
+(above could omit -n 6 and would use all 6 cores, -n 3 eg to use 3 cores, -n 7 fails.  `mpirun --use-hwthread-cpus python mpi_hw.py` will make two ranks per core using hyperthreading.
 
+below need -n 2)
+- **`osu_bw.py`** tests...
+  
+  ```
+  (ompi5)..$ mpirun -n 2 python osu_bw.py
+  2
+  2
+  # MPI Bandwidth Test
+  # Size [B]    Bandwidth [MB/s]
+           1                2.89
+           2                5.50
+           4               11.31
+           8               23.19
+          16               46.33
+          32               92.53
+          64              171.07
+         128              316.73
+         256              597.47
+         512            1,297.02
+       1,024            2,479.73
+       2,048            4,631.86
+       4,096            2,245.38
+       8,192            3,837.26
+      16,384            5,731.62
+      32,768            7,912.04
+      65,536            9,754.16
+     131,072           10,643.03
+     262,144            9,186.16
+     524,288            8,955.39
+   1,048,576            9,121.18
+   2,097,152            9,196.89
+   4,194,304            9,130.77
+   8,388,608            8,922.07
+  16,777,216            7,397.23
+  ```
 #### A more elaborate MPI program: `boxpct.py` with the `dem21` package<a id="boxpct-dem21"></a>
 
 TODO MPI stuff from 9/22 cheat-sheet
 
-**TODO** here and in the HPC sections: When does an MPI program that uses eg Numpy multithread?  How can this be controlled?
+**TODO** here and in the HPC sections: When does an MPI program that uses eg NumPy multithread?  How can this be controlled?
 
 ### Using an NVIDIA GPU on a Linux PC<a id="gpu-pc"></a>
 
@@ -415,7 +493,7 @@ These steps are only need once on a given PC, unless updating to newer versions.
 
 - [**PyTorch**](https://pytorch.org/) is a machine-learning platform that can be used with or without a GPU. 
   
-  - **Installing Pytorch on a Linux PC.**  First we make a Conda environment `pyt`  in which to run PyTorch,  with other packages that will be used -- here we have chosen Numpy, SciPy, Matplotlib, and Jupyter Notebook but I think none of these are required:
+  - **Installing PyTorch on a Linux PC.**  First we make a Conda environment `pyt`  in which to run PyTorch,  with other packages that will be used -- here we have chosen NumPy, SciPy, Matplotlib, and Jupyter Notebook but I think none of these are required:
     
     ```
     (base)..$ conda update conda 
@@ -425,7 +503,7 @@ These steps are only need once on a given PC, unless updating to newer versions.
     (pyt)..$ jupyter notebook                                # check that JN works
     ```
     
-    Next run the install PyTorch using the appropriate command from the [Pytorch Getting Started page](https://pytorch.org/get-started/locally/). The installation command depends on which version of CUDA is installed, if any -- since CUDA 12.2 was installed I selected the nearest version no later than 12.2 which was 12.1:
+    Next run the install PyTorch using the appropriate command from the [PyTorch Getting Started page](https://pytorch.org/get-started/locally/). The installation command depends on which version of CUDA is installed, if any -- since CUDA 12.2 was installed I selected the nearest version no later than 12.2 which was 12.1:
     
     ```
     (pyt-gmem)..$ pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
@@ -494,7 +572,7 @@ These steps are only need once on a given PC, unless updating to newer versions.
     RuntimeError: Expected all tensors to be on the same device...
     ```
     
-    Going the other way, we can use `xdvc.cpu().numpy()` to get the Numpy array part of a tensor or `xdvc[1,1].item()` to get the float value of a tensor element -- the results will be on the CPU, whether or not `xdvc` is on the GPU.
+    Going the other way, we can use `xdvc.cpu().numpy()` to get the NumPy array part of a tensor or `xdvc[1,1].item()` to get the float value of a tensor element -- the results will be on the CPU, whether or not `xdvc` is on the GPU.
     
     This is as far as we will go with PyTorch in this document. 
 
@@ -559,7 +637,7 @@ These steps are only need once on a given PC, unless updating to newer versions.
       [0.69553234 0.09401508 0.38381413]] <class 'numpy.ndarray'>
     ```
     
-    Next we use the function `cp.asarray` to copy the Numpy array `x` to a CuPy array on the GPU, so we can multiply the matrices using `cp.matmul`:
+    Next we use the function `cp.asarray` to copy the NumPy array `x` to a CuPy array on the GPU, so we can multiply the matrices using `cp.matmul`:
     
     ```
     zgpu = cp.matmul(cp.asarray(x),ygpu)
@@ -702,7 +780,7 @@ Probably the best reason for containerizing code is to make it easy to run the c
   $ sudo apt install -y apptainer
   ```
 
-- This should eventually be unneccesary, but as of 1/25 trying to run Apptainer freshly installed as above as a regular (non-sudo) user under Ubuntu 24.04 fails with the following messages:
+- This should eventually be unnecessary, but as of 1/25 trying to run Apptainer freshly installed as above as a regular (non-sudo) user under Ubuntu 24.04 fails with the following messages:
   
   ```
   ERROR  : Could not write info to setgroups: Permission denied
@@ -822,7 +900,7 @@ Probably the best reason for containerizing code is to make it easy to run the c
     ...  foo  ...
     ```
     
-    Possible point of confusion: The container has its own file system with its own root, independent of the file system outside the container.  Thus `/etc/os-release` in the `cat` command above prints a file that exists inside the container with OS information.  However, for convenience, **certain directories inside the container are automatically bound to directories outside the container with the same names** when the container is run. Typically these will include **the user's current working and home directories** -- making it possible to access the same files and directories from inside the container as outside.
+    Possible point of confusion: The container has its own file system with its own root, independent of the file system outside the container.  Thus `/etc/os-release` in the `cat` command above prints a file that exists inside the container with OS information.  Once a container is built, **the file system inside the container is read-only**. However, for convenience, **certain directories inside the container are automatically bound to directories outside the container with the same names** when the container is run. Typically these will include **the user's current working and home directories** -- making it possible to access and write to the same files and directories from inside the container as outside.
     
     I believe these two things: (a) the ability to run a container as a non-superuser, and (b) the ability to access files outside the container are among the primary differences between Apptainer and Docker containers, making Apptainer more suitable for use on a shared HPC system.  I think Docker containers are most frequently run in cloud-based virtual machines for which the user will have superuser access.
     
@@ -848,7 +926,7 @@ Probably the best reason for containerizing code is to make it easy to run the c
   $ sudo apptainer build "$SIFS"/pack.sif pack.def
   ```
   
-  The resulting container **`pack.sif`**  is now considerably in larger – without the conda install command the container size is 235 MB, and with the full definition shown above it is 1.4 GB.
+  The resulting container **`pack.sif`**  is now considerably in larger – without the `conda install` command the container size is 235 MB, and with the full definition shown above it is 1.4 GB.
 
 - Shelling into the container we can find the versions of things and verify that we have a working Python installation:
   
@@ -877,21 +955,21 @@ Probably the best reason for containerizing code is to make it easy to run the c
 
 - **Using the container to run Python scripts outside the container.**
   
-  - Here is simple program **`np-version.py`** that imports Numpy and prints out its version:
+  - Here is simple program **`np-version.py`** that imports NumPy and prints out its version:
     
     ```
     import numpy as np
     print(f'numpy version = {np.__version__}')
     ```
     
-    Running it in a terminal showed that Numpy 1.24.3 was installed on my PC:
+    Running it in a terminal showed that NumPy 1.24.3 was installed on my PC:
     
     ```
     $ python np-version.py
     numpy version = 1.24.3
     ```
   
-  - Rather than shelling into the container with **`apptainer shell`**, we we can use **`apptainer exec`** (invoked outside the container) to run `np-version.py` inside the container -- even though the file `np-version.py` is located outside the container. This reports the version of Numpy inside the container:
+  - Rather than shelling into the container with **`apptainer shell`**, we we can use **`apptainer exec`** (invoked outside the container) to run `np-version.py` inside the container -- even though the file `np-version.py` is located outside the container. This reports the version of NumPy inside the container:
     
     ```
     $ apptainer exec "$SIFS"/pack.sif python np-version.py
@@ -922,7 +1000,7 @@ Next we make a container with the local package **`dcfuncs`** installed inside i
       echo foo!
   ```
   
-  In addition to the %post section with Linux commands introduced above, this `.def` file has several new elements:
+  In addition to the %post section with Linux commands introduced above, this `.def` file has two new sections:
   
   - The **`%files`**  section copies files into the container before the` %post` commands are run -- each line gives a source directory or file outside the container and a copy location inside the container. 
     
@@ -935,9 +1013,9 @@ Next we make a container with the local package **`dcfuncs`** installed inside i
           ...
       ```
     
-    - As written in `dfs.def` above the files from `dcfuncs`  will be written into a directory `/dcfuncs` in the container. As a non-superuser we cannot write to the filesystem root `/` outside the container -- but we can write to the filesystem root inside the container.  In other words, we are effectively a superuser inside the container.
+    - As written in `dfs.def` above the files from `dcfuncs`  will be written into a directory `/dcfuncs` in the container.  When the container is built, files can be written anywhere in the container file system as specified by the `%files` section of the `.def` file, including in the container's root directory `/`
   
-  - The **`%post`** section runs pip to install the dcfuncs package inside the container.
+  - The **`%post`** section runs pip to install the `dcfuncs` package inside the container.
   
   - An Apptainer container is an executable file, and the **`%runscript`** section gives the commands that will be executed if it is run.
 
@@ -1004,7 +1082,7 @@ Next we make a container with the local package **`dcfuncs`** installed inside i
         ...
   ```
   
-  Conversely, since we have not installed CuPy inside this container, running the same program with `python` inside the container will not find CuPy and the GPU, even though `gpu` is activated:
+  Conversely, since we have not installed CuPy inside this container, running the same program with `python` inside the container will not find CuPy and the GPU, even  if the container is run in the  `gpu` environment:
   
   ```
   (gpu)..$ apptainer exec "$SIFS"/dfs.sif python gputest.py
@@ -1023,7 +1101,7 @@ TODO
 
 #### A container that can use a GPU<a id="gpu-container"></a>
 
-- Make a definition file **`gpu.def`** with the following contents. As in the previous section we start with a Docker image that includes Python, Conda, and the Miniconda distribution and we install Numpy, Matplotlib, and Scipy. Now we also install CuPy, getting it from conda-forge to be sure it is up-to-date:
+- Make a definition file **`gpu.def`** with the following contents. As in the previous section we start with a Docker image that includes Python, Conda, and the Miniconda distribution and we install NumPy, Matplotlib, and SciPy. Now we also install CuPy, getting it from conda-forge to be sure it is up to date:
   
   ```
   Bootstrap: docker
@@ -1042,12 +1120,12 @@ TODO
   
   Due to the inclusion of CuPy, this container is considerably larger (3.5 GB vs 1.4 GB without CuPy).  Interestingly, I was able to build this container on  a PC that does not have a GPU (hoffice). Nevertheless when `gpu.sif` was copied to other computers that did have GPUs (my other PCs and Unity), it was able to use the GPU .
 
-- A GPU, the NVIDIA drivers, and CUDA must all be installed outside the container on the computer on which the container is to be run (but it is not necessary for the Python package that will be using the GPU, in this case CuPy, to be installed outside the container).
+- A GPU, the NVIDIA drivers, and CUDA must all be installed **outside** the container on the computer on which the container is to be run -- but it is not necessary for Python packages that will be using the GPU, in this case CuPy, to be installed outside the container.
   
   - The section [Installing NVIDIA drivers](#nvidia-drivers) above shows how to install these things on a PC.
   - When successfully installed it will be possible to run the shell command **`nvidia-smi`** outside the container, which will print information on the installed GPU and CUDA version.
 
-- As documented in [this Apptainer page](https://apptainer.org/docs/user/latest/gpu.html), `apptainer` commands that run the container (`shell`, `exec`..) must include the **`--nv`** option, which will make CUDA installed outside the container available inside.  Here we are in a directory containing `gputest.py`, which will successfully import CuPy and use the GPU when run by `python` in the container `gpu.sif`:
+- As documented in [this Apptainer page](https://apptainer.org/docs/user/latest/gpu.html), `apptainer` commands that run the container (`shell`, `exec`..) must include the **`--nv`** option to make CUDA installed outside the container available inside.  Here we are in a directory containing `gputest.py`, which will successfully import CuPy and use the GPU when run by `python` in the container `gpu.sif`:
   
   ```
   (base)$ apptainer exec --nv "$SIFS"/gpu.sif python gputest.py
@@ -1067,7 +1145,7 @@ TODO
                                       ...
   ```
   
-  By using the container, we can run the program `gputest.py` from the `base` environment, which does not have the packages `numpy`, `scipy`, `cupy` that `gputest.py` imports installed (they are all in the container) -- nevertheless the GPU is successfully used.
+  Using the container, we can run the program `gputest.py` from the `base` environment, even though `base` does not have the packages `numpy`, `scipy`, `cupy` that `gputest.py` imports installed.
 
 ## Part 2: Moving code to a Slurm HPC cluster<a id="move-to-hpc"></a>
 
@@ -1089,41 +1167,752 @@ Finally, the computational resources of an HPC cluster are only useful if availa
 
 #### History<a id="unity-history"></a>
 
+- Before Unity was created the HPC cluster available to UMass Amherst researchers was the **UMass Shared Cluster (UMSC)**.  UMSC was administered by UMass Medical School, and ran Redhat Linux and the IBM LSF scheduling system.  UMSC was shut down in 3/23.
+- As of 1/25 the HPC cluster for general UMass use is [**Unity**](https://unity.rc.umass.edu/) (started in early 2022) located (as UMSC was) at the [**MGHPCC**](https://www.mghpcc.org/) in Holyoke. Unity runs [**Ubuntu**](https://ubuntu.com/) (24.04 as of 1/25) and the [**Slurm**](https://slurm.schedmd.com/documentation.html) scheduling system. 
+
 #### Logging in<a id="unity-login"></a>
+
+- **Logging with ssh.** To login to Unity from a terminal program on a remote PC, **ssh keys must be set up** - here are the [instructions in the Unity docs](https://docs.unity.rc.umass.edu/documentation/connecting/ssh/).  While a bit of a pain to set up, ssh is convenient to use and is necessary to enable usage of the `scp` and `rsync` file transfer commands described below.
+  
+  - **Setting up keys to allow login to unity from PC.** Here **`<user>`** is a user name on a Linux PC, while **`<userc>`** is a user name on Unity (assigned by Unity admins, typically of form `netid_umass_edu`):
+    
+    - In a browser go to https://docs.unity.rc.umass.edu/ and login with netid/pw.
+    
+    - In the  **Account Setting** page click **`[   +   ]`**. 
+    
+    - In the **Add New Key** popup selected **Generate key**, **OpenSSH**.
+    
+    - **Save the key on your PC in `~/.ssh`** with desired name, e.g. `~/.ssh/unity.key`.
+    
+    - Set the permissions of the key file so only the owner can read/write, otherwise ssh will refuse to use it:
+      
+      ```
+      user:~/.ssh$ chmod 600 unity.key
+      ```
+    
+    - Add following lines to `~/.ssh/config`, creating this file if necessary :
+      
+      ```
+      Host unity
+          HostName unity.rc.umass.edu
+          User <userc>
+          IdentityFile ~/.ssh/unity.key
+      ```
+    
+    - ssh will set up and maintain the file `~/.ssh/known_hosts`
+    
+    - There is a way (not shown here) to store the private key in encrypted form, such that a password will be required to use it.
+  
+  - Now we can **login to Unity the PC** (will not request a password, unless the private key is encrypted):
+    
+    ```
+    <user>:~$ ssh unity      # we start in a bash shell on the PC
+    <userc>@login2:~$        # now we are in bash shell on Unity, ctrl-d to logout
+    ```
+  
+  - Login to Unity from one of my PCs was set up as above and previously working -- but when I tried to login 12/24 I got warning and refusal to login:
+  
+  ```
+  (base) dc:~$ ssh unity
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  @    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+                       ...
+  ```
+  
+  To fix this I did the `sh-keygen -f '/home/dc/.ssh/known_hosts' -R ...` command suggested in the error message. Then I followed the instructions above to generate a new key, saving it in same file used previously (overwriting previous file), and re-did the `chmod 600 ... command`.
+
+- **Logging in with Unity OnDemand.**  The **Shell, >_Unity Shell Access** menu item of [**Unity OnDemand**](https://ood.unity.rc.umass.edu/pun/sys/dashboard) opens a login shell (in a browser window, not a terminal) without using ssh (Unity OnDemand is accessed with `netid` and `pw`). This is reasonably convenient for all platforms and also allows logging into Unity from Windows without setting up ssh keys and without software beyond a browser.  But there seem to be some limitations on what can be done from this browser-window shell.
 
 #### Storage<a id="unity-storage"></a>
 
+- Here is the [Unity doc page](https://docs.unity.rc.umass.edu/documentation/cluster_specs/storage/) on storage.
+- As of 1/25, the “Base quotas” (free initial tier) given to users are:
+  - 50 GB of HDD in **`/home/<userc>`** with `<userc>` the Unity username, intended for user init files (like scripts for sbatch, I guess), not large-scale job I/O.
+  - 1 TB of SDD in **`/work/pi_<userc>`** intended for job I/O, shared between users in a PI’s group.
+  - Upon request, 5 TB HDD in **`/project/pi_<userc>`** intended to store e.g. job output from /work but not for direct job I/O.
+  - Without special permission users can allocate up to 50 TB of high-performance (job I/O) scratch space lasting up to 30 days in **`/scratch`**.
+  - Previously (7/22) there were **`/work/<userc>`** directories  rather than **`work/pi_<userc>`** for job I/O, but these have been discontinued.
+
 #### Transferring files to/from Unity <a id="unity-file-transfer"></a>
+
+- **Graphical:** Files can be transferred using the graphical [**Unity OnDemand**](https://ood.unity.rc.umass.edu/pun/sys/dashboard).  There may be some limitations on file size - using drag-and-drop I successfully transferred a 1.4 GB file from home (slower internet than work) but attempts to transfer a 3.5 GB file repeatedly failed.
+
+- **CLI:** The following commands are part of OpenSSH and **require ssh keys to be set up** as shown above. Then the **`rsync`** and **`scp`** commands shown here can be run on the PC. Some info on using these commands with Unity is on [this page](https://docs.unity.rc.umass.edu/documentation/managing-files/cli/).
+  
+  - Use **`scp`** to copy an individual file `localfile` on the PC to a the cluster:
+    
+    ```
+    $ scp <localfile> unity:~/<subdirec>                  # copy under directory /home/<userc
+    $ scp <localfile> unity:/work/pi_<direc>/<subdirec>   # copy under group working directory
+    ```
+    
+    Unlike Unity OnDemand drag-and-drop, scp successfully copied a 3.5 GB file to Unity from my home PC with its slow internet  uplink (took 23 min).
+  
+  - Similarly use **`scp`** to copy an individual file `remotefile` on the cluster to the current directory on the PC (note the period indicating the current directory):
+    
+    ```
+    $ scp unity:/work/<direc>/remotefile .
+    ```
+  
+  - To **copy a directory and all its contents**, use the **`-r`** flag on scp
+    
+    ```
+    $ scp -r <source directory> <target directory>
+    ```
+  
+  - Be careful when using **`scp`**, especially with the **`-r`** flag, as **it will overwrite existing files on the destination computer** -- it seems not to have a flag to inhibit this.
+  
+  - You can also use **`rysnc`** to transfer a whole directory including subdirectories between a Linux PC and Unity.  Unlike `scp`, with appropriate flags `rsync` can be run repeatedly and will only update files that have been changed.  I used `rsync` on the old UMSC HPC cluster, but I haven't tried it yet  on Unity.
 
 #### Slurm on Unity<a id="unity-slurm"></a>
 
-TODO add seff
+- Some Slurm resources:
+  
+  - [Quick Start User Guide](https://slurm.schedmd.com/quickstart.html) in the [Slurm docs](https://slurm.schedmd.com/documentation.html).
+  - [Overview of threads, cores, and sockets in Slurm](https://docs.unity.rc.umass.edu/documentation/get-started/hpc-theory/threads-cores-processes-sockets/) in the [Unity docs](https://docs.unity.rc.umass.edu/documentation/).
+  - Stanford tutorial [SLURM Basics](https://stanford-rc.github.io/docs-earth/docs/slurm-basics).
+  - [Research Computing User's Guide](http://acadix.biz/RCUG/HTML/index.html) (esp Ch. 11 "Job Scheduling with SLURM").
+  - A few more advanced resources are linked in [Running batch jobs](#run-batch) below.
+
+- The nodes in a Slurm cluster are assigned to **partitions**, and one or more partitions are specified when a job is submitted.  Slurm allows a node to be assigned to multiple partitions, but I don’t think this is done much on Unity except that some `gpu` nodes are also in `cpu`, etc.  Here are the **x86_64 general-access and preempt [partitions on Unity](https://docs.unity.rc.umass.edu/documentation/cluster_specs/partitions/)** (numbers and best GPUs as of 1/25):
+  
+  | Partition     | Nodes | Total cores | Cores/node | Mem/node     | GPUs/node | Best GPUs         |
+  | ------------- | ----- | ----------- | ---------- | ------------ | --------- | ----------------- |
+  | `cpu`         | 181   | 10,240      | 24-64      | 180-1,000 GB |           |                   |
+  | `cpu-preempt` | 146   | 9,424       | 24-192     | 30-1,510 GB  |           |                   |
+  | `gpu`         | 156   |             | 12-128     | 180-370 GB   | 2-4       | NVIDIA V100       |
+  | `gpu-preempt` | 198   |             | 64-128     | 500-2010 GB  | 6-8       | NVIDIA A100, H100 |
+  
+  - Job [wall-time](#wall-cpu-time) limits:
+    
+    - All partitions have a **default time limit of one hour**, in effect when `#SBATCH -t=..` is not used.
+    
+    - The nodes in **preempt partitions** belong to specific groups and jobs submitted outside the owning groups can be killed after two hours.  So, unless checkpointing is used to enable a job to pick up where it left off, general users should typically **submit jobs with time limits less than 2 hours to the preempt partitions**.
+    
+    - The **maximum time limit is 2 days** for all of these general-access partitions unless **`-q=long`** is set in the sbatch script which case the maximum time limit is **14 days (336 hours)**.
+    
+    - From the Unity docs I think the following are true but I’m not 100% sure:
+      
+      - If a job does start on a preempt partition, it will not be killed before 2 hours of run time.
+      
+      - To get more chance of scheduling sbatch script can list more than one partition, e.g
+        
+        ```
+        #SBATCH -p=cpu,cpu-prempt
+        ```
+  
+  - Jobs submitted to the `gpu` or `gpu-preempt` partitions will be rejected if they do not request GPUs using e.g. `#SBATCH -G=..`.
+
+- Some useful Slurm commands:
+  
+  ```
+  $ squeue --me                    # show info on my jobs
+  $ sacct -j <jobid>               # show more detailed info on a specific job
+  $ seff <jobid>                   # show utilization efficiency of a completed job
+  $ sinfo -p cpu -r -l             # show status of nodes in partition cpu
+  $ scontrol show partition cpu    # detailed info on partition cpu
+  $ scontrol show node cpu029      # detailed info on node cpu029
+  $ scontrol show config           # show slurm configuration including default values
+  ```
+
+- Some useful scripts to see current usage/availablilty of resources on Unity, [more are here](https://docs.unity.rc.umass.edu/documentation/jobs/helper_scripts/).
+  
+  ```
+  $ unity-slurm-partition-usage  # show how many idle cores and gpus in each partition
+  $ unity-slurm-node-usage       # for each node show idle cores and gpus, partition is in
+  $ unity-slurm-account-usage    # show cores and gpus my group is currently using
+  $ unity-slurm-find-nodes a100  # show nodes with specified constraint (here A100 GPUs)
+  $ unity-slurm-find-nodes a100 | unity-slurm-node-usage    # show idleness of nodes with
+                                                            # specified constraint
+  ```
 
 #### Running jobs interactively: `salloc` or `unity-compute`<a id="run-interactive"></a>
 
+- You are not supposed to run interactive jobs on a login node.  Instead, from the login-node shell, issue a command like
+  
+  ```
+  $ salloc -c 6 -p cpu
+  ```
+  
+  to allocate 6 cores on a node in the `cpu` partition and start an interactive shell on that node -- you will see the node name in the prompt. Similarly to allocate 6 cores and one GPU on a node in the `gpu` partition do
+  
+  ```
+  $ salloc -c 6 -G 1 -p gpu
+  ```
+  
+  In either case use `ctrl-d` to exit back to the login-node shell.
+
+- There is another way to do this using `srun -pty bash`, but the way shown above with `salloc` seems to be recommended.  However Unity does provide a command `unity-compute` that gets a shell on a compute node in this way:
+  
+  ```
+  $ unity-compute         # get a compute-node shell with default 2 cores
+  $ unity-compute 6       # get a compute-node shell with 6 cores
+  ```
+
 #### Using `.bashrc` and `.bash_aliases`<a id="rc-files"></a>
+
+- The file **`~/.bashrc`** is executed whenever an interactive shell is started (when logging in, when using `salloc` to open an interactive shell on a compute node...).
+
+- If it exists **`~/.bash_aliases`** will be run by `~./bash_rc`, so this file is a good place to add alias commands without messing with the more complex `.bashrc`.
+  
+  - This shows the contents of a typical .bash_aliases file:
+    
+    ```
+    $ cat .bash_aliases
+    # ~/.bash_aliases for unity 1/11/25 D.C.
+    
+    # go to work directory
+    alias wcd='cd /work/pi_candela_umass_edu'
+    
+    # get 6 cores on a non-gpu compute node and start an interactive shell
+    alias ish='salloc -c 6 -p cpu'
+    
+    # get 6 cores and a GPU on a gpu compute node and start an interactive shell
+    alias ishg='salloc -c 6 -G 1 -p gpu'
+    ```
+  
+  - To see a list of defined aliases: `$ alias`
 
 #### Using modules and Conda<a id="unity-modules-conda"></a>
 
-#### Installing a local package<a id="local-package-unity"></a>
+- **Modules on an HPC system.**
+  
+  - HPC systems like Unity have a [**`modules`**](https://docs.unity.rc.umass.edu/documentation/software/modules/) system installed  that sets the environment so desired versions of software are available.  Loading a module is much like activating a Conda environment: It typically sets `PATH` and other environment modules and can also take other actions.   
+    
+    - The main difference is that modules are created by the HPC system admins to point to software packages installed by them in system space, and to run those packages correctly on the HPC system.
+    - Conversely Conda environments are created by the user, install packages in user space, and must be configured by the user to work correctly.
+    - It's not unusual to load some modules to make things like MPI, CUDA, and Conda itself available, and then to activate a Conda environment with specific code and packages needed.
+  
+  - A few useful module commands (to be entered in a shell before running code; also `module purge` and `module load` commands are typically included in [sbatch scripts](#run-batch):
+    
+    ```
+    $ module av python               # show all python modules available
+    $ module spider python           # another way to show available python modules
+    $ module spider python/3.11.7    # shows which other modules must be loaded before this one (in this case none)
+    $ module load python/3.11.7      # load one of the python modules
+    $ module show python/3.11.7      # show what is in a particular module
+    $ module list                    # list which modules are loaded
+    $ module purge                   # unload all modules
+    ```
+
+- **Using Conda on an HPC system.**<a id="conda-hpc"></a>
+  
+  - You must start by loading the **Conda module**.  Then `conda` commands can be used to create and activate Conda environments. Both `conda install` and `pip install` can be used in a Conda environment to install packages in that environment (see [Pip and Conda](#pip-conda) above). 
+  
+  - In this example an environment **`npsp`** is created with NumPy, SciPy, Matplotlib, and a version of Python earlier than the one installed outside of environments. These commands take some time and probably should be **[run on a compute node](#run-interactive)**, not a login node. 
+    
+    ```
+    $ python --version
+    Python 3.12.3
+    $ module load conda/latest
+    $ conda create -n npsp python=3.11
+    $ conda activate npsp
+    (npsp)$ conda install numpy scipy matplotlib
+    (npsp)$ python --version
+    Python 3.11.11
+    (npsp)$ pip list
+    Package         Version
+    --------------- --------y
+    matplotlib      3.10.0
+    numpy           2.2.1
+    scipy           1.15.1
+    ```
+  
+  - A created environment like `npsp` will persist across logins to Unity, but the `module load conda/latest`  command must be executed in every new shell before a `conda` command such as activating a previously created environment can be given.
+  
+  - It seems that on Unity Conda environments are always stored in `/work/<userc>/.conda` no matter which directory they were created from, and (conveniently) they are usable from both `/home` and `/work` directories.
+
+- **Installing a local package on Unity.**
+  
+  - This is done much the same way as installing a local package on a PC, as [shown above](#local-package).
+  
+  - Following the same example as in that section, the repository for the **`dcfuncs`** package has been copied to a directory `work/pi_<userc>...dcfuncs` on Unity. Then a Conda environment **`dfs`** is created and NumPy and  `dcfuncs` are installed in that environment. 
+    
+    ```
+    $ unity-compute                    # get shell on a compute node
+    $ module load conda/latest
+    $ conda create -n dfs python=3.12
+    $ conda activate dfs
+    (dfs)...$ python --version
+    Python 3.12.3
+    (dfs)..$ conda install numpy       # needed by dcfuncs
+    (dfs)...$ cd ...dcfuncs            # go to directory where dcfuncs repo was copied
+    (dfs)...dcfuncs$ ls
+    LICENSE  README.md  pyproject.toml  setup.py  src  test
+    (dfs)...dcfuncs$ pip install -e .  # install dcfuncs to current environment
+    (dfs)...dcfuncs$ pip list
+    Package    Version Editable project location
+    ---------- ------- ------_---------------------
+    dcfuncs    1.0     /work/pi_<userc>/.../dcfuncs
+    numpy      2.2.2
+    pip        24.3.1
+    setuptools 75.8.0
+    wheel      0.45.1
+    ```
+  
+  - Now that the environment `dfs` has been created, we can log completely out of Unity.  The environment it will persist and with it activated `dcfuncs` is available for importing in any directory. In a new login:
+    
+    ```
+    $ unity-compute                     # get shell on a compute node
+    $ module load conda/latest
+    $ conda activate dfs
+    (dfs)...$ cd ...tests               # go to directory test code for dcfuncs is located
+    (dfs)...test$ ls
+    test-configs.py  test-util.ipynb  test-util.py  test0.yaml  test1.yaml
+    (dfs)...test$ python test-util.py   # we can run this program that imports dcfuncs
+    This is: dutil.py 8/19/24 D.C.
+    Using: util.py 8/18/24 D.C.
+    
+    Testing zz:
+    - WARNING from util.py test code - This is just a warning.
+    
+    Testing stoi:
+    stoi results = 93801881091158, 6318, 249613385242335
+                           ...
+    ```
 
 #### Running batch jobs: `sbatch`<a id="run-batch"></a>
 
-#### Using MPI<a id="unity-mpi"></a>
+- To run a background job on Unity an **sbatch script** e.g `myjob.sh` is created then the job is submitted to Slurm using
+  
+  ```
+  $ sbatch myjob.sh
+  ```
 
-#### Using a GPU<a id="unity-gpu"></a>
+- If desired the `sbatch` command can be run on a login node as it simply submits the job for scheduling -- the job itself is run on compute nodes chosen based on the parameters in the sbatch script.
+
+- If the script results in job output being written to the CWD then it will typically be run in a subdirectory of `/work/pi_<userc>`, which has room for large job output.
+
+- Here are the contents of a simple sbatch script:
+  
+  ```
+  #!/bin/bash
+  # Example sbatch script - can put comments like this on any line.
+  #SBATCH -c 4                  # use 4 cores per task
+  #SBATCH -p cpu                # submit job to partition cpu
+  ##SBATCH -p cpu-preempt        # submit job to partition cpu-preempt (this is commented out)
+  module purge                  # unload all modules
+  module load python/3.12       # load version of Python needed
+  python myscript.py > output   # run myscript.py sending its output to a file
+  ```
+  
+    Notes on script:
+  
+  - The first line `#!/bin/bash` indicates Bash should be used to interpret the file (you could use a different shell).
+  
+  - The sbatch script is a regular shell file except that lines that **start with `#SBATCH`** (exactly like this, in all caps) are interpreted specially by the `sbatch` command.  This means `#SBATCH` lines can be commented out by doubling the initial `#`, as shown above.
+  
+  - Next should come all the `#SBATCH` lines, which give information to Slurm on how to schedule the job.  Any `#SBATCH` lines after other shell commands other than comments are ignored.
+  
+  - The remainder of the sbatch script is ordinary shell commands.  Typically these could load modules as needed, then run the desired program.
+  
+  - The Conda module must be loaded before activating a Conda environment, so the sbatch script might have lines like:
+    
+    ```
+    module load conda/latest
+    conda activate myenv
+    ```
+  
+  - Programs can be run directly in the script as shown above, or as arguments to the Slurm command `srun` on a line in the script like this:
+    
+    ```
+    srun python myscript.py > output
+    ```
+    
+    Using `srun` establishes a **job step** and can also launch **multiple copies of the program** as separate tasks if `#SBATCH -n=..` was used to specify more than one task – see [this page](https://groups.oist.jp/scs/advanced-slurm) for more info.
+  
+  - MPI programs can be run using `srun` or `mpirun`. This starts 10 copies of `myscript.py` as separate tasks:
+    
+    ```
+    mpirun -n 10 python myscript.py > output
+    ```
+    
+    while this sets the number of copies (MPI tasks) according to the `#SBATCH -n=...` setting:
+    
+    ```
+    mpirun python myscript.py > output
+    ```
+    
+    The second form is probably preferable -- I'm not sure what happens if the `#SBATCH -n=...` and `mpirun -n ..` settings disagree (probably nothing good).
+
+- Some resources for writing sbatch scripts, especially on choosing and setting #SBATCH parameters:
+  
+  - In Unity docs: [Introduction to batch jobs](https://docs.unity.rc.umass.edu/documentation/jobs/sbatch/),  [Overview of threads, cores and sockets](https://docs.unity.rc.umass.edu/documentation/get-started/hpc-theory/threads-cores-processes-sockets/), and [Slurm cheat sheet](https://docs.unity.rc.umass.edu/documentation/jobs/slurm/).
+  - In official Slurm docs: [sbatch options](https://slurm.schedmd.com/archive/slurm-23.11.6/sbatch.html#SECTION_OPTIONS) (there are many options).
+  - A [quick-start guide](https://hpc.llnl.gov/banks-jobs/running-jobs/slurm-quick-start-guide) from Lawrence Livermore National Lab. Warning: some things here are particular to LLNL, won’t apply to Unity.
+  - [Examples of sbatch scripts for different kinds](https://docs-research-it.berkeley.edu/services/high-performance-computing/user-guide/running-your-jobs/scheduler-examples/) of jobs from Berkeley (same warning).
+  - Some [more advanced Slurm topics](https://groups.oist.jp/scs/advanced-slurm) (array jobs, using srun in sbatch scripts to run multiple copies of one or more programs…) from Okinawa Institute of Science and Technology.
+
+- In Slurm, a **task** can use one or more **cores** (which are called cpu’s in #SBATCH settings), but a task always lives on a single **node**, which typically means a single "computer" -- one or two CPU chips on a board with shared RAM and other resources like GPUs.  On the other hand, a single node can run multiple tasks if it has enough cores. 
+  
+  - For an **MPI job** (for which Slurm was originally conceived) there will be **more than one task** and **each task corresponds to an MPI rank, running an independent copy of the code.**  
+  - For a **non-MPI job** there might be a **single task** (possibly multi-core), which therefore uses part or all of a **single node**.  These match the Slurm defaults: `#SBATCH n=1` gives one task, `#SBATCH N=1` gives one node.
+  - [This page](https://groups.oist.jp/scs/advanced-slurm) shows how **`srun`** can be used to run multiple copies of a program that don't communicate using MPI -- thus **more than one task** (I haven't tried this).
+
+- Here are some #SBATCH settings useful for both single-task (non-MPI) and multi-task (MPI) jobs:   
+  
+  ```
+  #SBATCH -J=<name>           # set a name for job, otherwise will be script filename
+  #SBATCH --job-name=<name>   # “ “
+  
+  #SBATCH -o=<ofname>         # set filename for output, otherwise will be slurm-<jobid>.out
+  #SBATCH --output=<ofname>   # “ “
+  #SBATCH -e=<efname>         # set filename for error output, otherwise will go to output file
+  #SBATCH --error=<name>      # “ “
+  
+  #SBATCH –-mail-type=END     # send email to submitting user when job ends
+  #SBATCH –-mail-type=ALL     # send email when job starts, ends, or fails
+  
+  #SBATCH -p=<pname>          # run the job on the nodes in partition <pname> 
+  #SBATCH --partition=<pname> # “ “
+  #SBATCH -p=<pname1>,<pname2>  # use nodes in either of two partitions
+  
+  #SBATCH -t=10               # set wall-time limit for job to complete to 10 minutes
+  #SBATCH --time=10           # “ “
+  #SBATCH -t=3:30:00          # set wall-time limit to 3.5 hours
+  #SBATCH -t=2-3              # set wall-time limit to 2 days + 3 hours
+  
+  #SBATCH -c=6                # allocate 6 cores (not cpus!) per task
+  #SBATCH --cpus-per-task=6   # “ “
+  
+  #SBATCH -G=1                # allocate one GPU for the whole job
+  #SBATCH --gpus=1            # “ “
+  
+  #SBATCH --mem-per-cpu=500M  # allocate 500 MB of memory per core (not cpu!)
+  
+  #SBATCH -q=<qos>            # request quality of service <qos>
+  #SBATCH –-qos=<qos>         # “ “
+  #SBATCH -q=long             # on unity allow time limit up to 14 days
+  #SBATCH -q=short            # on unity get higher priority for a single job per user
+                              # on <=2 nodes with time limit <=4 hours
+  
+  #SBATCH -C=”<cons>”         # only use nodes that have constraint <cons>, quotes may be unnec.
+  #SBATCH –-constraint=”<cons”> # “ “
+  #SBATCH -C=”<cons1>&<cons2>”  # only use nodes that match both constraints
+  #SBATCH -C=”v100|a100”      # on unity only use nodes that have V100 or A100 GPUs
+  ```
+  
+  Notes on these: 
+  
+  - For all of the Unity general-access partitions: The **default time limit is one hour**, when `-t=..` is not used. **Jobs submitted to preempt partitions can be killed after two hours**.
+  - The **maximum time limit** that can be set using `-t=..` is **two days** unless `-q=long` is used in which case it is **14 days (336 hours)**.
+  - By running `scontrol config` it is seen that on Unity the **default memory per core is 1024 MB**.
+  - [This page](https://docs.unity.rc.umass.edu/documentation/cluster_specs/features/) shows the **constraints** available on Unity.
+  - To set multiple constraints I think a single `#SBATCH C=..` line using the `&` or `|` operators is needed as shown above.
+
+- Here are some #SBATCH settings more useful for **multi-task (e.g. MPI) jobs**:
+  
+  ```
+  #SBATCH -n=100            # allocate resources for 100 tasks (100 MPI ranks)
+  #SBATCH --ntasks=100      # “ “
+  #SBATCH -C=ib             # only use nodes with InfiniBand networking
+  #SBATCH --gpus-per-task=1 # allocate one GPU per task
+  
+  # To use following probably need to set node constraints:
+  #SBATCH -N=10            # run the job on 10 nodes
+  #SBATCH --nodes=10        # “ “
+  #SBATCH --exclusive       # use entire nodes (don’t share nodes with other jobs)
+  #SBATCH --mem=5G          # allocate 5 GB of memory per node
+  #SBATCH –-mem=0           # allocate all available memory on nodes use
+  ```
+  
+  The nodes on Unity are very heterogeneous, with between 12 and 192 cores per node, so I don’t think it makes sense to use -N,--nodes or --exclusive unless constraints are used to match the type of nodes used to the size of the job (tasks or cores used).  Similarly --mem sets the memory per node and I’m not sure what this means unless full nodes are used.
+
+- **Example of a  simple batch job** not using MPI, or a GPU, or Apptainer.
+  
+  - As a container is not being used, a Conda environment must be set up on Unity with the needed packages. This example uses the environment **`npsp`** [set up above](#conda-hpc) with Python, Numpy, and Scipy, but not CuPy.
+  
+  - The program `gputest.py` described above (which won't try to use a GPU if CuPy cannot be imported) was put in a directory `/work/.../try-gputest` along with an sbatch script **`noapp-nogpu.sh`** with these contents:
+    
+    ```
+    #!/bin/bash
+    # noapp-nogpu.sh 1/16/14 D.C.
+    # Sample one-task sbatch script using neither Apptainer nor GPU
+    #SBATCH -c 6                        # use 6 CPU cores
+    #SBATCH -p cpu                      # submit to partition cpu
+    
+    module purge                         # unload all modules
+    module load conda/latest
+    conda activate npsp                  # environment with NumPy and SciPy but not CuPy
+    
+    python gputest.py > npapp-nogpu.out  # run gputest.py sending its output to a file
+    ```
+    
+    With this way of running, `sbatch` is run from the directory `try-gputest` and the output will go there as well -- this is why we are using a directory under /work. The script gputest.py will not try to use a GPU because CuPy cannot be imported in this environment.
+
+#### Using MPI on Unity (without Apptainer)<a id="unity-mpi"></a>
+
+TODO copy from earlier UMSC cheat sheet and update for Unity
+
+#### Using a GPU on Unity (without Apptainer)<a id="unity-gpu"></a>
+
+- A **Conda environment `gpu` capable of using a GPU** was created on Unity as follows (as of 1/25 it seemed the current version of Python, 3.13, was incompatible with CuPy - hence the specification here python=3.12):
+  
+  ```
+  $ module load conda/latest
+  $ conda create -n gpu python=3.12
+  $ conda activate gpu
+  (gpu)$ python –version
+  Python 3.12.8
+  (gpu)$ conda install numpy scipy matplotlib cupy
+  (gpu)$ pip list
+  Package         Version
+  --------------- -----------
+  cupy            13.3.0
+  matplotlib      3.10.0
+  numpy           2.2.1
+  scipy           1.15.1
+  ```
+  
+    Unlike on my PCs, on Unity it was not necessary to explicitly specify `-c conda-forge` to get an up-to-date version of CuPy (see [Installing CUDA-aware Python packages](#pytorch-cupy) above).  This may be because [on Unity, Conda uses Minforge](https://docs.unity.rc.umass.edu/documentation/software/conda/) rather than Anaconda.
+
+- **Run gputest.py on Unity interactively.**
+  
+  - Here we get an interactive shell with 6 cores and one GPU on a compute node in the `gpu` partition, and load a CUDA module (although CUDA typically seems to be loaded already on GPU nodes). Then we run `nvidia-smi` to check that the GPU and CUDA are available and get info on them (not sure why CUDA version reported by `nvidia-smi` doesn’t match module loaded):
+    
+    ```
+    $ salloc -c 6 -G 1 -p gpu
+    $ module load cuda/12.6
+    $ nvidia-smi
+    Wed Jan 15 16:48:06 2025       
+    +-----------------------------------------------------------------------------------------+
+    | NVIDIA-SMI 550.127.05             Driver Version: 550.127.05     CUDA Version: 12.4     |
+    |-----------------------------------------+------------------------+----------------------+
+    | GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+    | Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+                                         ...
+    ```
+  
+  - Next we activate the environment `gpu` created as above.  Then the program [`gputest.py`](#gputest-py) can be run and it will use the GPU:
+    
+    ```
+    $ module load conda/latest
+    $ conda activate gpu
+    (gpu)$ cd ..                # cd to directory containing gputest.py
+    (gpu)$ python gputest.py
+    Running: gputest.py 11/22/23 D.C.
+    Local time: Sun Jan 12 23:25:36 2025
+    GPU 0 has compute capacity 6.1, 28 SMs, 11.71 GB RAM, guess model = None
+    CPU timings use last 10 of 11 trials
+    GPU timings use last 25 of 28 trials
+    
+    ***************** Doing test dense_mult ******************
+    Multiply M*M=N element dense matrices
+    *********************************************************
+    
+    ************ Using float64 **************
+         N     flop make mats  CPU test *CPU op/s*  GPU test *GPU op/s*  GPU xfer xfer rate
+    99,856 6.30e+07 7.61e-03s 1.20e-02s 5.25e+09/s 2.79e-04s 2.26e+11/s 4.42e-03s  0.72GB/s
+    ```
+
+- **A batch job using a GPU.**
+  
+  - As in the non-GPU background job example above, here we again run `gputest.py` in the directory `/work/...test_gpu` but now we activate the Conda evironment `gpu` with does include CuPy, so `gputest.py` will try to use a GPU.  We will also need to ensure the CUDA module is loaded, request a GPU, and run the job in a GPU partition.  So we will use an sbatch script **`noapp-gpu.sh`** with these contents:
+    
+    ```
+    #!/bin/bash
+    # noapp-gpu.sh 1/16/24 D.C.
+    # Sample one-task sbatch script using a GPU but not Apptainer
+    #SBATCH -c 6                  # use 6 CPU cores
+    #SBATCH -G 1                  # use one GPU
+    #SBATCH -p cpu                # submit to partition gpu
+    
+    module purge                  # unload all modules
+    module load conda/latest
+    module load cuda/12.6         # need CUDA to use a GPU
+    conda activate gpu            # environment with NumPy, SciPy, and CuPy
+    
+    python gputest.py > npapp-nogpu.out   # run gputest.py sending its output to a file
+    ```
+    
+    - The job is submitted by doing
+      
+      ```
+      (base) try-gputest$ sbatch noapp-gpu.sh
+      ```
+      
+      which will create the output file try-gputest/noapp-gpu.out.
 
 ### Using Apptainer on the Unity HPC cluster<a id="unity-apptainer"></a>
 
 #### Getting container images on the cluster<a id="images-to-unity"></a>
 
+To run on Unity, a suitable container image (`.sif` file) must be present in a Unity job I/O location under `/work/pi_<userc>`.  Note `.sif` files are typically one to several GB in size.
+
+- An image can be built on a Linux PC as described in [Using Apptainer on a Linux PC](#apptainer-pc) above, then [tranferred to Unity](#unity-file-transfer) using `scp` (the graphical [**Unity OnDemand**](https://ood.unity.rc.umass.edu/pun/sys/dashboard) does not seem able to transfer files this big).
+- It may be possible to build an image directly on Unity using the **`--fakeroot`** option to `apptainer build`, I haven’t tried this.
+
 #### Running a container interactively or in a batch job<a id="unity-run-container"></a>
 
-TODO see what files can be accessed inside a container in unity - maybe not directories in work above starting directory?
+**TODO** see what files can be accessed inside a container in unity - maybe not directories in work above starting directory?
+
+This section describes how to run a container that **does not use MPI or a GPU** -- the additional steps needed for those things are in separate sections below.
+
+- **Running the container interactively:** Obtain a shell on a compute node, and in this shell load the Apptainer module (in fact, Apptainer typically is already loaded on Unity).  For many purposes it should not be necessary to load other modules, etc.:
+  
+  - Python and packages typically loaded with Conda like NumPy and SciPy should be pre-loaded in the container, all in the desired versions.
+  
+  - User packages installed locally should also be pre-loaded in the container.
+  
+  - It should not be necessary to set a Conda environment before running the container, unless this is required for code running outside the container.
+    
+    ```
+    $ salloc -c 6 -p cpu    # Get 6 cores on a compute node in the cpu partition
+    $ module load apptainer/latest
+    ```
+    
+    Here we have made a directory on Unity and copied into it:
+    
+    - The container **`dsf.sif`** that was built in the section [A container with a local Python package installed](#local-package-container) that can run programs that import the **`dcfuncs`** package.
+    
+    - The short program `np-version.py` that imports Numpy and prints its version number.
+    
+    - The program `test-util.py` that imports the `dcfuncs` package and tests that it can be run.
+      First we check the version of Python loaded on the Unity node we are using:
+      
+      ```
+      $ ls
+      dsf.sif  np-version.py  test-util.py
+      $ python --version
+      Python 3.12.3
+      ```
+      
+      Next we run the container, which executes the commands in the `%runscript` section of the container definition file:
+      
+      ```
+      $ chmod +x dsf.sif    # only needed if transferring container made it non-executable
+      $ ./dsf.sif
+      foo!
+      ```
+      
+      Shelling into the container we see the version of Python installed inside when it was built:
+      
+      ```
+      $ apptainer shell dsf.sif
+      Apptainer> python --version
+      Python 3.12.8
+      Apptainer>             # ctrl-d to get out of container
+      ```
+      
+      Finally we use Python inside the container to run the scripts `np-version.py` and `test-util.py` that are outside the container.  The first script `np-version.py` uses NumPy installed in the container when it was built, independent of what Numpy if any exists outside the container.  The second script `test-util.py` imports and uses the package `dcfuncs`, which was installed locally inside the container when it was built:
+      
+      ```
+      $ apptainer exec dsf.sif python np-version.py
+      numpy version = 2.1.3
+      $ apptainer exec dsf.sif python test-util.py
+      This is: dutil.py 8/19/24 D.C.
+      Using: util.py 8/18/24 D.C.
+          ...
+      ```
+
+- **Running a batch job using the container.**
+  
+  - For this purpose we have copied the python script `gputest.py` to the Unity directory that holds **`dsf.sif`**.  Because this container does not contain CuPy, if we use it to run `gputest.py` only the CPU will be used.  Here is an sbatch script called **`app-nogpu.sh`**:
+    
+    ```
+    #!/bin/bash
+    # app-nogpu.sh 1/16/24 D.C.
+    # Sample one-task sbatch script using a container, but not a GPU
+    #SBATCH -c 6                  # use 6 CPU cores
+    #SBATCH -p cpu                # submit to partition cpu
+    
+    module purge                  # unload all modules
+    module load apptainer/latest
+    
+    # run gputest.py in a container without CuPy, sending its output to a file
+    apptainer exec dsf.sif python gputest.py > app-nogpu.out
+    ```
+    
+    Notice the only module we need to load is Apptainer, and we do not need to set a Conda environment. To run the job:
+    
+    ```
+    (base) $ sbatch app-gpu.sh    # run in directory containing dsf.sif and gputest.py
+    ```
 
 #### Running a container that uses MPI<a id="unity-mpi-container"></a>
 
+TODO haven't tried this yet
+
 #### Running a container the uses a GPU<a id="unity-gpu-container"></a>
+
+- This is very similar to running a non-GPU container as described above, with these differences:
+  
+  - Obviously this must be done on a node with GPU(s), with a GPU allocated to the job by SLURM.
+  - Both CUDA and Apptainer modules should be loaded (although both packages seem to be pre-loaded on GPU nodes).
+  - The container (`.sif file`) must have been built with CUDA libraries. Installing CuPy in the container build definition seems to accomplish this.
+  - Apptainer commands running the container must have the --nv flag to make the external CUDA libraries available.
+
+- Here is an example of these things in action for **interactive use of a GPU with a container**:
+  
+  - An interactive shell is allocated on a compute node with 6 cores and one GPU, then CUDA and Apptainer modules are loaded (`nvidia-smi` checks that the GPU is available but is not necessary here):
+    
+    ```
+    $ salloc -c 6 -G 1 -p gpu
+    $ module load cuda/12.6
+    $ module load apptainer/latest
+    $ nvidia-smi
+    Tue Jan 14 16:57:25 2025
+    +-----------------------------------------------------------------------------------------+
+    | NVIDIA-SMI 550.127.05             Driver Version: 550.127.05     CUDA Version: 12.4
+                                 ...
+    ```
+  
+  - The container **`gpu.sif`** (built as described in [A container that can use a GPU](#gpu-container) above and the Python script `gputest.py` are put in a directory on Unity.  Then `apptainer exec` with the flag `--nv` is able to use the GPU:
+    
+    ```
+    $ ls
+    gpu.sif gputest.py
+    $ apptainer exec --nv gpu.sif python gputest.py
+    Running: gputest.py 11/22/23 D.C.
+    Local time: Tue Jan 14 17:00:08 2025
+    GPU 0 has compute capacity 6.1, 28 SMs, 11.71 GB RAM, guess model = None
+    CPU timings use last 10 of 11 trials
+    GPU timings use last 25 of 28 trials
+    
+    ***************** Doing test dense_mult ******************
+    Multiply M*M=N element dense matrices
+    *********************************************************
+    
+    ************ Using float64 **************
+           N     flop make mats  CPU test *CPU op/s*  GPU test *GPU op/s*  GPU xfer xfer rate
+      99,856 6.30e+07 5.57e-03s 1.04e-03s 6.04e+10/s 2.76e-04s 2.28e+11/s 9.48e-03s  0.34GB/s
+                                        ...
+    ```
+
+- **A batch job using a container, with a GPU.**
+  
+  - This is similar to the non-GPU container job shown earlier, with these differences:
+    
+    - We request a GPU, and submit to a GPU partition.
+    - In addition to Apptainer, we need to load the module for CUDA.
+    - We use the container `gpu.sif` that was built including Cupy.
+    - We need the `–-nv` flag on apptainer exec.
+  
+  - Here is an sbatch script **`app-gpu.sh`** that incorporates these changes:
+    
+    ```
+    #!/bin/bash
+    # app-gpu.sh 1/16/24 D.C
+    # Sample one-task sbatch script using a container and a GPU
+    
+    #SBATCH -c 6                  # use 6 CPU cores
+    #SBATCH -G 1                  # use one GPU
+    #SBATCH -p gpu                # submit to partition gpu
+    
+    module purge                  # unload all modules
+    module load apptainer/latest
+    module load cuda/12.6         # need CUDA to use a GPU
+    
+    # run gputest.py in a container with CuPy, sending its output to a file
+    apptainer exec --nv gpu.sif python gputest.py > app-gpu.out
+    ```
+    
+    To run the job:
+    
+    ```
+    (base) try-gputest$ sbatch app-gpu.sh # run in a directory containing gpu.sif and gputest.py
+    ```
 
 ## Random notes on parallel speedup<a id="speedup-notes"></a>
 
@@ -1133,15 +1922,7 @@ TODO see what files can be accessed inside a container in unity - maybe not dire
 
 ### Strong and weak scaling<a id="strong-weak-scaling"></a>
 
-### Estimating MPI communication overhead<a id="estimate-mpi-overhead"></a>
-
-```
-
-```
-
-```
-
-```
+Estimating MPI communication overhead<a id="estimate-mpi-overhead"></a>
 
 ```
 
