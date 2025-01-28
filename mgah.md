@@ -129,7 +129,7 @@ Be that as it may, the premise of this document is **speeding up Python code** b
 
 (b) **by using a GPU** which is a highly-parallel computational device which however does not directly run Python code (or C++ code, for that matter, although a specialized hybrid language called [CUDA C++](https://docs.nvidia.com/cuda/cuda-c-programming-guide/) is often used to program GPUs).
 
-For case (a) the individual, simultaneously-executing copies of a Python program can each take advantage of packages like NumPy and SciPy, providing parallel speedup in addition to that provided by such packages.  For this approach, you need to figure out how to split your problem into many pieces that can profitably run in parallel, how the pieces will be set up, controlled, and communicate with each other, etc.
+For case (a) the individual, simultaneously-executing copies of a Python program can each take advantage of packages like NumPy and SciPy, providing parallel speedup in addition to that provided by such packages.  **TODO only true if Numpy multithreading allowed in MPI, haven't seen how to do this on PCs yet and haven't tried on Unity yet** For this approach, you need to figure out how to split your problem into many pieces that can profitably run in parallel, how the pieces will be set up, controlled, and communicate with each other, etc.
 
  Conversely for case (b) a  **GPU-aware Python package** like CuPy, PyTorch, or PyCUDA can be installed. The first two of these completely take care of parallelization in a manner transparent to the Python programmer, who however must keep track of which objects are on the GPU and which are on the CPU - a relatively simple thing.
 
@@ -137,7 +137,19 @@ It is important to distinguish between **multithreading** and **multiprocessing*
 
 - A **process** is an independently-running program with its own memory space and other resources. Each process can run an independent Python program. Each core of a CPU can run multiple processes, but only one at a time (i.e. serially) - running multiple processes in parallel requires multiple cores.
 
-- A **thread** is part of a process, that can sometimes use multiple cores to run in parallel with other threads in the same process. For example BLAS which is called by NumPy to do linear algebra can use **multithreading** to run faster if multiple cores are available to the process.
+- A **thread** is part of a process, that can sometimes use multiple cores to run in parallel with other threads in the same process. For example BLAS which is called by NumPy to do linear algebra can use **multithreading** to run faster if multiple cores are available to the process.  We can seen this in action by running **`threadcount.py`**, which estimates the number of threads in use when NumPy is used to multiply matrices.  Here it is run on the 6-core PC [candela-20](#pcs)...
+  
+  ...and here it is run on the 16-core PC [candela-21](#pcs):
+  
+  ```
+  $ python threadcount.py
+  Making two 3,000 x 3,000 random matrices...
+  ...took 2.094e-01s, average threads = 1.000
+  Multiplying matrices 3 times...
+  ...took 2.144e-01s per trial, average threads = 5.968
+  ```
+  
+  We see that `threadcount.py` accurately estimates the number of cores, and also...
 
 - Although a Python program can call packages like NumPy/BLAS that are sped up by doing multithreading on multiple cores, only one Python interpreter at a time can run in a process (for now - there is a [proposal](https://peps.python.org/pep-0703/) to relax this). Thus to carry out parallel *Python* operations **multiprocessing** is required. This can take several different forms:
   
@@ -262,6 +274,8 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
   - **`dfs`** (also defined in [Using modules and Conda](#unity-modules-conda)) has NumPy and the local package `dcfuncs` installed.
   - **`gpu`** (defined in [Running batch jobs: `sbatch`](#run-batch)) includes CuPy, so a GPU can be used.
 - The following test code is used:
+  - **`threadcount.py`** uses timing to estimate the number of threads in use while Numpy is multplying matrices.
+  - **`threadcount_mpi.py`** esimates the numer of threads in use in each rank of an MPI run.
   - **`gputest.py`** makes dense and sparse matrices of various sizes and floating-point types, and times operations using these matrices on the CPU and (if available) the GPU. If run in an environment without CuPy like **`p39`**, only CPU tests will be run. But if run in **`gpu`** and a GPU can be initialized, will also run GPU tests.
   - **`np-version.py`** is a very short program that imports Numpy and prints out its version.
   - **`dcfuncs`** is small package of utility functions, used in this document as an example of a Python package [installed locally](#local-package). 
