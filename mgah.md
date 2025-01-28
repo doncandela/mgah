@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   1/27/25
+mgah.md  D. Candela   1/28/25
 
 - [Introduction](#intro)  
   
@@ -125,7 +125,7 @@ There are however some murky intermediate situations. For example [NumPy advance
 
 Be that as it may, the premise of this document is **speeding up Python code** by using one or the other of the following strategies (or potentially both together, although that is not discussed in detail):
 
-(a)  **by running many copies of the same Python code at the same time** on the multiple cores of one or more CPUs, or
+(a)  **by running many copies of the same Python code at the same time, using MPI** -- on the multiple cores of one or more CPUs, or
 
 (b) **by using a GPU** which is a highly-parallel computational device which however does not directly run Python code (or C++ code, for that matter, although a specialized hybrid language called [CUDA C++](https://docs.nvidia.com/cuda/cuda-c-programming-guide/) is often used to program GPUs).
 
@@ -388,9 +388,11 @@ Note, however, that parallelism across all the cores of any single node of an HP
   Hello world from rank 4 of 6 on candela-20 running Open MPI v4.1.6
   Hello world from rank 1 of 6 on candela-20 running Open MPI v4.1.6
   ```
-(above could omit -n 6 and would use all 6 cores, -n 3 eg to use 3 cores, -n 7 fails.  `mpirun --use-hwthread-cpus python mpi_hw.py` will make two ranks per core using hyperthreading.
+  
+  (above could omit -n 6 and would use all 6 cores, -n 3 eg to use 3 cores, -n 7 fails.  `mpirun --use-hwthread-cpus python mpi_hw.py` will make two ranks per core using hyperthreading.
 
 below need -n 2)
+
 - **`osu_bw.py`** tests...
   
   ```
@@ -425,7 +427,8 @@ below need -n 2)
    8,388,608            8,922.07
   16,777,216            7,397.23
   ```
-#### A more elaborate MPI program: `boxpct.py` with the `dem21` package<a id="boxpct-dem21"></a>
+  
+  #### A more elaborate MPI program: `boxpct.py` with the `dem21` package<a id="boxpct-dem21"></a>
 
 TODO MPI stuff from 9/22 cheat-sheet
 

@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   1/26/25</p>
+<p>mgah.md  D. Candela   1/28/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -2472,7 +2472,7 @@ body {
 <p>Therefore good performance on large tasks is often achieved by using <strong>packages</strong> (typically written by others in a compiled language like C++) like <a href="https://numpy.org/">NumPy</a>, <a href="https://scipy.org/">SciPy</a>, <a href="https://cupy.dev/">CuPy</a>, and <a href="https://pytorch.org/">PyTorch</a>, to carry out the time-consuming <strong>inner loops</strong> of algorithms. The same is true of other high-level languages like <a href="https://www.mathworks.com/products/matlab.html">MATLAB</a> and <a href="https://www.mathematica.org/">Mathematica</a>.   While some think Python is inherently slower than C++, if the time limiting factor is, for example, a large linear algebra operation then in either language it will likely be carried out by the same highly-optimized <a href="https://www.netlib.org/blas/">BLAS</a> function on a CPU (via NumPy, for Python), or the corresponding <a href="https://developer.nvidia.com/cublas">cuBLAS</a> function on a GPU (via CuPy).</p>
 <p>There are however some murky intermediate situations. For example <a href="https://numpy.org/doc/stable/user/basics.indexing.html">NumPy advanced indexing</a> allows many complicated operations (e.g. operations on elements meeting complicated conditions) on arrays to be carried out much faster than if they were coded directly in Python -- but maybe slower than would be possible in C++.</p>
 <p>Be that as it may, the premise of this document is <strong>speeding up Python code</strong> by using one or the other of the following strategies (or potentially both together, although that is not discussed in detail):</p>
-<p>(a)  <strong>by running many copies of the same Python code at the same time</strong> on the multiple cores of one or more CPUs, or</p>
+<p>(a)  <strong>by running many copies of the same Python code at the same time, using MPI</strong> -- on the multiple cores of one or more CPUs, or</p>
 <p>(b) <strong>by using a GPU</strong> which is a highly-parallel computational device which however does not directly run Python code (or C++ code, for that matter, although a specialized hybrid language called <a href="https://docs.nvidia.com/cuda/cuda-c-programming-guide/">CUDA C++</a> is often used to program GPUs).</p>
 <p>For case (a) the individual, simultaneously-executing copies of a Python program can each take advantage of packages like NumPy and SciPy, providing parallel speedup in addition to that provided by such packages.  For this approach, you need to figure out how to split your problem into many pieces that can profitably run in parallel, how the pieces will be set up, controlled, and communicate with each other, etc.</p>
 <p> Conversely for case (b) a  <strong>GPU-aware Python package</strong> like CuPy, PyTorch, or PyCUDA can be installed. The first two of these completely take care of parallelization in a manner transparent to the Python programmer, who however must keep track of which objects are on the GPU and which are on the CPU - a relatively simple thing.</p>
@@ -2590,15 +2590,16 @@ $ pip install -e .           # install from current directory, -e means package
 </ul>
 </li>
 <li><p>Some Conda commands:</p>
-<pre><code class="fenced-code-block">$ conda update conda                 # good to do this before other conda commands
-$ conda create -n p39 python=3.9.12  # create environment p39 with specific Python version
-$ conda activate p39                 # activate environment p39, will change prompt
+<pre><code class="fenced-code-block">$ conda update conda                  # good to do this before other conda commands
+$ conda search openmpi                # search for openmpi packages in default channels
+$ conda search -c conda-forge openmpi # search in channel conda-forge
+$ conda create -n p39 python=3.9.12   # create environment p39 with specific Python version
+$ conda activate p39                  # activate environment p39, will change prompt
 (p39)$ conda install matplotlib numba numpy pyyaml scipy  # install packages to current
                                                           # environment p39
 (p39)$ conda install spyder=5.2.2 # install Spyder IDE to this evironment
 (p39)$ conda install -c conda-forge quaternion            # install a package from the
                                                           # Conda-Forge repository
-(p39)$ conda search packagename     # search for available packages with specified name
 $ conda env list                    # list all defined environments
 $ conda create -n enew –clone eold  # create environment enew by cloning existing eold
 $ conda env remove -n p39           # get rid of environment p39</code></pre>
@@ -2704,10 +2705,72 @@ stoi results = 93801881091158, 6318, 249613385242335
 <p>What MPI can do (and <code>multiprocessing</code> cannot do) is increase the parallelism to copies of Python running on <strong>multiple computers connected by a network</strong> - i.e. multiple nodes of an HPC cluster. Therefore a possible reason for developing MPI-parallel code on a PC is to enable eventual expansion to a higher degree of parallelism on an HPC cluster.</p>
 <p>Note, however, that parallelism across all the cores of any single node of an HPC cluster could be accomplished without MPI by using the <code>multprocessing</code> package -- Unity nodes currently have up to 128 cores.</p>
 <h4 class="atx" id="installing-openmpilessa-iddouble-quoteinstall-openmpidouble-quotegreaterlessagreater">Installing OpenMPI<a id="install-openmpi"></a></h4>
-<p>TODO MPI stuff from 9/22 cheat-sheet</p>
+<ul>
+<li><p>The most popular open-source MPI packages seems to be <strong>OpenMPI</strong> and <strong>MPICH</strong>.  Of these, OpenMPI seems a bit more recommended/supported by the Unity HPC cluster (maybe), so for now <strong>only OpenMPI is discussed in this document</strong>.</p>
+</li>
+<li><p>On Unity as of 1/25 the available OpenMPI modules on Unity HPC were Open MPI  4.1.6 and 5.0.3, so decided to use these same versions of OpenMPI on my PCs.</p>
+</li>
+<li><p>Following commands worked  1/25 to create a conda environment <strong><code>ompi5</code></strong> on my PCs with Python 3.11.11, OpenMPI 5.0.3, Numpy 1.26.4, SciPy 1.15.1, Matplotlib 3.10.0 (but trying to use Python 3.12 or above did not work).  It also worked to use these same commands but specifying openmpi=4.1.6 to make an environment <strong><code>ompi4</code></strong>.</p>
+<pre><code class="fenced-code-block">$ conda update conda
+$ conda create -n ompi5 python=3.11
+$ conda activate ompi5
+(opmi5)..$ python --version
+3.11.11
+(ompi5)..$ conda install -c conda-forge openmpi=4.1.6 mpi4py
+(ompi5)..$ conda install numpy scipy matplotlib</code></pre>
+<p>To make <code>mpirun</code> (and presumably other OpenMPI commands) usable must do</p>
+<pre><code class="fenced-code-block">$ sudo apt install openmpi-bin</code></pre>
+</li>
+</ul>
 <h4 class="atx" id="simple-mpi-test-programs-mpi_hwpy-and-osu_bwpy-lessa-iddouble-quotempi-testprogsdouble-quotegreaterlessagreater">Simple MPI test programs: <code>mpi_hw.py</code> and <code>osu_bw.py</code> <a id="mpi-testprogs"></a></h4>
-<p>TODO MPI stuff from 9/22 cheat-sheet</p>
+<ul>
+<li><p><strong><code>mpi_hw.py</code></strong> tests...</p>
+<pre><code class="fenced-code-block">(ompi5)..$ mpirun -n 6 python mpi_hw.py
+Hello world from rank 0 of 6 on candela-20 running Open MPI v4.1.6
+Hello world from rank 3 of 6 on candela-20 running Open MPI v4.1.6
+Hello world from rank 5 of 6 on candela-20 running Open MPI v4.1.6
+Hello world from rank 2 of 6 on candela-20 running Open MPI v4.1.6
+Hello world from rank 4 of 6 on candela-20 running Open MPI v4.1.6
+Hello world from rank 1 of 6 on candela-20 running Open MPI v4.1.6</code></pre>
+<p>(above could omit -n 6 and would use all 6 cores, -n 3 eg to use 3 cores, -n 7 fails.  <code>mpirun --use-hwthread-cpus python mpi_hw.py</code> will make two ranks per core using hyperthreading.</p>
+</li>
+</ul>
+<p>below need -n 2)</p>
+<ul>
+<li><p><strong><code>osu_bw.py</code></strong> tests...</p>
+<pre><code class="fenced-code-block">(ompi5)..$ mpirun -n 2 python osu_bw.py
+2
+2
+# MPI Bandwidth Test
+# Size [B]    Bandwidth [MB/s]
+         1                2.89
+         2                5.50
+         4               11.31
+         8               23.19
+        16               46.33
+        32               92.53
+        64              171.07
+       128              316.73
+       256              597.47
+       512            1,297.02
+     1,024            2,479.73
+     2,048            4,631.86
+     4,096            2,245.38
+     8,192            3,837.26
+    16,384            5,731.62
+    32,768            7,912.04
+    65,536            9,754.16
+   131,072           10,643.03
+   262,144            9,186.16
+   524,288            8,955.39
+ 1,048,576            9,121.18
+ 2,097,152            9,196.89
+ 4,194,304            9,130.77
+ 8,388,608            8,922.07
+16,777,216            7,397.23</code></pre>
 <h4 class="atx" id="a-more-elaborate-mpi-program-boxpctpy-with-the-dem21-packagelessa-iddouble-quoteboxpct-dem21double-quotegreaterlessagreater">A more elaborate MPI program: <code>boxpct.py</code> with the <code>dem21</code> package<a id="boxpct-dem21"></a></h4>
+</li>
+</ul>
 <p>TODO MPI stuff from 9/22 cheat-sheet</p>
 <p><strong>TODO</strong> here and in the HPC sections: When does an MPI program that uses eg NumPy multithread?  How can this be controlled?</p>
 <h3 class="atx" id="using-an-nvidia-gpu-on-a-linux-pclessa-iddouble-quotegpu-pcdouble-quotegreaterlessagreater">Using an NVIDIA GPU on a Linux PC<a id="gpu-pc"></a></h3>
