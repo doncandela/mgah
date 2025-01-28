@@ -139,8 +139,6 @@ It is important to distinguish between **multithreading** and **multiprocessing*
 
 - A **thread** is part of a process, that can sometimes use multiple cores to run in parallel with other threads in the same process. For example BLAS which is called by NumPy to do linear algebra can use **multithreading** to run faster if multiple cores are available to the process.  We can seen this in action by running **`threadcount.py`**, which estimates the number of threads in use when NumPy is used to multiply matrices.  Here it is run on the 6-core PC [candela-20](#pcs)...
   
-  ...and here it is run on the 16-core PC [candela-21](#pcs):
-  
   ```
   $ python threadcount.py
   Making two 3,000 x 3,000 random matrices...
@@ -149,7 +147,17 @@ It is important to distinguish between **multithreading** and **multiprocessing*
   ...took 2.144e-01s per trial, average threads = 5.968
   ```
   
-  We see that `threadcount.py` accurately estimates the number of cores, and also...
+  ...and here it is run on the 16-core PC [candela-21](#pcs):
+  
+  ```
+  $ python threadcount.py
+  Making two 3,000 x 3,000 random matrices...
+  ...took 1.606e-01s, average threads = 1.000
+  Multiplying matrices 3 times...
+  ...took 1.719e-01s per trial, average threads = 15.782 
+  ```
+  
+  We see that `threadcount.py` accurately estimates the number of cores, **TODO but no faster with 16 cores -- why not?**
 
 - Although a Python program can call packages like NumPy/BLAS that are sped up by doing multithreading on multiple cores, only one Python interpreter at a time can run in a process (for now - there is a [proposal](https://peps.python.org/pep-0703/) to relax this). Thus to carry out parallel *Python* operations **multiprocessing** is required. This can take several different forms:
   
