@@ -2,4 +2,4 @@ doncandela/mgah/.gitignore  1/23/25
 
 # PDF's and HTML's generated from Markdown files
 *.pdf
-*.html
+# *.html  (commented out to include html printout in repo)
