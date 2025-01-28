@@ -3,10 +3,11 @@ threadcount.py uses timing to estimate the number of threads being used
 while Numpy makes and multipies two large matrices.
 """
 THIS_IS = 'threadcount.py 1/28/25 D.C.'
-T = 3
-M = 1_000    # will multiply two MxM matrices T times
-M = 3_000
-M = 10_000
+T = 10
+M = 300    # will multiply two MxM matrices T times
+M = 1_000
+# M = 3_000
+# M = 10_000
 
 SEED = 2025  # seed for making random matrices
 #SEED = None  # use unseeded randoms
@@ -26,11 +27,11 @@ tw = time.perf_counter() - tw0
 tp = time.process_time() - tp0
 print(f'...took {tw:.3e}s, average threads = {tp/tw:.3f}')
 
-print(f'Multiplying matrices {T} times...')
+print(f'Multiplying matrices {T:,} times...')
 tw0 = time.perf_counter()
 tp0 = time.process_time()
 for t in range(T):
-    np.dot(aa,bb,out=cc)
+    np.matmul(aa,bb,out=cc)
 twt = (time.perf_counter() - tw0)/T
 tpt = (time.process_time() - tp0)/T
 print(f'...took {twt:.3e}s per trial, average threads = {tpt/twt:.3f}')
