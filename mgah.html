@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   1/28/25</p>
+<p>mgah.md  D. Candela   1/29/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -2343,7 +2343,7 @@ body {
 </ul>
 </li>
 <li><a href="#pip-conda">Pip and Conda</a></li>
-<li><a href="#envs-testprogs">Conda environments and test code used in this document</a></li>
+<li><a href="#envs-testcode">Conda environments and test code used in this document</a></li>
 <li><a href="#local-package">Installing a local package</a></li>
 </ul>
 </li>
@@ -2351,8 +2351,8 @@ body {
 <ul>
 <li><a href="#mpi-pc">MPI on a Linux PC</a><ul>
 <li><a href="#why-mpi-pc">Why do it</a>    </li>
-<li><a href="#install-openmpi">Installing OpenMPI</a></li>
-<li><a href="#mpi-testprogs">Simple MPI test programs: <code>mpi_hw.py</code> and <code>osu_bw.py</code></a></li>
+<li><a href="#install-openmpi">Installing OpenMPI and MPI for Python</a></li>
+<li><a href="#mpi-testprogs">Simple MPI test programs: <code>mpi_hw.py</code>, <code>threadcount_mpi</code>, and <code>osu_bw.py</code></a></li>
 <li><a href="#boxpct-dem21">A more elaborate MPI program: <code>boxpct.py</code> with the <code>dem21</code> package</a></li>
 </ul>
 </li>
@@ -2474,13 +2474,19 @@ body {
 <p>Be that as it may, the premise of this document is <strong>speeding up Python code</strong> by using one or the other of the following strategies (or potentially both together, although that is not discussed in detail):</p>
 <p>(a)  <strong>by running many copies of the same Python code at the same time, using MPI</strong> -- on the multiple cores of one or more CPUs, or</p>
 <p>(b) <strong>by using a GPU</strong> which is a highly-parallel computational device which however does not directly run Python code (or C++ code, for that matter, although a specialized hybrid language called <a href="https://docs.nvidia.com/cuda/cuda-c-programming-guide/">CUDA C++</a> is often used to program GPUs).</p>
-<p>For case (a) the individual, simultaneously-executing copies of a Python program can each take advantage of packages like NumPy and SciPy, providing parallel speedup in addition to that provided by such packages.  For this approach, you need to figure out how to split your problem into many pieces that can profitably run in parallel, how the pieces will be set up, controlled, and communicate with each other, etc.</p>
+<p>For case (a) the individual, simultaneously-executing copies of a Python program can each take advantage of packages like NumPy and SciPy, providing parallel speedup in addition to that provided by such packages.  <strong>TODO only true if Numpy multithreading allowed in MPI, haven't seen how to do this on PCs yet and haven't tried on Unity yet</strong> For this approach, you need to figure out how to split your problem into many pieces that can profitably run in parallel, how the pieces will be set up, controlled, and communicate with each other, etc.</p>
 <p> Conversely for case (b) a  <strong>GPU-aware Python package</strong> like CuPy, PyTorch, or PyCUDA can be installed. The first two of these completely take care of parallelization in a manner transparent to the Python programmer, who however must keep track of which objects are on the GPU and which are on the CPU - a relatively simple thing.</p>
 <p>It is important to distinguish between <strong>multithreading</strong> and <strong>multiprocessing</strong>:</p>
 <ul>
 <li><p>A <strong>process</strong> is an independently-running program with its own memory space and other resources. Each process can run an independent Python program. Each core of a CPU can run multiple processes, but only one at a time (i.e. serially) - running multiple processes in parallel requires multiple cores.</p>
 </li>
-<li><p>A <strong>thread</strong> is part of a process, that can sometimes use multiple cores to run in parallel with other threads in the same process. For example BLAS which is called by NumPy to do linear algebra can use <strong>multithreading</strong> to run faster if multiple cores are available to the process.</p>
+<li><p>A <strong>thread</strong> is part of a process, that can sometimes use multiple cores to run in parallel with other threads in the same process. For example BLAS which is called by NumPy to do linear algebra can use <strong>multithreading</strong> to run faster if multiple cores are available to the process.  The Python script <strong><code>threadcount.py</code></strong> uses process/wall time to estimate the number of threads in use when NumPy multiplies matrices.  On the 6-core PC <a href="#pcs">candela-20</a>:</p>
+<pre><code class="fenced-code-block">$ python threadcount.py
+Making 3,000 x 3,000 random matrices...
+...took 2.094e-01s, average threads = 1.000
+Multiplying matrices 3 times...
+...took 2.144e-01s per trial, average threads = 5.968</code></pre>
+<p>Although this agrees with the core count, the overall speedup going to the 16-core <a href="#pcs">candela-21</a> was only about 1.4 (vs expected 16/6 = 2.7) and rather variable. Also note that NumPy (or rather the underlying linear algebra package) is <strong>greedy</strong>, using all available cores -- you can read extensive discussions on the problems this causes for some people.</p>
 </li>
 <li><p>Although a Python program can call packages like NumPy/BLAS that are sped up by doing multithreading on multiple cores, only one Python interpreter at a time can run in a process (for now - there is a <a href="https://peps.python.org/pep-0703/">proposal</a> to relax this). Thus to carry out parallel <em>Python</em> operations <strong>multiprocessing</strong> is required. This can take several different forms:</p>
 <ul>
@@ -2488,7 +2494,7 @@ body {
 </li>
 <li><p>The C++ package <a href="https://www.openmp.org/"><strong>OpenMP</strong></a> (Python bindings <a href="https://github.com/Python-for-HPC/PyOMP"><strong>PyOMP</strong></a>) can also run parallel processes on the different cores single CPU (or single node = typically two CPUs?).</p>
 </li>
-<li><p><a href="https://en.wikipedia.org/wiki/Message_Passing_Interface"><strong>MPI</strong></a> can run parallel processes on the different cores of a single CPU and <strong>also on multiple nodes connected by a network</strong>. Implementations of MPI go under names like <a href="https://www.open-mpi.org/"><strong>OpenMPI</strong></a> (not to be confused with the non-MPI single-node multiprocessing package OpenMP) and <a href="https://www.mpich.org/"><strong>MPICH</strong></a>.</p>
+<li><p><a href="https://en.wikipedia.org/wiki/Message_Passing_Interface"><strong>MPI</strong></a> can run parallel processes on the different cores of a single CPU and <strong>also on multiple nodes connected by a network</strong>. Implementations of MPI go under names like <a href="https://www.open-mpi.org/"><strong>OpenMPI</strong></a> (not to be confused with the non-MPI single-node multiprocessing package OpenMP) and <a href="https://www.mpich.org/"><strong>MPICH</strong></a>. A Python interface to the installed version of MPI is provided by <a href="https://mpi4py.readthedocs.io/en/stable/"><strong>MPI for Python</strong></a>. </p>
 <ul>
 <li>Rather than directly use MPI, various higher-level applications like <a href="https://spark.apache.org/"><strong>Spark</strong></a>, <a href="https://www.dask.org/"><strong>Dask</strong></a>, or <a href="https://charm4py.readthedocs.io/en/latest/"><strong>Charm4py</strong></a> (perhaps no longer supported) can be used to coordinate parallel operations between cores and nodes. These applications can use MPI, and do not require MPI coding by the user. </li>
 </ul>
@@ -2627,10 +2633,13 @@ $ conda env remove -n p39           # get rid of environment p39</code></pre>
 <li>The following Conda environments are created and used on the Unity HPC cluster:<ul>
 <li><strong><code>npsp</code></strong> (defined in <a href="#unity-modules-conda">Using modules and Conda</a>) has NumPy, SciPy, and Matplotlib, but not CuPy.</li>
 <li><strong><code>dfs</code></strong> (also defined in <a href="#unity-modules-conda">Using modules and Conda</a>) has NumPy and the local package <code>dcfuncs</code> installed.</li>
+<li><strong><code>ompi5</code></strong> (defined in <a href="#mpi-pc">MPI on a Linux PC</a>) includes OpenMPI 5.0.3, and MPI for Python, so MPI can be used. <strong><code>ompi4</code></strong> is similar but includes OpenMPI 4.1.6.</li>
 <li><strong><code>gpu</code></strong> (defined in <a href="#run-batch">Running batch jobs: <code>sbatch</code></a>) includes CuPy, so a GPU can be used.</li>
 </ul>
 </li>
 <li>The following test code is used:<ul>
+<li><strong><code>threadcount.py</code></strong> uses timing to estimate the number of threads in use while Numpy is multplying matrices.</li>
+<li><strong><code>threadcount_mpi.py</code></strong> esimates the numer of threads in use in each rank of an MPI run.</li>
 <li><strong><code>gputest.py</code></strong> makes dense and sparse matrices of various sizes and floating-point types, and times operations using these matrices on the CPU and (if available) the GPU. If run in an environment without CuPy like <strong><code>p39</code></strong>, only CPU tests will be run. But if run in <strong><code>gpu</code></strong> and a GPU can be initialized, will also run GPU tests.</li>
 <li><strong><code>np-version.py</code></strong> is a very short program that imports Numpy and prints out its version.</li>
 <li><strong><code>dcfuncs</code></strong> is small package of utility functions, used in this document as an example of a Python package <a href="#local-package">installed locally</a>. </li>
@@ -2710,21 +2719,24 @@ stoi results = 93801881091158, 6318, 249613385242335
 </li>
 <li><p>On Unity as of 1/25 the available OpenMPI modules on Unity HPC were Open MPI  4.1.6 and 5.0.3, so decided to use these same versions of OpenMPI on my PCs.</p>
 </li>
-<li><p>Following commands worked  1/25 to create a conda environment <strong><code>ompi5</code></strong> on my PCs with Python 3.11.11, OpenMPI 5.0.3, Numpy 1.26.4, SciPy 1.15.1, Matplotlib 3.10.0 (but trying to use Python 3.12 or above did not work).  It also worked to use these same commands but specifying openmpi=4.1.6 to make an environment <strong><code>ompi4</code></strong>.</p>
+<li><p>Following commands worked  1/25 to create a Conda environment <strong><code>ompi5</code></strong> on my PCs with Python 3.11.11, OpenMPI 5.0.3, Numpy 1.26.4, SciPy 1.15.1, Matplotlib 3.10.0 (Conda was unable to create this environment with Python 3.12 or above).  It also worked to use these same commands but specifying openmpi=4.1.6 to make an environment <strong><code>ompi4</code></strong>.</p>
 <pre><code class="fenced-code-block">$ conda update conda
 $ conda create -n ompi5 python=3.11
 $ conda activate ompi5
 (opmi5)..$ python --version
 3.11.11
-(ompi5)..$ conda install -c conda-forge openmpi=4.1.6 mpi4py
+(ompi5)..$ conda install -c conda-forge openmpi=5.0.3 mpi4py
 (ompi5)..$ conda install numpy scipy matplotlib</code></pre>
 <p>To make <code>mpirun</code> (and presumably other OpenMPI commands) usable must do</p>
 <pre><code class="fenced-code-block">$ sudo apt install openmpi-bin</code></pre>
 </li>
 </ul>
-<h4 class="atx" id="simple-mpi-test-programs-mpi_hwpy-and-osu_bwpy-lessa-iddouble-quotempi-testprogsdouble-quotegreaterlessagreater">Simple MPI test programs: <code>mpi_hw.py</code> and <code>osu_bw.py</code> <a id="mpi-testprogs"></a></h4>
+<h4 class="atx" id="simple-mpi-test-programs-mpi_hwpy--threadcount_mpi-and-osu_bwpy-lessa-iddouble-quotempi-testprogsdouble-quotegreaterlessagreater">Simple MPI test programs: <code>mpi_hw.py</code> , <code>threadcount_mpi</code>, and <code>osu_bw.py</code> <a id="mpi-testprogs"></a></h4>
 <ul>
-<li><p><strong><code>mpi_hw.py</code></strong> tests...</p>
+<li><p>MPI works by <strong>loading and starting <span class="katex"><span class="katex-mathml"></span><span aria-hidden="true" class="katex-html"><span class="base"><span style="height:0.4306em;" class="strut"></span><span class="mord mathnormal">n</span></span></span></span> copies of the same code</strong>, each in its own process using one or more cores.  Each process has a unique <strong>rank</strong>  in the range <span class="katex"><span class="katex-mathml"></span><span aria-hidden="true" class="katex-html"><span class="base"><span style="height:0.7278em;vertical-align:-0.0833em;" class="strut"></span><span class="mord">0</span><span style="margin-right:0.1667em;" class="mspace"></span><span class="minner">…</span><span style="margin-right:0.1667em;" class="mspace"></span><span class="mord mathnormal">n</span><span style="margin-right:0.2222em;" class="mspace"></span><span class="mbin">−</span><span style="margin-right:0.2222em;" class="mspace"></span></span><span class="base"><span style="height:0.6444em;" class="strut"></span><span class="mord">1</span></span></span></span>, and a process can find its rank via an MPI function call -- and then use the rank to figure out what it should do (this is up to the programmer!).  To simultaneously run four copies (ranks) of  the Python program <code>myprog.py</code> we do</p>
+<pre><code class="fenced-code-block">$ mpirun -n 4 python myprog.py</code></pre>
+</li>
+<li><p>The "Hello world" of MPI programs, <strong><code>mpi_hw.py</code></strong> simply prints a message including the rank and other information.  Running <code>mpi_hw.py</code> in six ranks gives us six such messages, in an indeterminate order:</p>
 <pre><code class="fenced-code-block">(ompi5)..$ mpirun -n 6 python mpi_hw.py
 Hello world from rank 0 of 6 on candela-20 running Open MPI v4.1.6
 Hello world from rank 3 of 6 on candela-20 running Open MPI v4.1.6
@@ -2732,12 +2744,29 @@ Hello world from rank 5 of 6 on candela-20 running Open MPI v4.1.6
 Hello world from rank 2 of 6 on candela-20 running Open MPI v4.1.6
 Hello world from rank 4 of 6 on candela-20 running Open MPI v4.1.6
 Hello world from rank 1 of 6 on candela-20 running Open MPI v4.1.6</code></pre>
-<p>(above could omit -n 6 and would use all 6 cores, -n 3 eg to use 3 cores, -n 7 fails.  <code>mpirun --use-hwthread-cpus python mpi_hw.py</code> will make two ranks per core using hyperthreading.</p>
+<p>Some fine points about the number of ranks:</p>
+<ul>
+<li><p>Omitting <code>-n 6</code> above will use all available cores, while setting the number of ranks to more than the available cores will cause <code>mpirun</code> to fail.</p>
+</li>
+<li><p>Including the option  <code>--use-hwthread-cpus</code>  will use <strong>hyperthreading</strong>, if available for the CPU used, to double the effective number of cores and thus double the allowed number of ranks.</p>
 </li>
 </ul>
-<p>below need -n 2)</p>
-<ul>
-<li><p><strong><code>osu_bw.py</code></strong> tests...</p>
+</li>
+<li><p><strong><code>threadcount_mpi.py</code></strong> uses MPI to run  the code in <code>threadcount.py</code> simultaneously on multiple cores. The latter program, introduced above in <a href="#parcomp-python">Parallel computing in Python</a>, uses timing to estimate the number of threads (thus cores) used by NumPy while multiplying matrices.  Running the non-MPI version showed that NumPy greedily used all available cores.  But with default settings, at least, the MPI version only allows NumPy to use one core per rank.  Here the MPI version is run in two ranks on the 16-core PC candela-21, theoretically allowing NumPy in each rank to use eight threads -- but only one is used:</p>
+<pre><code class="fenced-code-block language-ag-0-1iiptpi44ag-1-1iiptpi45">$ mpirun -n 2 python threadcount_mpi.py
+Hello world from rank 1 of 2 on candela-21 running Open MPI v5.0.3
+Hello world from rank 0 of 2 on candela-21 running Open MPI v5.0.3
+(rank 0) Making 3,000 x 3,000 random matrices...
+(rank 1) Making 3,000 x 3,000 random matrices...
+(rank 1) ...took 1.650e-01s, average threads = 1.000
+(rank 1) Multiplying matrices 3 times...
+(rank 0) ...took 1.653e-01s, average threads = 1.000
+(rank 0) Multiplying matrices 3 times...
+(rank 0) ...took 8.459e-01s per trial, average threads = 1.000
+(rank 1) ...took 8.522e-01s per trial, average threads = 1.000</code></pre>
+<p>Running <code>threadcount.py</code> on the same PC showed that <strong>NumPy matrix multiplications were about five times faster running on 16 cores</strong> than on one core as just above.</p>
+</li>
+<li><p>In both <code>mpi_hw.py</code> and <code>threadcount_mpi.py</code> the code in each rank runs independently, with no communication between ranks.  The main purpose of MPI is to carry out inter-rank communication, to enable non-trivial parallel algorithms.  <strong><code>osu_bw.py</code></strong> tests the <strong>speed of communication between two ranks</strong>, for messages of various sizes.  Here this test program was run on the PC candela-21.  As the two ranks are on cores on the same CPU chip, the communication speed should be quite fast:</p>
 <pre><code class="fenced-code-block">(ompi5)..$ mpirun -n 2 python osu_bw.py
 2
 2
@@ -2768,6 +2797,7 @@ Hello world from rank 1 of 6 on candela-20 running Open MPI v4.1.6</code></pre>
  4,194,304            9,130.77
  8,388,608            8,922.07
 16,777,216            7,397.23</code></pre>
+<p>It can be seen that the inter-rank communication speed is about 9 GB/s for messages size 65 kB - 4 MB, and slower for messages outside this range.</p>
 <h4 class="atx" id="a-more-elaborate-mpi-program-boxpctpy-with-the-dem21-packagelessa-iddouble-quoteboxpct-dem21double-quotegreaterlessagreater">A more elaborate MPI program: <code>boxpct.py</code> with the <code>dem21</code> package<a id="boxpct-dem21"></a></h4>
 </li>
 </ul>
