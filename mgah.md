@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   1/29/25
+mgah.md  D. Candela   1/31/25
 
 - [Introduction](#intro)  
   
@@ -13,6 +13,7 @@ mgah.md  D. Candela   1/29/25
   - [Pip and Conda](#pip-conda)
   - [Conda environments and test code used in this document](#envs-testcode)
   - [Installing a local package](#local-package)
+  - [Parallel execution on multiple cores](#multiple-cores)
 
 - [Part 1: MPI, GPU, and Apptainer on a Linux PC](#on-linux-pc)
   
@@ -351,6 +352,70 @@ In other sections of this document it is shown how a local package like this can
   stoi results = 93801881091158, 6318, 249613385242335
          ...
   ```
+
+### Parallel execution on multiple cores<a id="multiple-cores"></a>
+
+Modern CPU chips have multiple **cores**, with each core able to execute an independent **thread** within a process, or alternatively a full **process** which can execute Python code.  Some fine points when discussing the **number of cores**:
+
+- In an HPC cluster like Unity, a **node** is typically a board with two CPU chips (and often one or more GPUs) that share memory -- so the cores per node is typically twice the cores per CPU chip.  The CPU chips are often referred two as **sockets**.
+- In SLURM, "cpu" refers to a **core** not a CPU chip, for example in the `-c`,`-cpus-per-task` option to `sbatch`.
+- Typical CPU chips can use ["hyperthreading" or "hardware multithreading"](https://en.wikipedia.org/wiki/Hyper-threading) to make the number of **virtual cores** available to software to be more than (often twice) the number of **physical cores**, giving a modest increase (much less than two) in parallel throughput.  It seems this capability is typically turned off by default in HPC settings and when MPI is used.  For example, when code is run on a PC using OpenMPI, it will be turned off unless the `-use-hwthread-cpus` option is supplied to `mpirun`.
+
+The following examples all use the **16-core PC candela-21** [mentioned above](#pcs). As each of the cores can run an independent program, it might be thought that this PC can get 16 times as much computation done per second, provided the code can be split up to have 16 different things going on at the same time.  However, there are (at least) two factors that often make the gain in computation speed from using multiple cores less than the number of cores: (a) the **clock speeds** of the cores may depend on how many are in use, due to automatic **thermal management** by the CPU chip, and (b) the cores may need to **contend for memory access**.
+
+- **Clock speeds and thermal management.**  The AMD Ryzen 9 5950X CPU chip in candela-21 has a **base clock speed of 3.4 GHz** and a **boost clock speed up to 4.9 GHz**.  Individual cores can run at different clock speeds, but they can't all run at the maximum boost clock speed as the chip would overheat -- this is handled automatically by on-chip thermal management firmware. running faster.  Next, run `count.py` , a program that counts up to whatever number is provided (in Python, without NumPy, and therefore on a single core):
+  
+  ```
+  (ompi5)$ mpirun -n 1 -use-hwthread-cpus python count_mpi.py 1000000000
+  This is rank 0 of 1 on candela-21 running Open MPI v5.0.3
+  (rank 0 Counting up to 1,000,000,000...
+  (rank 0)...done, took 1.815e+01s, 5.510e+07counts/s
+                        ...
+  ```
+  
+  If we check the clock speeds (in another terminal) while `count.py` is running, we see that a single core is running at 4.7 GHz, near the maximum boost clock speed:
+  
+  ```
+  $ cat /proc/cpuinfo | grep 'cpu MHz'
+  cpu MHz        : 4657.204
+  cpu MHz        : 2200.000
+  cpu MHz        : 2200.000
+  cpu MHz        : 2200.000
+  cpu MHz        : 2200.000
+  cpu MHz        : 2200.000
+           ...
+  ```
+  
+    Next, run `count.py` , a program that counts up to whatever number is provided (in Python, without NumPy, and therefore on a single core):
+  
+  ```
+  (ompi5)$ mpirun -n 32 -use-hwthread-cpus python count_mpi.py 1000000000
+  This is rank 5 of 32 on candela-21 running Open MPI v5.0.3
+  This is rank 4 of 32 on candela-21 running Open MPI v5.0.3
+  (rank 4 Counting up to 1,000,000,000...
+  This is rank 16 of 32 on candela-21 running Open MPI v5.0.3
+                         ...
+  (rank 1)...done, took 3.957e+01s, 2.527e+07counts/s
+  (rank 14)...done, took 4.001e+01s, 2.499e+07counts/s
+  (rank 16)...done, took 4.002e+01s, 2.499e+07counts/s
+  
+  ```
+  
+  If we check the clock speeds (in another terminal) while `count.py` is running, we see that a single core is running at 4.7 GHz, near the maximum boost clock speed:
+  
+  ```
+  $ cat /proc/cpuinfo | grep 'cpu MHz'
+  cpu MHz		: 3750.022
+  cpu MHz		: 3750.079
+  cpu MHz		: 3750.026
+  cpu MHz		: 3750.091
+  cpu MHz		: 3750.062
+  cpu MHz		: 3750.102
+  cpu MHz		: 3750.084
+             ...
+  ```
+
+- **Memory contention.**
 
 ## Part 1: MPI, GPU, and Apptainer on a Linux PC<a id="on-linux-pc"></a>
 
