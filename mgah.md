@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   1/31/25
+mgah.md  D. Candela   1/31a/25
 
 - [Introduction](#intro)  
   
@@ -20,7 +20,7 @@ mgah.md  D. Candela   1/31/25
   - [MPI on a Linux PC](#mpi-pc)
     - [Why do it](#why-mpi-pc)    
     - [Installing OpenMPI and MPI for Python](#install-openmpi)
-    - [Simple MPI test programs: `mpi_hw.py`, `threadcount_mpi`, and `osu_bw.py`](#mpi-testprogs)
+    - [Simple MPI test programs: `mpi_hw.py`  and `osu_bw.py`](#mpi-testprogs)
     - [A more elaborate MPI program: `boxpct.py` with the `dem21` package](#boxpct-dem21)
   - [Using an NVIDIA GPU on a Linux PC](#gpu-pc)
     - [Why do it](#why-gpu-pc)
@@ -138,17 +138,7 @@ It is important to distinguish between **multithreading** and **multiprocessing*
 
 - A **process** is an independently-running program with its own memory space and other resources. Each process can run an independent Python program. Each core of a CPU can run multiple processes, but only one at a time (i.e. serially) - running multiple processes in parallel requires multiple cores.
 
-- A **thread** is part of a process, that can sometimes use multiple cores to run in parallel with other threads in the same process. For example BLAS which is called by NumPy to do linear algebra can use **multithreading** to run faster if multiple cores are available to the process.  The Python script **`threadcount.py`** uses process/wall time to estimate the number of threads in use when NumPy multiplies matrices.  On the 6-core PC [candela-20](#pcs):
-  
-  ```
-  $ python threadcount.py
-  Making 3,000 x 3,000 random matrices...
-  ...took 2.094e-01s, average threads = 1.000
-  Multiplying matrices 3 times...
-  ...took 2.144e-01s per trial, average threads = 5.968
-  ```
-  
-  Although this agrees with the core count, the overall speedup going to the 16-core [candela-21](#pcs) was only about 1.4 (vs expected 16/6 = 2.7) and rather variable. Also note that NumPy (or rather the underlying linear algebra package) is **greedy**, using all available cores -- you can read extensive discussions on the problems this causes for some people.
+- A **thread** is part of a process, that can sometimes use multiple cores to run in parallel with other threads in the same process. For example BLAS which is called by NumPy to do linear algebra can use **multithreading** to run faster if multiple cores are available to the process. 
 
 - Although a Python program can call packages like NumPy/BLAS that are sped up by doing multithreading on multiple cores, only one Python interpreter at a time can run in a process (for now - there is a [proposal](https://peps.python.org/pep-0703/) to relax this). Thus to carry out parallel *Python* operations **multiprocessing** is required. This can take several different forms:
   
@@ -274,6 +264,8 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
   - **`ompi5`** (defined in [MPI on a Linux PC](#mpi-pc)) includes OpenMPI 5.0.3, and MPI for Python, so MPI can be used. **`ompi4`** is similar but includes OpenMPI 4.1.6.
   - **`gpu`** (defined in [Running batch jobs: `sbatch`](#run-batch)) includes CuPy, so a GPU can be used.
 - The following test code is used:
+  - **`count.py`** times how fast a Python program can count.
+  - **`count_mpi.py`** times the counting speeds of multiple Python processes running simultaneously using MPI.
   - **`threadcount.py`** uses timing to estimate the number of threads in use while Numpy is multplying matrices.
   - **`threadcount_mpi.py`** esimates the numer of threads in use in each rank of an MPI run.
   - **`gputest.py`** makes dense and sparse matrices of various sizes and floating-point types, and times operations using these matrices on the CPU and (if available) the GPU. If run in an environment without CuPy like **`p39`**, only CPU tests will be run. But if run in **`gpu`** and a GPU can be initialized, will also run GPU tests.
@@ -359,11 +351,11 @@ Modern CPU chips have multiple **cores**, with each core able to execute an inde
 
 - In an HPC cluster like Unity, a **node** is typically a board with two CPU chips (and often one or more GPUs) that share memory -- so the cores per node is typically twice the cores per CPU chip.  The CPU chips are often referred two as **sockets**.
 - In SLURM, "cpu" refers to a **core** not a CPU chip, for example in the `-c`,`-cpus-per-task` option to `sbatch`.
-- Typical CPU chips can use ["hyperthreading" or "hardware multithreading"](https://en.wikipedia.org/wiki/Hyper-threading) to make the number of **virtual cores** available to software to be more than (often twice) the number of **physical cores**, giving a modest increase (much less than two) in parallel throughput.  It seems this capability is typically turned off by default in HPC settings and when MPI is used.  For example, when code is run on a PC using OpenMPI, it will be turned off unless the `-use-hwthread-cpus` option is supplied to `mpirun`.
+- Typical CPU chips can use ["hyperthreading" or "hardware multithreading"](https://en.wikipedia.org/wiki/Hyper-threading) to make the number of **virtual cores** available to software to be more than (often twice) the number of **physical cores**, giving a modest increase (much less than two) in parallel throughput.  It seems this capability is typically turned off by default in HPC settings and when MPI is used.  When code is run on a PC using OpenMPI, hyperthreading apperas to be turned off unless the `-use-hwthread-cpus` option is supplied to `mpirun`.
 
-The following examples all use the **16-core PC candela-21** [mentioned above](#pcs). As each of the cores can run an independent program, it might be thought that this PC can get 16 times as much computation done per second, provided the code can be split up to have 16 different things going on at the same time.  However, there are (at least) two factors that often make the gain in computation speed from using multiple cores less than the number of cores: (a) the **clock speeds** of the cores may depend on how many are in use, due to automatic **thermal management** by the CPU chip, and (b) the cores may need to **contend for memory access**.
+It might be thought that a PC using $n$ cores should get $n$ times as much computation done per second, provided the code can be efficiently split up to have $n$ different things going on at the same time.  However, there are (at least) three factors that often make the gain in computation speed from using multiple cores less than the number of cores: (a) the **clock speeds** of the cores may depend on how many are in use, due to automatic **thermal management** by the CPU chip, (b) the cores may need to **contend for memory access**, and (c) using multiple cores can affect the possibility of **multithreading by NumPy and similar packages**.
 
-- **Clock speeds and thermal management.**  The AMD Ryzen 9 5950X CPU chip in candela-21 has a **base clock speed of 3.4 GHz** and a **boost clock speed up to 4.9 GHz**.  Individual cores can run at different clock speeds, but they can't all run at the maximum boost clock speed as the chip would overheat -- this is handled automatically by on-chip thermal management firmware. running faster.  Next, run `count.py` , a program that counts up to whatever number is provided (in Python, without NumPy, and therefore on a single core):
+- **Clock speeds and thermal management.**  To  show this effect we run the the program **`count_mpi.py`** on the **16-core PC candela-21** [mentioned above](#pcs). The The AMD Ryzen 9 5950X CPU chip in this PC has a **base clock speed of 3.4 GHz** and a **boost clock speed up to 4.9 GHz**.  `count_mpi.py` uses MPI to run a simple program that times how long it takes to count up to a specified number (1,000,000,000 in the examples shown here) on a chosen number of cores.  First we run on one core:
   
   ```
   (ompi5)$ mpirun -n 1 -use-hwthread-cpus python count_mpi.py 1000000000
@@ -373,7 +365,7 @@ The following examples all use the **16-core PC candela-21** [mentioned above](#
                         ...
   ```
   
-  If we check the clock speeds (in another terminal) while `count.py` is running, we see that a single core is running at 4.7 GHz, near the maximum boost clock speed:
+  If we check the clock speeds (in another terminal) while `count_mpi.py` is running, we see that a single core is running at 4.7 GHz, near the maximum boost clock speed:
   
   ```
   $ cat /proc/cpuinfo | grep 'cpu MHz'
@@ -386,7 +378,7 @@ The following examples all use the **16-core PC candela-21** [mentioned above](#
            ...
   ```
   
-    Next, run `count.py` , a program that counts up to whatever number is provided (in Python, without NumPy, and therefore on a single core):
+    Next `count_mpi.py`  is run on all 32 virtual cores (`-use-hwthread-cpus` is used to turn on hyperthreading):
   
   ```
   (ompi5)$ mpirun -n 32 -use-hwthread-cpus python count_mpi.py 1000000000
@@ -398,24 +390,56 @@ The following examples all use the **16-core PC candela-21** [mentioned above](#
   (rank 1)...done, took 3.957e+01s, 2.527e+07counts/s
   (rank 14)...done, took 4.001e+01s, 2.499e+07counts/s
   (rank 16)...done, took 4.002e+01s, 2.499e+07counts/s
-  
   ```
   
-  If we check the clock speeds (in another terminal) while `count.py` is running, we see that a single core is running at 4.7 GHz, near the maximum boost clock speed:
+  In this case all cores are running at 3.75 GHz, showing that the CPU will not use the maximum boost clock when all cores are in use:
   
   ```
   $ cat /proc/cpuinfo | grep 'cpu MHz'
-  cpu MHz		: 3750.022
-  cpu MHz		: 3750.079
-  cpu MHz		: 3750.026
-  cpu MHz		: 3750.091
-  cpu MHz		: 3750.062
-  cpu MHz		: 3750.102
-  cpu MHz		: 3750.084
+  cpu MHz        : 3750.022
+  cpu MHz        : 3750.079
+  cpu MHz        : 3750.026
+  cpu MHz        : 3750.091
+  cpu MHz        : 3750.062
+  cpu MHz        : 3750.102
+  cpu MHz        : 3750.084
              ...
   ```
+  
+  As 16 physical cores are being used, one could expect the total count rate for all processes to be about 16*(3.75GHz/4.66GHz) = 12.8 times more than the single-core count rate.  In fact it is 32*2.5e7/s which is 14.6 times more than the single-core rate, suggesting a modest (15%) advantage from using hyperthreading.  So for this simple program, the advantage of using all cores along with hyperthreading (14.6) was nearly equal to the number of cores (16) despite the reduced clock rate due to using all cores.
+  
+  It was also found for this particular combination of software and hardware:
+  
+  - Running on 16 cores with hyperthreading disabled (i.e. not using `use-hwthread-cpus`) gave a modestly smaller throughput advantage (11.9) over using one core.
+  - Runing on 16 cores with hyperthreading worked poorly (throughput advantage 7.6). From examining the clock speeds it seems that the 16 tasks were not using all 16 physical cores in this case.
 
-- **Memory contention.**
+- **NumPy multithreading.** The Python script **`threadcount.py`** uses process/wall time to estimate the number of threads in use when NumPy multiplies matrices. On the 6-core PC [candela-20](#pcs):
+  
+  ```
+  $ python threadcount.py
+  Making 3,000 x 3,000 random matrices...
+  ...took 2.094e-01s, average threads = 1.000
+  Multiplying matrices 3 times...
+  ...took 2.144e-01s per trial, average threads = 5.968
+  ```
+  
+  Although this agrees with the core count, the overall speedup going to the 16-core [candela-21](#pcs) was only about 1.4 (vs expected 16/6 = 2.7) and rather variable. Also note that NumPy (or rather the underlying linear algebra package) is **greedy**, using all available cores -- you can read extensive discussions on the problems this causes for some people. **`threadcount_mpi.py`** uses MPI to run the code in `threadcount.py` simultaneously on multiple cores. With default settings, at least, the MPI version only allows NumPy to use one core per rank. Here the MPI version is run in two ranks on  candela-21, theoretically allowing NumPy in each rank to use eight threads -- but only one is used:
+  
+  ```ag-0-1iiptpi44ag-1-1iiptpi45
+  $ mpirun -n 2 python threadcount_mpi.py
+  Hello world from rank 1 of 2 on candela-21 running Open MPI v5.0.3
+  Hello world from rank 0 of 2 on candela-21 running Open MPI v5.0.3
+  (rank 0) Making 3,000 x 3,000 random matrices...
+  (rank 1) Making 3,000 x 3,000 random matrices...
+  (rank 1) ...took 1.650e-01s, average threads = 1.000
+  (rank 1) Multiplying matrices 3 times...
+  (rank 0) ...took 1.653e-01s, average threads = 1.000
+  (rank 0) Multiplying matrices 3 times...
+  (rank 0) ...took 8.459e-01s per trial, average threads = 1.000
+  (rank 1) ...took 8.522e-01s per trial, average threads = 1.000
+  ```
+  
+  Running `threadcount.py` on the same PC showed that **NumPy matrix multiplications were about five times faster running on 16 cores** (without MPI) than on one core (with MPI).  This is a **multithreading speedup of Numpy that is lost in going to MPI with Numpy multhreading prevented**.
 
 ## Part 1: MPI, GPU, and Apptainer on a Linux PC<a id="on-linux-pc"></a>
 
@@ -453,7 +477,7 @@ Note, however, that parallelism across all the cores of any single node of an HP
   $ sudo apt install openmpi-bin
   ```
 
-#### Simple MPI test programs: `mpi_hw.py` , `threadcount_mpi`, and `osu_bw.py` <a id="mpi-testprogs"></a>
+#### Simple MPI test programs: `mpi_hw.py`  and `osu_bw.py` <a id="mpi-testprogs"></a>
 
 - MPI works by **loading and starting $n$ copies of the same code**, each in its own process using one or more cores.  Each process has a unique **rank**  in the range $0\dots n-1$, and a process can find its rank via an MPI function call -- and then use the rank to figure out what it should do (this is up to the programmer!).  To simultaneously run four copies (ranks) of  the Python program `myprog.py` we do
   
@@ -479,25 +503,7 @@ Note, however, that parallelism across all the cores of any single node of an HP
   
   - Including the option  `--use-hwthread-cpus`  will use **hyperthreading**, if available for the CPU used, to double the effective number of cores and thus double the allowed number of ranks.
 
-- **`threadcount_mpi.py`** uses MPI to run  the code in `threadcount.py` simultaneously on multiple cores. The latter program, introduced above in [Parallel computing in Python](#parcomp-python), uses timing to estimate the number of threads (thus cores) used by NumPy while multiplying matrices.  Running the non-MPI version showed that NumPy greedily used all available cores.  But with default settings, at least, the MPI version only allows NumPy to use one core per rank.  Here the MPI version is run in two ranks on the 16-core PC candela-21, theoretically allowing NumPy in each rank to use eight threads -- but only one is used:
-  
-  ```ag-0-1iiptpi44ag-1-1iiptpi45
-  $ mpirun -n 2 python threadcount_mpi.py
-  Hello world from rank 1 of 2 on candela-21 running Open MPI v5.0.3
-  Hello world from rank 0 of 2 on candela-21 running Open MPI v5.0.3
-  (rank 0) Making 3,000 x 3,000 random matrices...
-  (rank 1) Making 3,000 x 3,000 random matrices...
-  (rank 1) ...took 1.650e-01s, average threads = 1.000
-  (rank 1) Multiplying matrices 3 times...
-  (rank 0) ...took 1.653e-01s, average threads = 1.000
-  (rank 0) Multiplying matrices 3 times...
-  (rank 0) ...took 8.459e-01s per trial, average threads = 1.000
-  (rank 1) ...took 8.522e-01s per trial, average threads = 1.000
-  ```
-  
-  Running `threadcount.py` on the same PC showed that **NumPy matrix multiplications were about five times faster running on 16 cores** than on one core as just above.
-
-- In both `mpi_hw.py` and `threadcount_mpi.py` the code in each rank runs independently, with no communication between ranks.  The main purpose of MPI is to carry out inter-rank communication, to enable non-trivial parallel algorithms.  **`osu_bw.py`** tests the **speed of communication between two ranks**, for messages of various sizes.  Here this test program was run on the PC candela-21.  As the two ranks are on cores on the same CPU chip, the communication speed should be quite fast:
+- In `mpi_hw.py` the code in each rank runs independently, with no communication between ranks.  The main purpose of MPI is to carry out inter-rank communication, to enable non-trivial parallel algorithms.  **`osu_bw.py`** tests the **speed of communication between two ranks**, for messages of various sizes.  Here this test program was run on the PC candela-21.  As the two ranks are on cores on the same CPU chip (on a PC like this -- not necessarily true on an HPC cluster), the communication speed should be quite fast:
   
   ```
   (ompi5)..$ mpirun -n 2 python osu_bw.py
