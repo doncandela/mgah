@@ -9,7 +9,7 @@ Usage:
 runs <cores> separate tasks, each of which counts up to <n> then exits.
 
 """
-THIS_IS = 'count_mpi.py 1/31/25 D.C.'
+THIS_IS = 'count_mpi.py 2/3/25 D.C.'
 
 import sys,time
 from mpi4py import MPI
@@ -26,7 +26,7 @@ version = version.partition('\n')[0]
 print(f'This is rank {rank} of {size}'
       f' on {pname} running {version}')
 n = int(sys.argv[1])
-print(f'(rank {rank} Counting up to {n:,}...')
+print(f'(rank {rank}) Counting up to {n:,}...')
 t0 = time.perf_counter()
 for i in range(n):
     pass

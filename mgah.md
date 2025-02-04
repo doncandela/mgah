@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   1/31a/25
+mgah.md  D. Candela   2/3/25
 
 - [Introduction](#intro)  
   
@@ -51,8 +51,8 @@ mgah.md  D. Candela   1/31a/25
     - [Using `.bashrc` and `.bash_aliases`](#rc-files)
     - [Using modules and Conda](#unity-modules-conda)
     - [Running batch jobs: `sbatch`](#run-batch)
-    - [Using MPI](#unity-mpi)
-    - [Using a GPU](#unity-gpu)
+    - [Using MPI on Unity (without Apptainer)](#unity-mpi)
+    - [Using a GPU on Unity (without Apptainer)](#unity-gpu)
   - [Using Apptainer on the Unity HPC cluster](#unity-apptainer)
     - [Getting container images on the cluster](#images-to-unity)
     - [Running a container interactively or in batch job](#unity-run-container)
@@ -253,16 +253,18 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
 
 ### Conda environments and test code used in this document<a id="envs-testcode"></a>
 
-- The following Conda environments are created and used on a PC in this document:
+- **Conda environments and Apptainer**. Often, and for all the examples in this document, there is no need to create a Conda environment when an Apptainer container is being used - the container serves as an environment.  (One could run an Apptainer container from a Conda environment if additional packages not installed in the container were needed  -- but that is not shown here.)
+- The following Conda environments are created and used on a PC, when Apptainer is not being used: 
   - **`p39`** (defined just above) has Python 3.9, NumPy, SciPy, etc but does not have OpenMPI, PyTorch, or CuPy.
   - **`dfs`** (defined in [Installing a local package](#local-package) below) environment for trying out  the local package `dcfuncs`.
+  - **`ompi5`** (defined in [MPI on a Linux PC](#mpi-pc)) includes OpenMPI 5.0.3, and MPI for Python, so MPI can be used. **`ompi4`** is similar but includes OpenMPI
   - **`pyt`** (defined in [Installing CUDA-aware Python packages...](#pytorch-cupy) below) adds PyTorch.
   - **`gpu`** (also defined in [Installing CUDA-aware Python packages...](#pytorch-cupy) below) adds CuPy.
-- The following Conda environments are created and used on the Unity HPC cluster:
+- The following Conda environments are created and used on the Unity HPC cluster: when Apptainer is not being used:
   - **`npsp`** (defined in [Using modules and Conda](#unity-modules-conda)) has NumPy, SciPy, and Matplotlib, but not CuPy.
   - **`dfs`** (also defined in [Using modules and Conda](#unity-modules-conda)) has NumPy and the local package `dcfuncs` installed.
-  - **`ompi5`** (defined in [MPI on a Linux PC](#mpi-pc)) includes OpenMPI 5.0.3, and MPI for Python, so MPI can be used. **`ompi4`** is similar but includes OpenMPI 4.1.6.
-  - **`gpu`** (defined in [Running batch jobs: `sbatch`](#run-batch)) includes CuPy, so a GPU can be used.
+  - **`ompi5`** (defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) includes OpenMPI 5.0.3, and MPI for Python, so MPI can be used. **`ompi4`** is similar but includes OpenMPI 4.1.6.
+  - **`gpu`** (defined in [Using a GPU in Unity (without Apptainer)](#unity-gpu)) includes CuPy, so a GPU can be used.
 - The following test code is used:
   - **`count.py`** times how fast a Python program can count.
   - **`count_mpi.py`** times the counting speeds of multiple Python processes running simultaneously using MPI.
@@ -276,10 +278,12 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
   - **`pack.def`** makes a container that contains Linux, Conda, and the **Miniconda** package distribution, and installs a few selected packages in the container.
   - **`dfs.def`** makes a container with the local package **`dcfuncs`** installed in it
   - **`gpu.def`** makes a container that imports **CuPy** so it can use a GPU.
-- The following sbatch scripts are defined for use with Slurm on the Unity cluster:
-  - **`noapp-nogpu.sh`** (defined in [Running batch jobs: `sbatch`](#run-batch)) runs non-Apptainer job that doesn't use a GPU.
-  - **`noapp-gpu.sh`** (defined in [Using a GPU](#unity-gpu)) runs non-Apptainer job that uses a GPU.
-  - **`app-nogpu.sh`** (defined in [Running a container interactively or in batch job](#unity-run-container)) runs an Apptainer (containerized) job that doesn't use a GPU.
+- The following sbatch scripts are defined for use with Slurm on the Unity cluster **TODO change script names and in this document to these new names**:
+  - **`simple.sh`** (defined in [Running batch jobs: `sbatch`](#run-batch)) runs job that uses none of MPI, a GPU, or Apptainer.
+  - **`mpi.sh`** (defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) runs a job that uses MPI.
+  - **`gpu.sh`** (defined in [Using a GPU on Unity (without Apptainer)](#unity-gpu)) runs non-Apptainer job that uses a GPU.
+  - **`app.sh`** (defined in [Running a container interactively or in batch job](#unity-run-container)) runs an Apptainer (containerized) job that doesn't use MPI or a GPU.
+  - **`app-mpi.sh`** (defined in [Running a container the uses MPI](#unity-mpi-container)) runs an Apptainer job that uses a GPU.
   - **`app-gpu.sh`** (defined in [Running a container the uses a GPU](#unity-gpu-container)) runs an Apptainer job that uses a GPU.
 
 ### Installing a local package<a id="local-package"></a>
@@ -350,7 +354,7 @@ In other sections of this document it is shown how a local package like this can
 Modern CPU chips have multiple **cores**, with each core able to execute an independent **thread** within a process, or alternatively a full **process** which can execute Python code.  Some fine points when discussing the **number of cores**:
 
 - In an HPC cluster like Unity, a **node** is typically a board with two CPU chips (and often one or more GPUs) that share memory -- so the cores per node is typically twice the cores per CPU chip.  The CPU chips are often referred two as **sockets**.
-- In SLURM, "cpu" refers to a **core** not a CPU chip, for example in the `-c`,`-cpus-per-task` option to `sbatch`.
+- In SLURM, "cpu" refers to a **core** not a CPU chip. For example in the `-c`,`-cpus-per-task` option to `sbatch`  sets the number of cores allocated to a process.
 - Typical CPU chips can use ["hyperthreading" or "hardware multithreading"](https://en.wikipedia.org/wiki/Hyper-threading) to make the number of **virtual cores** available to software to be more than (often twice) the number of **physical cores**, giving a modest increase (much less than two) in parallel throughput.  It seems this capability is typically turned off by default in HPC settings and when MPI is used.  When code is run on a PC using OpenMPI, hyperthreading apperas to be turned off unless the `-use-hwthread-cpus` option is supplied to `mpirun`.
 
 It might be thought that a PC using $n$ cores should get $n$ times as much computation done per second, provided the code can be efficiently split up to have $n$ different things going on at the same time.  However, there are (at least) three factors that often make the gain in computation speed from using multiple cores less than the number of cores: (a) the **clock speeds** of the cores may depend on how many are in use, due to automatic **thermal management** by the CPU chip, (b) the cores may need to **contend for memory access**, and (c) using multiple cores can affect the possibility of **multithreading by NumPy and similar packages**.
@@ -360,7 +364,7 @@ It might be thought that a PC using $n$ cores should get $n$ times as much compu
   ```
   (ompi5)$ mpirun -n 1 -use-hwthread-cpus python count_mpi.py 1000000000
   This is rank 0 of 1 on candela-21 running Open MPI v5.0.3
-  (rank 0 Counting up to 1,000,000,000...
+  (rank 0) Counting up to 1,000,000,000...
   (rank 0)...done, took 1.815e+01s, 5.510e+07counts/s
                         ...
   ```
@@ -384,7 +388,7 @@ It might be thought that a PC using $n$ cores should get $n$ times as much compu
   (ompi5)$ mpirun -n 32 -use-hwthread-cpus python count_mpi.py 1000000000
   This is rank 5 of 32 on candela-21 running Open MPI v5.0.3
   This is rank 4 of 32 on candela-21 running Open MPI v5.0.3
-  (rank 4 Counting up to 1,000,000,000...
+  (rank 4) Counting up to 1,000,000,000...
   This is rank 16 of 32 on candela-21 running Open MPI v5.0.3
                          ...
   (rank 1)...done, took 3.957e+01s, 2.527e+07counts/s
@@ -410,8 +414,8 @@ It might be thought that a PC using $n$ cores should get $n$ times as much compu
   
   It was also found for this particular combination of software and hardware:
   
-  - Running on 16 cores with hyperthreading disabled (i.e. not using `use-hwthread-cpus`) gave a modestly smaller throughput advantage (11.9) over using one core.
-  - Runing on 16 cores with hyperthreading worked poorly (throughput advantage 7.6). From examining the clock speeds it seems that the 16 tasks were not using all 16 physical cores in this case.
+  - Running on 16 cores with hyperthreading disabled (i.e. not using `use-hwthread-cpus`) gave a somewhat smaller throughput advantage (11.9) over using one core.
+  - Runing on 16 cores with hyperthreading worked poorly (throughput advantage 7.6). From examining the clock speeds it seems that the 16 tasks were not using all 16 physical cores in this case.  In other words some physical cores ran 2 tasks in their two virtual cores, while other physical cores ran none.
 
 - **NumPy multithreading.** The Python script **`threadcount.py`** uses process/wall time to estimate the number of threads in use when NumPy multiplies matrices. On the 6-core PC [candela-20](#pcs):
   
@@ -439,7 +443,7 @@ It might be thought that a PC using $n$ cores should get $n$ times as much compu
   (rank 1) ...took 8.522e-01s per trial, average threads = 1.000
   ```
   
-  Running `threadcount.py` on the same PC showed that **NumPy matrix multiplications were about five times faster running on 16 cores** (without MPI) than on one core (with MPI).  This is a **multithreading speedup of Numpy that is lost in going to MPI with Numpy multhreading prevented**.
+  Running `threadcount.py` on the same PC showed that **NumPy matrix multiplications were about five times faster running on 16 cores** (without MPI) than on one core (with MPI).  This is a **multithreading speedup of Numpy that is lost in going to MPI with Numpy multhreading prevented**. **TODO see if Numpy can multithread under MPI on Unity (by giving -c option)**
 
 ## Part 1: MPI, GPU, and Apptainer on a Linux PC<a id="on-linux-pc"></a>
 
