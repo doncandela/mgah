@@ -1,6 +1,7 @@
 #!/bin/bash
-# app-nogpu.sh 1/16/14 D.C.
-# Sample one-task sbatch script using a container, but not a GPU
+# app.sh 2/5/25 D.C.
+# One-task sbatch script using runs an Apptainer container that
+# doesn't use MPI or a GPU.
 #SBATCH -c 6                  # use 6 CPU cores
 #SBATCH -p cpu                # submit to partition cpu
 

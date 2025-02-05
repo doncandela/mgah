@@ -1,6 +1,6 @@
 #!/bin/bash
-# noapp-gpu.sh 1/16/14 D.C.
-# Sample one-task sbatch script using a GPU but not Apptainer
+# gpu.sh 2/5/24 D.C.
+# One-task sbatch script using a GPU but not Apptainer.
 #SBATCH -c 6                  # use 6 CPU cores
 #SBATCH -G 1                  # use one GPU
 #SBATCH -p gpu                # submit to partition gpu

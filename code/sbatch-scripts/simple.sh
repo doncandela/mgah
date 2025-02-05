@@ -1,6 +1,6 @@
 #!/bin/bash
-# noapp-nogpu.sh 1/16/14 D.C.
-# Sample one-task sbatch script using neither Apptainer nor GPU
+# simple.sh 2/5/25 D.C.
+# One-task sbatch script using none of MPI, a GPU, or Apptainer.
 #SBATCH -c 6                  # use 6 CPU cores
 #SBATCH -p cpu                # submit to partition cpu
 

@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   2/3/25
+mgah.md  D. Candela   2/5/25
 
 - [Introduction](#intro)  
   
@@ -278,8 +278,8 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
   - **`pack.def`** makes a container that contains Linux, Conda, and the **Miniconda** package distribution, and installs a few selected packages in the container.
   - **`dfs.def`** makes a container with the local package **`dcfuncs`** installed in it
   - **`gpu.def`** makes a container that imports **CuPy** so it can use a GPU.
-- The following sbatch scripts are defined for use with Slurm on the Unity cluster **TODO change script names and in this document to these new names**:
-  - **`simple.sh`** (defined in [Running batch jobs: `sbatch`](#run-batch)) runs job that uses none of MPI, a GPU, or Apptainer.
+- The following sbatch scripts are defined for use with Slurm on the Unity cluster:
+  - **`simple.sh`** (defined in [Example of a simple batch job](#simple-batch)) runs job that uses none of MPI, a GPU, or Apptainer.
   - **`mpi.sh`** (defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) runs a job that uses MPI.
   - **`gpu.sh`** (defined in [Using a GPU on Unity (without Apptainer)](#unity-gpu)) runs non-Apptainer job that uses a GPU.
   - **`app.sh`** (defined in [Running a container interactively or in batch job](#unity-run-container)) runs an Apptainer (containerized) job that doesn't use MPI or a GPU.
@@ -1738,7 +1738,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   
   The nodes on Unity are very heterogeneous, with between 12 and 192 cores per node, so I don’t think it makes sense to use -N,--nodes or --exclusive unless constraints are used to match the type of nodes used to the size of the job (tasks or cores used).  Similarly --mem sets the memory per node and I’m not sure what this means unless full nodes are used.
 
-- **Example of a  simple batch job** not using MPI, or a GPU, or Apptainer.
+- **Example of a  simple batch job**<a id="simple-batch"></a> not using MPI, or a GPU, or Apptainer.
   
   - As a container is not being used, a Conda environment must be set up on Unity with the needed packages. This example uses the environment **`npsp`** [set up above](#conda-hpc) with Python, Numpy, and Scipy, but not CuPy.
   
@@ -1746,8 +1746,8 @@ Finally, the computational resources of an HPC cluster are only useful if availa
     
     ```
     #!/bin/bash
-    # noapp-nogpu.sh 1/16/14 D.C.
-    # Sample one-task sbatch script using neither Apptainer nor GPU
+    # simple.sh 2/5/25 D.C.
+    # One-task sbatch script using none of MPI, a GPU, or Apptainer.
     #SBATCH -c 6                        # use 6 CPU cores
     #SBATCH -p cpu                      # submit to partition cpu
     
@@ -1762,7 +1762,64 @@ Finally, the computational resources of an HPC cluster are only useful if availa
 
 #### Using MPI on Unity (without Apptainer)<a id="unity-mpi"></a>
 
-TODO copy from earlier UMSC cheat sheet and update for Unity
+- A **Conda environment `ompi` capable of using OpenMPI** was created as follows, running an interactive shell on a Unity compute node:
+  
+  ```
+  $ module load conda/latest
+  $ conda create -n ompi5 python=3.11
+  $ conda activate ompi5
+  (opmi5)..$ module av openmpi     # see which OpenMPI versions are available
+  ----------------------- /modules/modulefiles/spack/latest/linux-ubuntu24.04-x86_64/Core -------------------------
+     openmpi/4.1.6-cuda12.6    openmpi/4.1.6    openmpi/5.0.3-cuda12.6    openmpi/5.0.3
+  (ompi5)..$ module load openmpi/5.0.3-cuda12.6
+  (ompi5)..$ conda install mpi4py
+  (ompi5)..$ conda install numpy scipy matplotlib
+  ```
+  
+  TODO this is the GPU commentary --- Unlike on my PCs, on Unity it was not necessary to explicitly specify `-c conda-forge` to get an up-to-date version of CuPy (see [Installing CUDA-aware Python packages](#pytorch-cupy) above). This may be because [on Unity, Conda uses Minforge](https://docs.unity.rc.umass.edu/documentation/software/conda/) rather than Anaconda.
+
+- **Run `mpi_hw.py` on Unity interactively.**
+  
+  TODO this is GPU commentary Here we get an interactive shell with 6 cores and one GPU on a compute node in the `gpu` partition, and load a CUDA module (although CUDA typically seems to be loaded already on GPU nodes). Then we run `nvidia-smi` to check that the GPU and CUDA are available and get info on them (not sure why CUDA version reported by `nvidia-smi` doesn’t match module loaded):
+  
+  ```
+  $ salloc -c 6 -p cpu
+  $ module load conda/latest
+  $ module load openmpi/5.0.3-cuda12.6
+  $ conda activate ompi5
+  (ompi5)$ cd ..             # cd to directory containing mpi_hw.py
+  (ompi5)$ mpirun python mpi_hw.py
+  ```
+
+- **A batch job using a MPI.**
+  
+  **TODO this is GPU text***
+  
+  - As in the non-GPU background job example above, here we again run `gputest.py` in the directory `/work/...test_gpu` but now we activate the Conda evironment `gpu` with does include CuPy, so `gputest.py` will try to use a GPU. We will also need to ensure the CUDA module is loaded, request a GPU, and run the job in a GPU partition. So we will use an sbatch script **`gpu.sh`** with these contents:
+    
+    ```
+    #!/bin/bash
+    # gpu.sh 2/5/24 D.C.
+    # One-task sbatch script using a GPU but not Apptainer.
+    #SBATCH -c 6                  # use 6 CPU cores
+    #SBATCH -G 1                  # use one GPU
+    #SBATCH -p cpu                # submit to partition gpu
+    
+    module purge                  # unload all modules
+    module load conda/latest
+    module load cuda/12.6         # need CUDA to use a GPU
+    conda activate gpu            # environment with NumPy, SciPy, and CuPy
+    
+    python gputest.py > npapp-nogpu.out   # run gputest.py sending its output to a file
+    ```
+    
+    - The job is submitted by doing
+      
+      ```
+      (base) try-gputest$ sbatch noapp-gpu.sh
+      ```
+      
+      which will create the output file try-gputest/noapp-gpu.out.
 
 #### Using a GPU on Unity (without Apptainer)<a id="unity-gpu"></a>
 
@@ -1786,7 +1843,7 @@ TODO copy from earlier UMSC cheat sheet and update for Unity
   
     Unlike on my PCs, on Unity it was not necessary to explicitly specify `-c conda-forge` to get an up-to-date version of CuPy (see [Installing CUDA-aware Python packages](#pytorch-cupy) above).  This may be because [on Unity, Conda uses Minforge](https://docs.unity.rc.umass.edu/documentation/software/conda/) rather than Anaconda.
 
-- **Run gputest.py on Unity interactively.**
+- **Run `gputest.py` on Unity interactively.**
   
   - Here we get an interactive shell with 6 cores and one GPU on a compute node in the `gpu` partition, and load a CUDA module (although CUDA typically seems to be loaded already on GPU nodes). Then we run `nvidia-smi` to check that the GPU and CUDA are available and get info on them (not sure why CUDA version reported by `nvidia-smi` doesn’t match module loaded):
     
@@ -1827,12 +1884,12 @@ TODO copy from earlier UMSC cheat sheet and update for Unity
 
 - **A batch job using a GPU.**
   
-  - As in the non-GPU background job example above, here we again run `gputest.py` in the directory `/work/...test_gpu` but now we activate the Conda evironment `gpu` with does include CuPy, so `gputest.py` will try to use a GPU.  We will also need to ensure the CUDA module is loaded, request a GPU, and run the job in a GPU partition.  So we will use an sbatch script **`noapp-gpu.sh`** with these contents:
+  - As in the non-GPU background job example above, here we again run `gputest.py` in the directory `/work/...test_gpu` but now we activate the Conda evironment `gpu` with does include CuPy, so `gputest.py` will try to use a GPU.  We will also need to ensure the CUDA module is loaded, request a GPU, and run the job in a GPU partition.  So we will use an sbatch script **`gpu.sh`** with these contents:
     
     ```
     #!/bin/bash
-    # noapp-gpu.sh 1/16/24 D.C.
-    # Sample one-task sbatch script using a GPU but not Apptainer
+    # gpu.sh 2/5/24 D.C.
+    # One-task sbatch script using a GPU but not Apptainer.
     #SBATCH -c 6                  # use 6 CPU cores
     #SBATCH -G 1                  # use one GPU
     #SBATCH -p cpu                # submit to partition gpu
@@ -1927,12 +1984,13 @@ This section describes how to run a container that **does not use MPI or a GPU**
 
 - **Running a batch job using the container.**
   
-  - For this purpose we have copied the python script `gputest.py` to the Unity directory that holds **`dsf.sif`**.  Because this container does not contain CuPy, if we use it to run `gputest.py` only the CPU will be used.  Here is an sbatch script called **`app-nogpu.sh`**:
+  - For this purpose we have copied the python script `gputest.py` to the Unity directory that holds **`dsf.sif`**.  Because this container does not contain CuPy, if we use it to run `gputest.py` only the CPU will be used.  Here is an sbatch script called **`app.sh`**:
     
     ```
     #!/bin/bash
-    # app-nogpu.sh 1/16/24 D.C.
-    # Sample one-task sbatch script using a container, but not a GPU
+    # app.sh 2/5/25 D.C.
+    # One-task sbatch script using runs an Apptainer container that
+    # doesn't use MPI or a GPU.
     #SBATCH -c 6                  # use 6 CPU cores
     #SBATCH -p cpu                # submit to partition cpu
     
@@ -2012,8 +2070,9 @@ TODO haven't tried this yet
     
     ```
     #!/bin/bash
-    # app-gpu.sh 1/16/24 D.C
-    # Sample one-task sbatch script using a container and a GPU
+    # app-gpu.sh 2/5/24 D.C.
+    # One-task sbatch script runs an Apptainer container that
+    # uses a GPU.
     
     #SBATCH -c 6                  # use 6 CPU cores
     #SBATCH -G 1                  # use one GPU

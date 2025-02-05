@@ -1,6 +1,7 @@
 #!/bin/bash
-# app-gpu.sh 1/16/14 D.C.
-# Sample one-task sbatch script using a container and a GPU
+# app-gpu.sh 2/5/24 D.C.
+# One-task sbatch script runs an Apptainer container that
+# uses a GPU.
 #SBATCH -c 6                  # use 6 CPU cores
 #SBATCH -G 1                  # use one GPU
 #SBATCH -p gpu                # submit to partition gpu
