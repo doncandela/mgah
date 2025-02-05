@@ -1788,7 +1788,8 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   $ module load openmpi/5.0.3-cuda12.6
   $ conda activate ompi5
   (ompi5)$ cd ..             # cd to directory containing mpi_hw.py
-  (ompi5)$ mpirun python mpi_hw.py
+  (ompi5)$ mpirun -n 4 python mpi_hw.py
+  TODO this worked but could specify more than 6 tasks not sure how that works
   ```
 
 - **A batch job using a MPI.**
