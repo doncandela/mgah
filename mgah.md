@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   2/6/25
+mgah.md  D. Candela   2/7/25
 
 - [Introduction](#intro)  
   
@@ -354,7 +354,9 @@ In other sections of this document it is shown how a local package like this can
 Modern CPU chips have multiple **cores** (as of 1/25 CPUs in consumer PCs have 4-10 cores while CPUs for HPC have up to 128 cores), with each core able to execute an independent **thread** within a process, or alternatively a full **process** which can execute Python code.  Some fine points about **counting the number of cores**:
 
 - In an HPC cluster like Unity, a **node** is typically a board with two **sockets** each holding a CPU chip with shared memory between the CPUs, often along with one or more GPUs  -- so the cores per node is typically twice the cores per CPU chip. 
-- Typical CPU chips can use ["hyperthreading" or "hardware multithreading"](https://en.wikipedia.org/wiki/Hyper-threading) to make the number of **virtual cores** available to software to be more than (often twice) the number of **physical cores**, giving a modest increase (much less than two) in parallel throughput.  It seems this capability is typically turned off by default in HPC settings and when MPI is used.  When code is run on a PC using OpenMPI, hyperthreading appears to be turned off unless the `-use-hwthread-cpus` option is supplied to `mpirun`.
+- Typical CPU chips can use ["hyperthreading" or "hardware multithreading"](https://en.wikipedia.org/wiki/Hyper-threading) to make the number of **virtual cores** available to software to be more than (often twice) the number of **physical cores**, giving a modest increase (much less than two) in parallel throughput.
+  - It seems that hyperthreading is usually considered detrimental for HPC workloads is, so hyperthreading is typically disabled (at least by default) on **HPC clusters** -- this is the case for Unity ([link](https://docs.unity.rc.umass.edu/documentation/get-started/hpc-theory/threads-cores-processes-sockets/), [link](https://docs.unity.rc.umass.edu/news/2023/05/june-5-update-may-26-outage/)). Slurm does have directives to turn hyperthreading on, but I don't know if they work on Unity or are ever useful.
+  - On a **PC running OpenMPI** it appears that hyperthreading is turned off by default, but can be enabled by supplying the  `-use-hwthread-cpus` option to `mpirun`.  As the examples below show, it can be modestly  advantageous to use hyperthreading if all available virtual cores (twice the physical cores) are used.  But if less than all virtual cores were used hyperthreading was detrimental because my PCs sometimes assigned two tasks to the same core leaving other cores unused.
 - In some SLURM and MPI settings, "cpu" refers to a **core** not a CPU chip. For example the `-c`,`-cpus-per-task` option to the SLURM `sbatch` command  and the `--cpus-per-proc` option to the OpenMPI `mpirun` command both set the the number of cores (not CPU chips) allocated to a process
 
 It might be thought that a PC using *n* cores should get *n* times as much computation done per second, provided the code can be efficiently split up to have *n* different things going on at the same time.  However, there are (at least) three factors that often make the gain in computation speed from using multiple cores less than the number of cores: (a) the **clock speeds** of the cores may depend on how many are in use, due to automatic **thermal management** by the CPU chip, (b) the cores may need to **contend for memory access**, and (c) the available cores can be used for **MPI multiproccesing**, or for **multithreading by NumPy and similar packages**, or **both of these things simultaneously**.
@@ -421,56 +423,68 @@ It might be thought that a PC using *n* cores should get *n* times as much compu
 
 - **NumPy multithreading vs MPI multiprocessing.**
   
-  - The Python script **`threadcount.py`** uses process/wall time to estimate the number of threads in use when NumPy multiplies matrices. On the 6-core PC [candela-20](#pcs):
-  
-  ```
-  $ python threadcount.py
-  Making 3,000 x 3,000 random matrices...
-  ...took 2.094e-01s, average threads = 1.000
-  Multiplying matrices 3 times...
-  ...took 2.144e-01s per trial, average threads = 5.968
-  ```
-  
-  By default NumPy (or rather the underlying linear algebra package) is **greedy**, using all available cores as can be seen in the example above.
-  
-  OLD: Although this agrees with the core count, the overall speedup going to the 16-core [candela-21](#pcs) was only about 1.4 (vs expected 16/6 = 2.7) and rather variable.
-  
-  - When **MPI** is used there is a choice of how many cores to allocated to each process. From the n [OpenMPI docs for `mpirun`](https://www.open-mpi.org/doc/v3.0/man1/mpirun.1.php):
-  
-  - `mpirun -n <n> python myprog.py` specifies that `n` processes (`n` independent copies of the Python program `myprog.py`) should be run, giving `n` MPI ranks.  Note: `-n, -c, --n, -np` are all synonymous as options to `mpirun`.  Without further options each process will be allocated one core, so `<n>` cores will be required.
-  
-  - `mpirun -n <n> --cpus-per-proc <c> python myprog.py` will run `<n>` copies of `myprog.py` each with `<c>` cores available, which NumPy can use. There will again be `<n>` MPI ranks, but now `<n>*<c>'` cores will be required.
-  
-  - The docs say `--cpus-per-proc` is deprecated and should be replaced by `--map-by ...`. For the situations described in in this document `--map-by node:pe=<c>` is equivalent to `--cpus-per-proc <c>`, so the full command to run `<n>` copies of `myprog.py` in `<n>` MPI ranks, with `<c>` cores available in each rank for NumPy multithreading is:
+  - **Without using MPI** the Python script **`threadcount.py`** uses (process time)/(wall time) to estimate the number of cores in use when NumPy makes and then multiplies matrices filled with random numbers. On the 16-core PC [candela-21](#pcs):
     
     ```
-    $ mpirun -n <n> --map-by node:pe=<c> python myprog.py
+    TODO replace with c21 output
+    $ python threadcount.py
+    Making 3,000 x 3,000 random matrices...
+    ...took 2.094e-01s, average threads = 1.000
+    Multiplying matrices 3 times...
+    ...took 2.144e-01s per trial, average threads = 5.968
     ```
     
-    TODO is this right?  works under Slurm?
+    It can be seen that Numpy (specifically using `rng.normal` with `rng` a random number generator returned by `numpy.random.default_rng`) uses only one core to make a random-filled matrix, but (specifically using `numpy.matmul`) uses all 16 cores to multiply the matrices. By default the multithreaded NumPy functions (or rather the underlying linear algebra packages) are **greedy**, using all available cores in this the example above.  I believe there is some way to turn off this greedy behavior without using MPI, but I have not investigated this.
+  
+  - When **OpenMPI** is used the number of cores allocated to each process (and therefore available for greedy use by NumPy) can be controlled by  [options supplied to `mpirun`](https://www.open-mpi.org/doc/v3.0/man1/mpirun.1.php):
     
-    **`threadcount_mpi.py`** uses MPI to run the code in `threadcount.py` simultaneously on multiple cores. With default settings, at least, the MPI version only allows NumPy to use one core per rank. Here the MPI version is run in two ranks on  candela-21, theoretically allowing NumPy in each rank to use eight threads -- but only one is used:
+    - `mpirun -n <n> <program>` specifies that `<n>` processes (`<n>` independent copies of `<program>`) should be run, giving `<n>` MPI ranks.  Note: `-n, -c, --n, -np` are all synonymous as options to `mpirun`.  Without further options each process will be allocated one core, so `<n>` cores will be required.
+    
+    - `mpirun -n <n> --cpus-per-proc <c> <program>`   will run `<n>` copies of `<program>` each with `<c>` cores available, which NumPy can greedily use. There will again be `<n>` MPI ranks, but now `<n>*<c>'` cores will be required.  Note "cpus" here means cores, not CPU chips.
+    
+    - The docs say `--cpus-per-proc` is deprecated and should be replaced by the more general and confusing `--map-by ...`. For the situations described in in this document I believe `--map-by slot:pe=<c>` is equivalent to `--cpus-per-proc <c>`.
+    
+    - In summary here are the various `mpirun` commands that can be used to run `<n>` copies of the Python script `myprog.py` in `<n>` MPI ranks:
+      
+      ```
+      # This will give one core to each process, using a total of <n> cores.
+      $ mpirun -n <n> python myprog.py
+      
+      # These two commands are equivalent (I think) but the first one is deprecated.
+      # They will give <c> cores to each process, using a total of <n>*<c> cores.
+      $ mpirun -n <n> --cpus-per-proc <c> python myprog.py
+      $ mpirun -n <n> --map-by node:pe=<c> python myprog.py
+      ```
+    
+    - TODO is this right?  works under Slurm and needs to match sbatch -c?
+  
+  - **`threadcount_mpi.py`** uses MPI to run the code in `threadcount.py` simultaneously on multiple cores.   Using the `mpirun` options described above we can observe the speedup of a NumPy function (here `matmul`) when it can use multiple cores, and we can see the trade off between allocating cores to processes and the number of processes.  The following tests were done on the 16-core PC [candela-21](#pcs) :
+    
+    - To see the speedup of NumPy functions when multiple cores are used, run `threadcont_mpi.py` in one rank with 1, 4, or 16 cores:
+      
+      ```
+      $ mpirun -n 1 python threadcount_mpi.py                        # default 1 core per rank
+      
+      $ mpirun -n 1 --cpus-per-proc 4 python threadcount_mpi.py      # specify 4 cores per rank
+      
+      $ mpirun -n 1 --cpus-per-proc 16 python threadcount_mpi.py     # specify 16 cores per rank
+      ```
+      
+      Generating the random matrices was the same speed with 1, 4, or 16 cores, as expected because `rng.normal` only uses one thread.  Conversely multiplying the matrices was x times faster with 4 cores and y times faster with 16 cores, as all available cores are used by `np.matmul`.  But...
+    
+    - For an example of the trade off (when the total number of cores is fixed) between running `np.matmul` in more ranks vs. giving each rank more cores for NumPy multithreading, here are two tests using all 16 cores:
+      
+      ```
+      # Run 16 ranks with 1 core each.
+      $ mpirun -n 16 python threadcount_mpi.py
+      
+      # Run 4 ranks with 4 cores each.
+      $ mpirun -n 4 --cpus-per-proc 4 python threadcount_mpi.py
+      ```
+      
+      The net time per matrix multiplication was  x/x = with 16 1-core ranks, and y/y = z (better) with 4 4-core ranks.  This result is expected, as `threadcount_mpi.py` is [embarrassingly parallel](https://en.wikipedia.org/wiki/Embarrassingly_parallel) (with throughput scaling directly with the number of ranks), while as shown above the speed of `np.matmul` grows less than linearly with the number of cores available for multithreading.  But with a less trivial MPI code than `threadcount_mpi.py` it might be advantageous to give each rank more than one core by using `--cpus-per-proc <c>`.
 
-```ag-0-1iiptpi44ag-1-1iiptpi45
-$ mpirun -n 2 python threadcount_mpi.py
-Hello world from rank 1 of 2 on candela-21 running Open MPI v5.0.3
-Hello world from rank 0 of 2 on candela-21 running Open MPI v5.0.3
-(rank 0) Making 3,000 x 3,000 random matrices...
-(rank 1) Making 3,000 x 3,000 random matrices...
-(rank 1) ...took 1.650e-01s, average threads = 1.000
-(rank 1) Multiplying matrices 3 times...
-(rank 0) ...took 1.653e-01s, average threads = 1.000
-(rank 0) Multiplying matrices 3 times...
-(rank 0) ...took 8.459e-01s per trial, average threads = 1.000
-(rank 1) ...took 8.522e-01s per trial, average threads = 1.000
-```
-
-  There may be some environment settings that enable NumPy to use multiple cores under MPI, but I haven't discovered them yet. Running `threadcount.py` on the same PC showed that **NumPy matrix multiplications were about five times faster running on 16 cores** (without MPI) than on one core (with MPI).  This is a multithreading speedup of Numpy that is lost in going to MPI with Numpy multhreading prevented. **TODO see if Numpy can multithread under MPI on Unity (by giving -c option)**
-
-  **Discovered 2/6/25, use to update this section, maybe should move this section to MPI?  or better to leave hear and refer to in later sections?**
-
-- use `mpirun -n <n> --cpus-per-proc <c> python ...` to run `<n>` copies of python program each with `<c>` cores available, which NumPy will use.  Documented in [OpenMPI docs for `mpirun`](https://www.open-mpi.org/doc/v3.0/man1/mpirun.1.php).
-- These docs say `--cpus-per-core` is deprecated and should be replaced by `map-by ...`.  From web and trials seems `--map-by node:pe=<n>` has same effect as `--cpus-per-proc <c>`  for the situations described in this document.  **TODO see how this works on Unity, both interactive and batch**
+**TODO run on c21 and on Unity**
 
 ## Part 1: MPI, GPU, and Apptainer on a Linux PC<a id="on-linux-pc"></a>
 
