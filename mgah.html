@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   2/10/25</p>
+<p>mgah.md  D. Candela   2/11/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -2623,6 +2623,7 @@ $ conda env remove -n p39           # get rid of environment p39</code></pre>
 <li><strong><code>p39</code></strong> (defined just above) has Python 3.9, NumPy, SciPy, etc but does not have OpenMPI, PyTorch, or CuPy.</li>
 <li><strong><code>dfs</code></strong> (defined in <a href="#local-package">Installing a local package</a> below) environment for trying out  the local package <code>dcfuncs</code>.</li>
 <li><strong><code>ompi5</code></strong> (defined in <a href="#mpi-pc">MPI on a Linux PC</a>) includes OpenMPI 5.0.3, and MPI for Python, so MPI can be used. <strong><code>ompi4</code></strong> is similar but includes OpenMPI</li>
+<li><strong><code>dem21</code></strong> (also defined in <a href="#mpi-pc">MPI on a Linux PC</a>) is like <code>ompi5</code> but additionally includes the locally-installed package <code>dem21</code> and additional packages that <code>dem21</code> imports.</li>
 <li><strong><code>pyt</code></strong> (defined in <a href="#pytorch-cupy">Installing CUDA-aware Python packages...</a> below) adds PyTorch.</li>
 <li><strong><code>gpu</code></strong> (also defined in <a href="#pytorch-cupy">Installing CUDA-aware Python packages...</a> below) adds CuPy.</li>
 </ul>
@@ -2665,7 +2666,7 @@ $ conda env remove -n p39           # get rid of environment p39</code></pre>
 <p>Somtimes it is convenient to write or otherwise come by a <strong>package of Python modules</strong> (containing class and function definitions), copy the package somewhere on the computer being used, and then make it possible to import the package from any directory on the same computer -- this is a <strong>local package</strong>, as opposed to a package downloaded from a repository of published packages like Anaconda or PyPi.  A way to structure such a local package is outlined in Appendix B of the cheat sheet  <a href="https://github.com/doncandela/gs-git">Getting started with Git and GitHub</a>.</p>
 <p>In other sections of this document it is shown how a local package like this can be <a href="#local-package-unity">installed on an HPC cluster</a> like Unity (in user space), and how it can be <a href="#local-package-container">installed in an Apptainer container</a> which can then be used on a PC or on an HPC cluster.  As a starting point this section shows how a local package can be installed on a Linux PC , not using Apptainer.</p>
 <ul>
-<li><p>The package used for these examples is <strong><code>dcfuncs</code></strong>, a small set of utility functions that can be downloaded from <a href="https://github.com/doncandela/dcfuncs">GitHub - doncandela/dcfuncs</a> -- hit <code>Download Zip</code> under the <code>&lt;&gt; Code</code> tab (read the comments to find out what the functions do -- not relevant for present purposes). This repository has the following structure:</p>
+<li><p>The package used for these examples is <strong><code>dcfuncs</code></strong>, a small set of utility functions that can be downloaded from <a href="https://github.com/doncandela/dcfuncs">https://github.com/doncandela/dcfuncs</a> -- hit <code>Download Zip</code> under the <code>&lt;&gt; Code</code> tab (read the comments to find out what the functions do -- not relevant for present purposes). This repository has the following structure:</p>
 <pre><code class="fenced-code-block">dcfuncs/
    src/
       dcfuncs/            # installable package
@@ -2827,17 +2828,22 @@ This is rank 0 of 1 on candela-21 running Open MPI v5.0.3
 
 # Use 4 cores per rank (two versions should be equivalent):
 (ompi5)$ mpirun -n 1 --cpus-per-proc 4 python threadcount_mpi.py
-(ompi5)$ mpirun -n 1 --map-by slot:pe=4 python threadcount_mpi.py</code></pre>
-<h1 class="atx" id="use-16-cores-per-rank-two-versions-should-be-equivalent">Use 16 cores per rank (two versions should be equivalent):</h1>
-<p>  (ompi5)<span class="katex"><span class="katex-mathml"></span><span aria-hidden="true" class="katex-html"><span class="base"><span style="height:0.854em;vertical-align:-0.1944em;" class="strut"></span><span class="mord mathnormal">m</span><span class="mord mathnormal">p</span><span class="mord mathnormal">i</span><span style="margin-right:0.02778em;" class="mord mathnormal">r</span><span class="mord mathnormal">u</span><span class="mord mathnormal">n</span><span style="margin-right:0.2222em;" class="mspace"></span><span class="mbin">−</span><span style="margin-right:0.2222em;" class="mspace"></span></span><span class="base"><span style="height:0.7278em;vertical-align:-0.0833em;" class="strut"></span><span class="mord mathnormal">n</span><span class="mord">1</span><span style="margin-right:0.2222em;" class="mspace"></span><span class="mbin">−</span><span style="margin-right:0.2222em;" class="mspace"></span></span><span class="base"><span style="height:0.7778em;vertical-align:-0.1944em;" class="strut"></span><span class="mord">−</span><span class="mord mathnormal">c</span><span class="mord mathnormal">p</span><span class="mord mathnormal">u</span><span class="mord mathnormal">s</span><span style="margin-right:0.2222em;" class="mspace"></span><span class="mbin">−</span><span style="margin-right:0.2222em;" class="mspace"></span></span><span class="base"><span style="height:0.7778em;vertical-align:-0.1944em;" class="strut"></span><span class="mord mathnormal">p</span><span style="margin-right:0.02778em;" class="mord mathnormal">er</span><span style="margin-right:0.2222em;" class="mspace"></span><span class="mbin">−</span><span style="margin-right:0.2222em;" class="mspace"></span></span><span class="base"><span style="height:1em;vertical-align:-0.25em;" class="strut"></span><span class="mord mathnormal">p</span><span class="mord mathnormal">roc</span><span class="mord">16</span><span class="mord mathnormal">p</span><span style="margin-right:0.03588em;" class="mord mathnormal">y</span><span class="mord mathnormal">t</span><span class="mord mathnormal">h</span><span class="mord mathnormal">o</span><span class="mord mathnormal">n</span><span class="mord mathnormal">t</span><span class="mord mathnormal">h</span><span class="mord mathnormal">re</span><span class="mord mathnormal">a</span><span class="mord mathnormal">d</span><span class="mord mathnormal">co</span><span class="mord mathnormal">u</span><span class="mord mathnormal">n</span><span class="mord"><span class="mord mathnormal">t</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span style="height:0.1514em;" class="vlist"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span style="height:2.7em;" class="pstrut"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">m</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span style="height:0.15em;" class="vlist"><span></span></span></span></span></span></span><span class="mord mathnormal">p</span><span class="mord mathnormal">i</span><span class="mord">.</span><span class="mord mathnormal">p</span><span style="margin-right:0.03588em;" class="mord mathnormal">y</span><span class="mopen">(</span><span class="mord mathnormal">o</span><span class="mord mathnormal">m</span><span class="mord mathnormal">p</span><span class="mord mathnormal">i</span><span class="mord">5</span><span class="mclose">)</span></span></span></span> mpirun -n 1 --map-by slot:pe=16 python threadcount_mpi.py </p>
-<pre><code class="fenced-code-block">      Generating the random matrices was the same speed with 1, 4, or 16 cores, as expected because `rng.normal` only uses one thread.  Conversely multiplying the matrices was x times faster with 4 cores and y times faster with 16 cores, as all available cores are used by `np.matmul`.  But...
+(ompi5)$ mpirun -n 1 --map-by slot:pe=4 python threadcount_mpi.py
 
-- For an example of the trade off (when the total number of cores is fixed) between running `np.matmul` in more ranks vs. giving each rank more cores for NumPy multithreading, here are two tests using all 16 cores:</code></pre>
-<h1 class="atx" id="run-16-ranks-with-1-core-each">Run 16 ranks with 1 core each.</h1>
-<p>  $ mpirun -n 16 python threadcount_mpi.py</p>
-<h1 class="atx" id="run-4-ranks-with-4-cores-each">Run 4 ranks with 4 cores each.</h1>
-<p>  $ mpirun -n 4 --cpus-per-proc 4 python threadcount_mpi.py</p>
-<pre><code class="fenced-code-block">The net time per matrix multiplication was  x/x = with 16 1-core ranks, and y/y = z (better) with 4 4-core ranks.  This result is expected, as `threadcount_mpi.py` is [embarrassingly parallel](https://en.wikipedia.org/wiki/Embarrassingly_parallel) (with throughput scaling directly with the number of ranks), while as shown above the speed of `np.matmul` grows less than linearly with the number of cores available for multithreading.  But with a less trivial MPI code than `threadcount_mpi.py` it might be advantageous to give each rank more than one core by using `--cpus-per-proc &lt;c&gt;`.</code></pre>
+# Use 16 cores per rank (two versions should be equivalent):
+(ompi5)$ mpirun -n 1 --cpus-per-proc 16 python threadcount_mpi.py
+(ompi5)$ mpirun -n 1 --map-by slot:pe=16 python threadcount_mpi.py</code></pre>
+<p>Generating the random matrices was the same speed with 1, 4, or 16 cores, as expected because <code>rng.normal</code> only uses one thread.  Conversely multiplying the matrices was x times faster with 4 cores and y times faster with 16 cores, as all available cores are used by <code>np.matmul</code>.  But...</p>
+<ul>
+<li>For an example of the trade off (when the total number of cores is fixed) between running <code>np.matmul</code> in more ranks vs. giving each rank more cores for NumPy multithreading, here are two tests using all 16 cores:</li>
+</ul>
+<pre><code class="fenced-code-block"># Run 16 ranks with 1 core each.
+$ mpirun -n 16 python threadcount_mpi.py
+
+# Run 4 ranks with 4 cores each.    
+$ mpirun -n 4 --cpus-per-proc 4 python threadcount_mpi.py</code></pre>
+<p>The net time per matrix multiplication was  x/x = with 16 1-core ranks, and y/y = z (better) with 4 4-core ranks.  This result is expected, as <code>threadcount_mpi.py</code> is <a href="https://en.wikipedia.org/wiki/Embarrassingly_parallel">embarrassingly parallel</a> (with throughput scaling directly with the number of ranks), while as shown above the speed of <code>np.matmul</code> grows less than linearly with the number of cores available for multithreading.  But with a less trivial MPI code than <code>threadcount_mpi.py</code> it might be advantageous to give each rank more than one core by using <code>--cpus-per-proc &lt;c&gt;</code>.</p>
+<pre><code class="fenced-code-block"></code></pre>
 </li>
 </ul>
 </li>
@@ -2920,10 +2926,39 @@ Hello world from rank 1 of 6 on candela-20 running Open MPI v4.1.6</code></pre>
  8,388,608            8,922.07
 16,777,216            7,397.23</code></pre>
 <p>It can be seen that the inter-rank communication speed is about 9 GB/s for messages size 65 kB - 4 MB, and slower for messages outside this range.</p>
-<h4 class="atx" id="a-more-elaborate-mpi-program-boxpctpy-with-the-dem21-packagelessa-iddouble-quoteboxpct-dem21double-quotegreaterlessagreater">A more elaborate MPI program: <code>boxpct.py</code> with the <code>dem21</code> package<a id="boxpct-dem21"></a></h4>
 </li>
 </ul>
-<p>TODO MPI stuff from 9/22 cheat-sheet</p>
+<h4 class="atx" id="a-more-elaborate-mpi-program-boxpctpy-with-the-dem21-packagelessa-iddouble-quoteboxpct-dem21double-quotegreaterlessagreater">A more elaborate MPI program: <code>boxpct.py</code> with the <code>dem21</code> package<a id="boxpct-dem21"></a></h4>
+<p>Here we use the discrete-element-method (DEM) simulation package <strong><code>dem21</code></strong>  (not publically available) as an example of a much more elaborate MPI program.  It is assumed that OpenMPI has been installed on the PC as <a href="#install-openmpi">described above</a>.</p>
+<ul>
+<li><p>With access the <code>dem21</code> repo is cloned from GitHub to a directory <code>foo/dem21</code>.  Then, following the instructions in the documentation <code>dem21.pdf</code> (in the repo), a suitable environment <strong><code>dem21</code></strong> for running the package is created.  This is like the environment <code>ompi5</code> for running MPI described above, but includes additional packages needed by <code>dem21</code>.  Finally, the <code>dem21</code> package is installed in this environment (note it was necessary to get packages from <code>conda-forge</code> as shown; Conda was unable to create this environment with packages from the default channel):</p>
+<pre><code class="fenced-code-block">..foo$ git clone git@github.com:doncandela/dem21.git
+..foo$ conda create -n dem21 python=3.11
+..foo$ conda activate dem21
+(dem21)..foo$ conda install -c conda-forge openmpi=5.0.3 mpi4py
+(dem21)..foo$ conda install -c conda-forge dill matplotlib numba numpy pyaml scipy
+(dem21)..foo$ conda install -c conda-forge quaternion
+(dem21)..foo$ cd dem21
+(dem21)..foo/dem21$ pip install -e .</code></pre>
+</li>
+<li><p>Now it is possible to run the test program <code>boxpct.py</code> (included in the repo) in MPI-parallel mode:</p>
+<pre><code class="fenced-code-block">(dem21)..foo/dem21$ cd tests/box
+(dem21)..foo/dem21/tests/box$ export pproc=mpi
+(dem21)..foo/dem21/tests/box$ mpirun -n 4 python boxpct.py
+- Started MPI on master + 3 worker ranks.
+THIS IS: boxpct.py 12/3/22 D.C., using dem21 version: v1.2 2/11/25
+Parallel processing: MPI, GHOST_ARRAY=True
+- Read 1 config(s) from /home/dc/Documents/RES/COMPUTERS/foo/dem21/tests/box/box.yaml
+
+SIM 1/1:
+Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
+343 'sphere' grains in (7.66)x(7.66)x(7.66)mm box (phig=0.4), vrms=10.0m/s
+No gravity, 'hertz' normal force law, Coulomb w. Hookean spring friction with GG mu=0.1, GW mu=0
+-     Writing grain ICs x,v to /tmp/tmpkduz52n8/temp.grains
+- READYING SIM with 343 grains and 6 walls
+                       ...</code></pre>
+</li>
+</ul>
 <p><strong>TODO</strong> here and in the HPC sections: When does an MPI program that uses eg NumPy multithread?  How can this be controlled?</p>
 <h3 class="atx" id="using-an-nvidia-gpu-on-a-linux-pclessa-iddouble-quotegpu-pcdouble-quotegreaterlessagreater">Using an NVIDIA GPU on a Linux PC<a id="gpu-pc"></a></h3>
 <h4 class="atx" id="why-do-itlessa-iddouble-quotewhy-gpu-pcdouble-quotegreaterlessagreater">Why do it<a id="why-gpu-pc"></a></h4>

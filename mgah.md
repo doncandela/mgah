@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   2/10/25
+mgah.md  D. Candela   2/11/25
 
 - [Introduction](#intro)  
   
@@ -258,6 +258,7 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
   - **`p39`** (defined just above) has Python 3.9, NumPy, SciPy, etc but does not have OpenMPI, PyTorch, or CuPy.
   - **`dfs`** (defined in [Installing a local package](#local-package) below) environment for trying out  the local package `dcfuncs`.
   - **`ompi5`** (defined in [MPI on a Linux PC](#mpi-pc)) includes OpenMPI 5.0.3, and MPI for Python, so MPI can be used. **`ompi4`** is similar but includes OpenMPI
+  - **`dem21`** (also defined in [MPI on a Linux PC](#mpi-pc)) is like `ompi5` but additionally includes the locally-installed package `dem21` and additional packages that `dem21` imports.
   - **`pyt`** (defined in [Installing CUDA-aware Python packages...](#pytorch-cupy) below) adds PyTorch.
   - **`gpu`** (also defined in [Installing CUDA-aware Python packages...](#pytorch-cupy) below) adds CuPy.
 - The following Conda environments are created and used on the Unity HPC cluster: when Apptainer is not being used:
@@ -292,7 +293,7 @@ Somtimes it is convenient to write or otherwise come by a **package of Python mo
 
 In other sections of this document it is shown how a local package like this can be [installed on an HPC cluster](#local-package-unity) like Unity (in user space), and how it can be [installed in an Apptainer container](#local-package-container) which can then be used on a PC or on an HPC cluster.  As a starting point this section shows how a local package can be installed on a Linux PC , not using Apptainer.
 
-- The package used for these examples is **`dcfuncs`**, a small set of utility functions that can be downloaded from [GitHub - doncandela/dcfuncs](https://github.com/doncandela/dcfuncs) -- hit `Download Zip` under the `<> Code` tab (read the comments to find out what the functions do -- not relevant for present purposes). This repository has the following structure:
+- The package used for these examples is **`dcfuncs`**, a small set of utility functions that can be downloaded from <https://github.com/doncandela/dcfuncs> -- hit `Download Zip` under the `<> Code` tab (read the comments to find out what the functions do -- not relevant for present purposes). This repository has the following structure:
   
   ```
   dcfuncs/
@@ -496,29 +497,28 @@ It might be thought that a PC using *n* cores should get *n* times as much compu
     # Use 4 cores per rank (two versions should be equivalent):
     (ompi5)$ mpirun -n 1 --cpus-per-proc 4 python threadcount_mpi.py
     (ompi5)$ mpirun -n 1 --map-by slot:pe=4 python threadcount_mpi.py
-    ```
     
     # Use 16 cores per rank (two versions should be equivalent):
-    
-      (ompi5)$ mpirun -n 1 --cpus-per-proc 16 python threadcount_mpi.py
-      (ompi5)$ mpirun -n 1 --map-by slot:pe=16 python threadcount_mpi.py 
-    
+    (ompi5)$ mpirun -n 1 --cpus-per-proc 16 python threadcount_mpi.py
+    (ompi5)$ mpirun -n 1 --map-by slot:pe=16 python threadcount_mpi.py
     ```
-          Generating the random matrices was the same speed with 1, 4, or 16 cores, as expected because `rng.normal` only uses one thread.  Conversely multiplying the matrices was x times faster with 4 cores and y times faster with 16 cores, as all available cores are used by `np.matmul`.  But...
+    
+    Generating the random matrices was the same speed with 1, 4, or 16 cores, as expected because `rng.normal` only uses one thread.  Conversely multiplying the matrices was x times faster with 4 cores and y times faster with 16 cores, as all available cores are used by `np.matmul`.  But...
     
     - For an example of the trade off (when the total number of cores is fixed) between running `np.matmul` in more ranks vs. giving each rank more cores for NumPy multithreading, here are two tests using all 16 cores:
-    ```
     
+    ```
     # Run 16 ranks with 1 core each.
+    $ mpirun -n 16 python threadcount_mpi.py
     
-      $ mpirun -n 16 python threadcount_mpi.py
+    # Run 4 ranks with 4 cores each.    
+    $ mpirun -n 4 --cpus-per-proc 4 python threadcount_mpi.py
+    ```
     
-    # Run 4 ranks with 4 cores each.
-    
-      $ mpirun -n 4 --cpus-per-proc 4 python threadcount_mpi.py
+    The net time per matrix multiplication was  x/x = with 16 1-core ranks, and y/y = z (better) with 4 4-core ranks.  This result is expected, as `threadcount_mpi.py` is [embarrassingly parallel](https://en.wikipedia.org/wiki/Embarrassingly_parallel) (with throughput scaling directly with the number of ranks), while as shown above the speed of `np.matmul` grows less than linearly with the number of cores available for multithreading.  But with a less trivial MPI code than `threadcount_mpi.py` it might be advantageous to give each rank more than one core by using `--cpus-per-proc <c>`.
     
     ```
-    The net time per matrix multiplication was  x/x = with 16 1-core ranks, and y/y = z (better) with 4 4-core ranks.  This result is expected, as `threadcount_mpi.py` is [embarrassingly parallel](https://en.wikipedia.org/wiki/Embarrassingly_parallel) (with throughput scaling directly with the number of ranks), while as shown above the speed of `np.matmul` grows less than linearly with the number of cores available for multithreading.  But with a less trivial MPI code than `threadcount_mpi.py` it might be advantageous to give each rank more than one core by using `--cpus-per-proc <c>`.
+    
     ```
 
 **TODO run on c21 and on Unity**
@@ -621,10 +621,43 @@ Note, however, that parallelism across all the cores of any single node of an HP
   ```
   
   It can be seen that the inter-rank communication speed is about 9 GB/s for messages size 65 kB - 4 MB, and slower for messages outside this range.
-  
-  #### A more elaborate MPI program: `boxpct.py` with the `dem21` package<a id="boxpct-dem21"></a>
 
-TODO MPI stuff from 9/22 cheat-sheet
+#### A more elaborate MPI program: `boxpct.py` with the `dem21` package<a id="boxpct-dem21"></a>
+
+Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (not publically available) as an example of a much more elaborate MPI program.  It is assumed that OpenMPI has been installed on the PC as [described above](#install-openmpi).
+
+- With access the `dem21` repo is cloned from GitHub to a directory `foo/dem21`.  Then, following the instructions in the documentation `dem21.pdf` (in the repo), a suitable environment **`dem21`** for running the package is created.  This is like the environment `ompi5` for running MPI described above, but includes additional packages needed by `dem21`.  Finally, the `dem21` package is installed in this environment (note it was necessary to get packages from `conda-forge` as shown; Conda was unable to create this environment with packages from the default channel):
+  
+  ```
+  ..foo$ git clone git@github.com:doncandela/dem21.git
+  ..foo$ conda create -n dem21 python=3.11
+  ..foo$ conda activate dem21
+  (dem21)..foo$ conda install -c conda-forge openmpi=5.0.3 mpi4py
+  (dem21)..foo$ conda install -c conda-forge dill matplotlib numba numpy pyaml scipy
+  (dem21)..foo$ conda install -c conda-forge quaternion
+  (dem21)..foo$ cd dem21
+  (dem21)..foo/dem21$ pip install -e .
+  ```
+
+- Now it is possible to run the test program `boxpct.py` (included in the repo) in MPI-parallel mode:
+  
+  ```
+  (dem21)..foo/dem21$ cd tests/box
+  (dem21)..foo/dem21/tests/box$ export pproc=mpi
+  (dem21)..foo/dem21/tests/box$ mpirun -n 4 python boxpct.py
+  - Started MPI on master + 3 worker ranks.
+  THIS IS: boxpct.py 12/3/22 D.C., using dem21 version: v1.2 2/11/25
+  Parallel processing: MPI, GHOST_ARRAY=True
+  - Read 1 config(s) from /home/dc/Documents/RES/COMPUTERS/foo/dem21/tests/box/box.yaml
+  
+  SIM 1/1:
+  Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
+  343 'sphere' grains in (7.66)x(7.66)x(7.66)mm box (phig=0.4), vrms=10.0m/s
+  No gravity, 'hertz' normal force law, Coulomb w. Hookean spring friction with GG mu=0.1, GW mu=0
+  -     Writing grain ICs x,v to /tmp/tmpkduz52n8/temp.grains
+  - READYING SIM with 343 grains and 6 walls
+                         ...
+  ```
 
 **TODO** here and in the HPC sections: When does an MPI program that uses eg NumPy multithread?  How can this be controlled?
 
