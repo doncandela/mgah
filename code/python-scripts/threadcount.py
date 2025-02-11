@@ -7,7 +7,7 @@ T = 3
 M = 300    # will multiply two MxM matrices T times
 M = 1_000
 M = 3_000
-# M = 10_000
+M = 10_000
 
 SEED = 2025  # seed for making random matrices
 #SEED = None  # use unseeded randoms

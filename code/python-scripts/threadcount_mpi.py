@@ -8,7 +8,7 @@ T = 3
 M = 300      # will multiply two MxM matrices T times
 M = 1_000
 M = 3_000
-# M = 10_000
+M = 10_000
 
 SEED = 2025  # seed for making random matrices
 #SEED = None  # use unseeded randoms
@@ -27,7 +27,7 @@ version = MPI.Get_library_version()
 # Truncate version to first comma or newline, otherwise is a long string
 version = version.partition(',')[0]
 version = version.partition('\n')[0]
-print(f'Hello world from rank {rank} of {size}'
+print(f'This is rank {rank} of {size}'
       f' on {pname} running {version}')
 
 rng = np.random.default_rng(SEED)   # get random number generator
