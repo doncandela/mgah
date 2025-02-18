@@ -2421,7 +2421,7 @@ body {
 </li>
 <li><p>A <strong>GPU</strong> installed in a single computer can carry out highly parallel computations, so it offers an alternative to "MPI on a cluster of computers" for parallelizing code - but the degree of parallel operation is limited by the model of GPU that is available (unless multiple GPUs and/or GPUs on multiple MPI-connected computers are used, things not discussed in this document).</p>
 </li>
-<li><p><a href="https://apptainer.org/"><strong>Apptainer</strong></a> is a <strong>container</strong> system that allows user code and most of its dependencies (OS version, packages like NumPy) to be packaged together into a single large "image" file, which should then be usable  without modification or detailed environment configuration on many different computer systems from a Linux PC to a large cluster.</p>
+<li><p><a href="https://apptainer.org/"><strong>Apptainer</strong></a> (formerly called <strong>Singularity</strong>) is a <strong>container</strong> system that allows user code and most of its dependencies (OS version, packages like NumPy) to be packaged together into a single large "image" file, which should then be usable  without modification or detailed environment configuration on many different computer systems from a Linux PC to a large cluster.</p>
 </li>
 <li><p>High-performance Computing (<strong>HPC</strong>) typically refers to using a large cluster of connected computers assembled and maintained by Universities and other organizations for the use of their communities.  This document only discusses an HPC cluster running Linux and managed by  <a href="https://slurm.schedmd.com/overview.html"><strong>Slurm</strong></a> scheduling software, with  the the <a href="https://unity.rc.umass.edu/index.php"><strong>UMass Unity cluster</strong></a> as the specific HPC system used here.</p>
 </li>
@@ -2449,7 +2449,7 @@ body {
 </ul>
 <p>Although there may be some information useful for the following topics, this document <strong>does not cover:</strong></p>
 <ul>
-<li><p>Other than brief mentions, the use of OpenMP (a multithreading package not to be confused with OpenMPI) and/or the Python Mutiproccessing package for parallelization on the cores of a single computer.</p>
+<li><p>Other than brief mentions, the use of OpenMP (a multithreading package not to be confused with OpenMPI) and/or the Python Mutiproccessing package for parallelization on the cores of a single computer. However, multithreading by NumPy (which may use OpenMP) is discussed.</p>
 </li>
 <li><p>Operating systems other than Linux (Windows, macOS...).</p>
 </li>
@@ -2457,7 +2457,7 @@ body {
 </li>
 <li><p>GPUs other than NVIDIA, except some brief mentions of AMD ROCm and Mac MPS support in the section <a href="#non-nvidia">Non-NVIDIA GPUs</a> below.</p>
 </li>
-<li><p>Direct, low-level programming of GPUs in CUDA-C++  (as opposed to the use of GPU-aware Python packages like CuPy and PyTorch, which are briefly covered).</p>
+<li><p>Direct, low-level programming of GPUs in CUDA-C++  (as opposed to the use of GPU-aware Python packages like CuPy and PyTorch, which are discussed).</p>
 </li>
 <li><p>"Higher level" (than MPI) packages for using computer clusters such as Spark, Dask, Charm4Py/Charm++...).</p>
 </li>
@@ -2489,7 +2489,7 @@ body {
 </li>
 <li><p>The C++ package <a href="https://www.openmp.org/"><strong>OpenMP</strong></a> (Python bindings <a href="https://github.com/Python-for-HPC/PyOMP"><strong>PyOMP</strong></a>) can also run parallel processes on the different cores single CPU (or single node = typically two CPUs?).</p>
 </li>
-<li><p><a href="https://en.wikipedia.org/wiki/Message_Passing_Interface"><strong>MPI</strong></a> can run parallel processes on the different cores of a single CPU and <strong>also on multiple nodes connected by a network</strong>. Implementations of MPI go under names like <a href="https://www.open-mpi.org/"><strong>OpenMPI</strong></a> (not to be confused with the non-MPI single-node multiprocessing package OpenMP) and <a href="https://www.mpich.org/"><strong>MPICH</strong></a>. A Python interface to the installed version of MPI is provided by <a href="https://mpi4py.readthedocs.io/en/stable/"><strong>MPI for Python</strong></a>. </p>
+<li><p><a href="https://en.wikipedia.org/wiki/Message_Passing_Interface"><strong>MPI</strong></a> can run parallel processes on the different cores of a single CPU and <strong>also on multiple nodes connected by a network</strong>. Implementations of MPI go under names like <a href="https://www.open-mpi.org/"><strong>OpenMPI</strong></a> (not to be confused with the non-MPI single-node multiprocessing package OpenMP) and <a href="https://www.mpich.org/"><strong>MPICH</strong></a>. A Python interface to the installed version of MPI is provided by <a href="https://mpi4py.readthedocs.io/en/stable/"><strong>MPI for Python (<code>mpi4py</code>)</strong></a>. </p>
 <ul>
 <li>Rather than directly use MPI, various higher-level applications like <a href="https://spark.apache.org/"><strong>Spark</strong></a>, <a href="https://www.dask.org/"><strong>Dask</strong></a>, or <a href="https://charm4py.readthedocs.io/en/latest/"><strong>Charm4py</strong></a> (perhaps no longer supported) can be used to coordinate parallel operations between cores and nodes. These applications can use MPI, and do not require MPI coding by the user. </li>
 </ul>
@@ -2586,6 +2586,7 @@ $ pip install -e .           # install from current directory, -e means package
 </li>
 <li><p>It seems preferable to use Conda to install packages when they are available as Conda packages, but many packages (and more recent versions of packages) are not available as Conda packages and can only be installed using pip.</p>
 <ul>
+<li>Frequently more up-to-date Conda packages are available from <a href="https://conda-forge.org/">conda-forge</a> than from the default Conda channel -- see example below on how to use.</li>
 <li>Here is an <a href="https://www.anaconda.com/blog/using-pip-in-a-conda-environment">article on using Conda and pip together</a>; it says <strong>pip should be used <em>after</em> Conda</strong>.    </li>
 <li>When using pip and Conda together, <strong>the Conda environment should be created including Python</strong> as in all the examples in this document.  Then, if pip is used in this environment it will install things in this environment.  If the Conda environment does not include Python, pip will try to modify the global environment which is usually not what is wanted (and is not allowed on an HPC cluster like Unity).</li>
 </ul>
@@ -2609,7 +2610,7 @@ $ conda env remove -n p39           # get rid of environment p39</code></pre>
 <ul>
 <li>Include all of the packages needed in the initial <code>conda create</code> command, rather than adding them later with <code>conda install</code> (or at least all of the packages that seem to be interacting).</li>
 <li>Let Conda choose the version numbers rather than specifying them.</li>
-<li>If you do specify a Python version, use an earlier version more likely to be compatible with the available Conda versions of the other packages you need.</li>
+<li>If you do specify a Python version, often an <strong>earlier Python version</strong> will be compatible with the available Conda versions of the other packages you need.</li>
 <li>An IDE like Spyder has many complex dependencies. But when used only to edit files (as opposed to running them) Spyder can be run from the base or no environment, so there is no need to install it in your environments.</li>
 </ul>
 </li>
@@ -2648,8 +2649,9 @@ $ conda env remove -n p39           # get rid of environment p39</code></pre>
 <li>The following Apptainer definition files are used. They are all discussed in <a href="#apptainer-pc">Using Apptainer on a Linux PC</a> below:<ul>
 <li><strong><code>os-only.def</code></strong> makes a container that contains only the <strong>Ubuntu OS</strong>.</li>
 <li><strong><code>pack.def</code></strong> makes a container that contains Linux, Conda, and the <strong>Miniconda</strong> package distribution, and installs a few selected packages in the container.</li>
-<li><strong><code>dfs.def</code></strong> makes a container with the local package <strong><code>dcfuncs</code></strong> installed in it</li>
-<li><strong><code>gpu.def</code></strong> makes a container that imports <strong>CuPy</strong> so it can use a GPU.</li>
+<li><strong><code>dfs.def</code></strong> makes a container with the local package <strong><code>dcfuncs</code></strong> installed in it.</li>
+<li><strong><code>ompi5.def</code></strong> makes a container with <strong>OpenMPI</strong> and <strong>MPI for Python</strong> installed in it, so it can be used to run MPI programs.</li>
+<li><strong><code>gpu.def</code></strong> makes a container that imports <strong>CuPy</strong> so it can be used to run Python programs that use CuPy to run a GPU.</li>
 </ul>
 </li>
 <li>The following sbatch scripts are defined for use with Slurm on the Unity cluster:<ul>
@@ -2861,7 +2863,9 @@ $ mpirun -n 4 --cpus-per-proc 4 python threadcount_mpi.py</code></pre>
 </li>
 <li><p>On Unity as of 1/25 the available OpenMPI modules on Unity HPC were Open MPI  4.1.6 and 5.0.3, so decided to use these same versions of OpenMPI on my PCs.</p>
 </li>
-<li><p>Following commands worked  1/25 to create a Conda environment <strong><code>ompi5</code></strong> on my PCs with Python 3.11.11, OpenMPI 5.0.3, Numpy 1.26.4, SciPy 1.15.1, Matplotlib 3.10.0 (Conda was unable to create this environment with Python 3.12 or above).  It also worked to use these same commands but specifying openmpi=4.1.6 to make an environment <strong><code>ompi4</code></strong>.</p>
+<li><p>Whichever MPI package is used (OpenMPI, MPICH...), Python bindings can be provided by <a href="https://mpi4py.readthedocs.io/en/stable/"><strong>MPI for Python (<code>mpi4py</code>)</strong></a>.  I think it is necessary to install the desired MPI package (e.g. <code>openmpi</code>) and <code>mpi4py</code> in the same Conda environment, as shown below, for <code>mpi4py</code> to properly connect to the MPI package.</p>
+</li>
+<li><p>Following commands worked  1/25 to create a Conda environment <strong><code>ompi5</code></strong> on my PCs with Python 3.11.11, OpenMPI 5.0.3, <code>mpi4py</code> 4.0.0, NumPy 1.26.4, SciPy 1.15.1, Matplotlib 3.10.0 (Conda was unable to create this environment with Python 3.12 or above -- it might have helped to use <code>conda-forge</code> for all the packages but this wasn't tried).  It also worked to use these same commands but specifying <code>openmpi=4.1.6</code> to make an environment <strong><code>ompi4</code></strong>.</p>
 <pre><code class="fenced-code-block">$ conda update conda
 $ conda create -n ompi5 python=3.11
 $ conda activate ompi5
@@ -2869,8 +2873,15 @@ $ conda activate ompi5
 3.11.11
 (ompi5)..$ conda install -c conda-forge openmpi=5.0.3 mpi4py
 (ompi5)..$ conda install numpy scipy matplotlib</code></pre>
-<p>To make <code>mpirun</code> (and presumably other OpenMPI commands) usable must do</p>
-<pre><code class="fenced-code-block">$ sudo apt install openmpi-bin</code></pre>
+<p>To make OpenMPI commands like <code>mpirun</code> and <code>opmi_info</code> usable must do</p>
+<pre><code class="fenced-code-block">(ompi5)..$ sudo apt install openmpi-bin</code></pre>
+<p>Then information on the OpenMPI installation in the current environment can be gotten by doing</p>
+<pre><code class="fenced-code-block">(ompi5)..$ ompi_info
+                 Package: Open MPI conda@b7f39adee97d Distribution
+                Open MPI: 5.0.3
+  Open MPI repo revision: v5.0.3
+   Open MPI release date: Apr 08, 2024
+              ...</code></pre>
 </li>
 </ul>
 <h4 class="atx" id="simple-mpi-test-programs-mpi_hwpy--and-osu_bwpy-lessa-iddouble-quotempi-testprogsdouble-quotegreaterlessagreater">Simple MPI test programs: <code>mpi_hw.py</code>  and <code>osu_bw.py</code> <a id="mpi-testprogs"></a></h4>
@@ -3769,7 +3780,8 @@ CPU timings use last 10 of 11 trials
 </li>
 </ul>
 <h4 class="atx" id="a-container-that-can-use-mpilessa-iddouble-quotempi-containerdouble-quotegreaterlessagreater">A container that can use MPI<a id="mpi-container"></a></h4>
-<p>Make a definition file <strong><code>ompi5.def</code></strong> with the following contents. The <code>%post</code> commands in this file are similar to those used to install OpenMPI in <a href="#mpi-linux">MPI on a Linux PC</a> above, except that there is no need here to create a Conda environment like <code>ompi5</code> -- the container serves as the environment:</p>
+<ul>
+<li><p>Make a definition file <strong><code>ompi5.def</code></strong> with the following contents. The <code>%post</code> commands in this file are similar to those shown above to <a href="#install-openmpi">install OpenMPI on a PC</a>, except that there is no need here to create a Conda environment like <code>ompi5</code> -- the container serves as the environment:</p>
 <pre><code class="fenced-code-block">Bootstrap: docker
 From: continuumio/miniconda3
 
@@ -3780,9 +3792,22 @@ From: continuumio/miniconda3
     apt install -y openmpi-bin</code></pre>
 <p>Notes on this <code>.def</code> file -- things that were found necessary for <code>apptainer build</code> to succeed:</p>
 <ul>
-<li>As of 2/25 installing <code>numpy...matplotlib</code> from the default Conda channel rather than <code>conda-forge</code> gave some tricky compatibility issues (Docker image had Python 3.12 which was too recent).</li>
-<li>Without the <code>apt-get update</code> command to update the package list (in the container, I think), <code>apt</code> was unable to find <code>openmpi-bin</code>.</li>
+<li>&nbsp;As of 2/25 installing <code>numpy...matplotlib</code> from the default Conda channel rather than <code>conda-forge</code> gave some tricky compatibility issues (the Docker image had Python 3.12 which was too recent if these packages were gotten from the default Conda channel).</li>
+<li>Without the <code>apt-get update</code> command to update the package list (in the container, I think), <code>apt install</code> was unable to find <code>openmpi-bin</code>.</li>
 <li>Without the <code>-y</code> option on <code>apt install</code> the build aborted at a <code>[Y/n]</code> question.</li>
+</ul>
+</li>
+<li><p>Build the container, resulting in the 1.2 GB image file <strong><code>ompi5.sif</code></strong>:</p>
+<pre><code class="fenced-code-block">$ sudo apptainer build "$SIFS"/ompi5.sif ompi5.def</code></pre>
+</li>
+<li><p>TODO next</p>
+<ul>
+<li><p>Make it work</p>
+</li>
+<li><p>Describe and ref hybrid model</p>
+</li>
+</ul>
+</li>
 </ul>
 <h4 class="atx" id="a-container-that-can-use-a-gpulessa-iddouble-quotegpu-containerdouble-quotegreaterlessagreater">A container that can use a GPU<a id="gpu-container"></a></h4>
 <ul>

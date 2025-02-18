@@ -1,0 +1,13 @@
+# apptainer 2/18/25
+# Under Ubuntu 24.04 must add this file to /etc/apparmor.d, then reboot or
+# run 'sudo systemctl reload apparmor' to permit apptainer to be run non-sudo.
+# 
+# Permit unprivileged user namespace creation for apptainer starter
+abi <abi/4.0>,
+include <tunables/global>
+profile apptainer /usr/libexec/apptainer/bin/starter{,-suid} 
+    flags=(unconfined) {
+  userns,
+  # Site-specific additions and overrides. See local/README for details.
+  include if exists <local/apptainer> 
+}

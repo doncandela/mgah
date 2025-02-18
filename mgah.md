@@ -76,7 +76,7 @@ This the cheat sheet I that accumulated as I learned to combine several tools fo
 
 - A **GPU** installed in a single computer can carry out highly parallel computations, so it offers an alternative to "MPI on a cluster of computers" for parallelizing code - but the degree of parallel operation is limited by the model of GPU that is available (unless multiple GPUs and/or GPUs on multiple MPI-connected computers are used, things not discussed in this document).
 
-- [**Apptainer**](https://apptainer.org/) is a **container** system that allows user code and most of its dependencies (OS version, packages like NumPy) to be packaged together into a single large "image" file, which should then be usable  without modification or detailed environment configuration on many different computer systems from a Linux PC to a large cluster.
+- [**Apptainer**](https://apptainer.org/) (formerly called **Singularity**) is a **container** system that allows user code and most of its dependencies (OS version, packages like NumPy) to be packaged together into a single large "image" file, which should then be usable  without modification or detailed environment configuration on many different computer systems from a Linux PC to a large cluster.
 
 - High-performance Computing (**HPC**) typically refers to using a large cluster of connected computers assembled and maintained by Universities and other organizations for the use of their communities.  This document only discusses an HPC cluster running Linux and managed by  [**Slurm**](https://slurm.schedmd.com/overview.html) scheduling software, with  the the [**UMass Unity cluster**](https://unity.rc.umass.edu/index.php) as the specific HPC system used here.
 
@@ -98,7 +98,7 @@ Why Python?  Why Linux? Because those are what I use, and this is my cheat sheet
 
 Although there may be some information useful for the following topics, this document **does not cover:**
 
-- Other than brief mentions, the use of OpenMP (a multithreading package not to be confused with OpenMPI) and/or the Python Mutiproccessing package for parallelization on the cores of a single computer.
+- Other than brief mentions, the use of OpenMP (a multithreading package not to be confused with OpenMPI) and/or the Python Mutiproccessing package for parallelization on the cores of a single computer. However, multithreading by NumPy (which may use OpenMP) is discussed.
 
 - Operating systems other than Linux (Windows, macOS...).
 
@@ -106,7 +106,7 @@ Although there may be some information useful for the following topics, this doc
 
 - GPUs other than NVIDIA, except some brief mentions of AMD ROCm and Mac MPS support in the section [Non-NVIDIA GPUs](#non-nvidia) below.
 
-- Direct, low-level programming of GPUs in CUDA-C++  (as opposed to the use of GPU-aware Python packages like CuPy and PyTorch, which are briefly covered).
+- Direct, low-level programming of GPUs in CUDA-C++  (as opposed to the use of GPU-aware Python packages like CuPy and PyTorch, which are discussed).
 
 - "Higher level" (than MPI) packages for using computer clusters such as Spark, Dask, Charm4Py/Charm++...).
 
@@ -146,7 +146,7 @@ It is important to distinguish between **multithreading** and **multiprocessing*
   
   - The C++ package [**OpenMP**](https://www.openmp.org/) (Python bindings [**PyOMP**](https://github.com/Python-for-HPC/PyOMP)) can also run parallel processes on the different cores single CPU (or single node = typically two CPUs?).
   
-  - [**MPI**](https://en.wikipedia.org/wiki/Message_Passing_Interface) can run parallel processes on the different cores of a single CPU and **also on multiple nodes connected by a network**. Implementations of MPI go under names like [**OpenMPI**](https://www.open-mpi.org/) (not to be confused with the non-MPI single-node multiprocessing package OpenMP) and [**MPICH**](https://www.mpich.org/). A Python interface to the installed version of MPI is provided by [**MPI for Python**](https://mpi4py.readthedocs.io/en/stable/). 
+  - [**MPI**](https://en.wikipedia.org/wiki/Message_Passing_Interface) can run parallel processes on the different cores of a single CPU and **also on multiple nodes connected by a network**. Implementations of MPI go under names like [**OpenMPI**](https://www.open-mpi.org/) (not to be confused with the non-MPI single-node multiprocessing package OpenMP) and [**MPICH**](https://www.mpich.org/). A Python interface to the installed version of MPI is provided by [**MPI for Python (`mpi4py`)**](https://mpi4py.readthedocs.io/en/stable/). 
     
     - Rather than directly use MPI, various higher-level applications like [**Spark**](https://spark.apache.org/), [**Dask**](https://www.dask.org/), or [**Charm4py**](https://charm4py.readthedocs.io/en/latest/) (perhaps no longer supported) can be used to coordinate parallel operations between cores and nodes. These applications can use MPI, and do not require MPI coding by the user. 
   
@@ -223,6 +223,7 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
   
   - It seems preferable to use Conda to install packages when they are available as Conda packages, but many packages (and more recent versions of packages) are not available as Conda packages and can only be installed using pip.
     
+    - Frequently more up-to-date Conda packages are available from [conda-forge](https://conda-forge.org/) than from the default Conda channel -- see example below on how to use.
     - Here is an [article on using Conda and pip together](https://www.anaconda.com/blog/using-pip-in-a-conda-environment); it says **pip should be used *after* Conda**.    
     - When using pip and Conda together, **the Conda environment should be created including Python** as in all the examples in this document.  Then, if pip is used in this environment it will install things in this environment.  If the Conda environment does not include Python, pip will try to modify the global environment which is usually not what is wanted (and is not allowed on an HPC cluster like Unity).
   
@@ -248,7 +249,7 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
     
     - Include all of the packages needed in the initial `conda create` command, rather than adding them later with `conda install` (or at least all of the packages that seem to be interacting).
     - Let Conda choose the version numbers rather than specifying them.
-    - If you do specify a Python version, use an earlier version more likely to be compatible with the available Conda versions of the other packages you need.
+    - If you do specify a Python version, often an **earlier Python version** will be compatible with the available Conda versions of the other packages you need.
     - An IDE like Spyder has many complex dependencies. But when used only to edit files (as opposed to running them) Spyder can be run from the base or no environment, so there is no need to install it in your environments.
 
 ### Conda environments and test code used in this document<a id="envs-testcode"></a>
@@ -277,8 +278,9 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
 - The following Apptainer definition files are used. They are all discussed in [Using Apptainer on a Linux PC](#apptainer-pc) below:
   - **`os-only.def`** makes a container that contains only the **Ubuntu OS**.
   - **`pack.def`** makes a container that contains Linux, Conda, and the **Miniconda** package distribution, and installs a few selected packages in the container.
-  - **`dfs.def`** makes a container with the local package **`dcfuncs`** installed in it
-  - **`gpu.def`** makes a container that imports **CuPy** so it can use a GPU.
+  - **`dfs.def`** makes a container with the local package **`dcfuncs`** installed in it.
+  - **`ompi5.def`** makes a container with **OpenMPI** and **MPI for Python** installed in it, so it can be used to run MPI programs.
+  - **`gpu.def`** makes a container that imports **CuPy** so it can be used to run Python programs that use CuPy to run a GPU.
 - The following sbatch scripts are defined for use with Slurm on the Unity cluster:
   - **`simple.sh`** (defined in [Example of a simple batch job](#simple-batch)) runs job that uses none of MPI, a GPU, or Apptainer.
   - **`mpi.sh`** (defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) runs a job that uses MPI.
@@ -541,7 +543,9 @@ Note, however, that parallelism across all the cores of any single node of an HP
 
 - On Unity as of 1/25 the available OpenMPI modules on Unity HPC were Open MPI  4.1.6 and 5.0.3, so decided to use these same versions of OpenMPI on my PCs.
 
-- Following commands worked  1/25 to create a Conda environment **`ompi5`** on my PCs with Python 3.11.11, OpenMPI 5.0.3, Numpy 1.26.4, SciPy 1.15.1, Matplotlib 3.10.0 (Conda was unable to create this environment with Python 3.12 or above).  It also worked to use these same commands but specifying openmpi=4.1.6 to make an environment **`ompi4`**.
+- Whichever MPI package is used (OpenMPI, MPICH...), Python bindings can be provided by [**MPI for Python (`mpi4py`)**](https://mpi4py.readthedocs.io/en/stable/).  I think it is necessary to install the desired MPI package (e.g. `openmpi`) and `mpi4py` in the same Conda environment, as shown below, for `mpi4py` to properly connect to the MPI package.
+
+- Following commands worked  1/25 to create a Conda environment **`ompi5`** on my PCs with Python 3.11.11, OpenMPI 5.0.3, `mpi4py` 4.0.0, NumPy 1.26.4, SciPy 1.15.1, Matplotlib 3.10.0 (Conda was unable to create this environment with Python 3.12 or above -- it might have helped to use `conda-forge` for all the packages but this wasn't tried).  It also worked to use these same commands but specifying `openmpi=4.1.6` to make an environment **`ompi4`**.
   
   ```
   $ conda update conda
@@ -553,10 +557,21 @@ Note, however, that parallelism across all the cores of any single node of an HP
   (ompi5)..$ conda install numpy scipy matplotlib
   ```
   
-  To make `mpirun` (and presumably other OpenMPI commands) usable must do
+  To make OpenMPI commands like `mpirun` and `opmi_info` usable must do
   
   ```
-  $ sudo apt install openmpi-bin
+  (ompi5)..$ sudo apt install openmpi-bin
+  ```
+  
+  Then information on the OpenMPI installation in the current environment can be gotten by doing
+  
+  ```
+  (ompi5)..$ ompi_info
+                   Package: Open MPI conda@b7f39adee97d Distribution
+                  Open MPI: 5.0.3
+    Open MPI repo revision: v5.0.3
+     Open MPI release date: Apr 08, 2024
+                ...
   ```
 
 #### Simple MPI test programs: `mpi_hw.py`  and `osu_bw.py` <a id="mpi-testprogs"></a>
@@ -1327,24 +1342,36 @@ Next we make a container with the local package **`dcfuncs`** installed inside i
 
 #### A container that can use MPI<a id="mpi-container"></a>
 
-Make a definition file **`ompi5.def`** with the following contents. The `%post` commands in this file are similar to those used to install OpenMPI in [MPI on a Linux PC](#mpi-pc) above, except that there is no need here to create a Conda environment like `ompi5` -- the container serves as the environment:
+- Make a definition file **`ompi5.def`** with the following contents. The `%post` commands in this file are similar to those shown above to [install OpenMPI on a PC](#install-openmpi), except that there is no need here to create a Conda environment like `ompi5` -- the container serves as the environment:
+  
+  ```
+  Bootstrap: docker
+  From: continuumio/miniconda3
+  
+  %post
+      conda install -c conda-forge openmpi=5.0.3 mpi4py
+      conda install -c conda-forge numpy scipy matplotlib
+      apt-get update
+      apt install -y openmpi-bin
+  ```
+  
+  Notes on this `.def` file -- things that were found necessary for `apptainer build` to succeed:
+  
+  -  As of 2/25 installing `numpy...matplotlib` from the default Conda channel rather than `conda-forge` gave some tricky compatibility issues (the Docker image had Python 3.12 which was too recent if these packages were gotten from the default Conda channel).
+  - Without the `apt-get update` command to update the package list (in the container, I think), `apt install` was unable to find `openmpi-bin`.
+  - Without the `-y` option on `apt install` the build aborted at a `[Y/n]` question.
 
-```
-Bootstrap: docker
-From: continuumio/miniconda3
+- Build the container, resulting in the 1.2 GB image file **`ompi5.sif`**:
+  
+  ```
+  $ sudo apptainer build "$SIFS"/ompi5.sif ompi5.def
+  ```
 
-%post
-    conda install -c conda-forge openmpi=5.0.3 mpi4py
-    conda install -c conda-forge numpy scipy matplotlib
-    apt-get update
-    apt install -y openmpi-bin
-```
-
-Notes on this `.def` file -- things that were found necessary for `apptainer build` to succeed:
-
-- As of 2/25 installing `numpy...matplotlib` from the default Conda channel rather than `conda-forge` gave some tricky compatibility issues (Docker image had Python 3.12 which was too recent).
-- Without the `apt-get update` command to update the package list (in the container, I think), `apt` was unable to find `openmpi-bin`.
-- Without the `-y` option on `apt install` the build aborted at a `[Y/n]` question.
+- TODO next
+  
+  - Make it work
+  
+  - Describe and ref hybrid model
 
 #### A container that can use a GPU<a id="gpu-container"></a>
 
