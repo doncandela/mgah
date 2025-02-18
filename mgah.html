@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   2/11/25</p>
+<p>mgah.md  D. Candela   2/18/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -3769,7 +3769,21 @@ CPU timings use last 10 of 11 trials
 </li>
 </ul>
 <h4 class="atx" id="a-container-that-can-use-mpilessa-iddouble-quotempi-containerdouble-quotegreaterlessagreater">A container that can use MPI<a id="mpi-container"></a></h4>
-<p>TODO</p>
+<p>Make a definition file <strong><code>ompi5.def</code></strong> with the following contents. The <code>%post</code> commands in this file are similar to those used to install OpenMPI in <a href="#mpi-linux">MPI on a Linux PC</a> above, except that there is no need here to create a Conda environment like <code>ompi5</code> -- the container serves as the environment:</p>
+<pre><code class="fenced-code-block">Bootstrap: docker
+From: continuumio/miniconda3
+
+%post
+    conda install -c conda-forge openmpi=5.0.3 mpi4py
+    conda install -c conda-forge numpy scipy matplotlib
+    apt-get update
+    apt install -y openmpi-bin</code></pre>
+<p>Notes on this <code>.def</code> file -- things that were found necessary for <code>apptainer build</code> to succeed:</p>
+<ul>
+<li>As of 2/25 installing <code>numpy...matplotlib</code> from the default Conda channel rather than <code>conda-forge</code> gave some tricky compatibility issues (Docker image had Python 3.12 which was too recent).</li>
+<li>Without the <code>apt-get update</code> command to update the package list (in the container, I think), <code>apt</code> was unable to find <code>openmpi-bin</code>.</li>
+<li>Without the <code>-y</code> option on <code>apt install</code> the build aborted at a <code>[Y/n]</code> question.</li>
+</ul>
 <h4 class="atx" id="a-container-that-can-use-a-gpulessa-iddouble-quotegpu-containerdouble-quotegreaterlessagreater">A container that can use a GPU<a id="gpu-container"></a></h4>
 <ul>
 <li><p>Make a definition file <strong><code>gpu.def</code></strong> with the following contents. As in the previous section we start with a Docker image that includes Python, Conda, and the Miniconda distribution and we install NumPy, Matplotlib, and SciPy. Now we also install CuPy, getting it from conda-forge to be sure it is up to date:</p>

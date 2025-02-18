@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   2/11/25
+mgah.md  D. Candela   2/18/25
 
 - [Introduction](#intro)  
   
@@ -1327,7 +1327,24 @@ Next we make a container with the local package **`dcfuncs`** installed inside i
 
 #### A container that can use MPI<a id="mpi-container"></a>
 
-TODO
+Make a definition file **`ompi5.def`** with the following contents. The `%post` commands in this file are similar to those used to install OpenMPI in [MPI on a Linux PC](#mpi-pc) above, except that there is no need here to create a Conda environment like `ompi5` -- the container serves as the environment:
+
+```
+Bootstrap: docker
+From: continuumio/miniconda3
+
+%post
+    conda install -c conda-forge openmpi=5.0.3 mpi4py
+    conda install -c conda-forge numpy scipy matplotlib
+    apt-get update
+    apt install -y openmpi-bin
+```
+
+Notes on this `.def` file -- things that were found necessary for `apptainer build` to succeed:
+
+- As of 2/25 installing `numpy...matplotlib` from the default Conda channel rather than `conda-forge` gave some tricky compatibility issues (Docker image had Python 3.12 which was too recent).
+- Without the `apt-get update` command to update the package list (in the container, I think), `apt` was unable to find `openmpi-bin`.
+- Without the `-y` option on `apt install` the build aborted at a `[Y/n]` question.
 
 #### A container that can use a GPU<a id="gpu-container"></a>
 
