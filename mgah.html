@@ -2421,11 +2421,11 @@ body {
 <ul>
 <li><p><a href="https://en.wikipedia.org/wiki/Message_Passing_Interface"><strong>MPI</strong></a> allows multiple instances of Python to operate in parallel and communicate with each other, in the cores of a single computer or a cluster of connected computers. Code written to parallelize using MPI can utilize all the cores of a desktop computer and also scale to a larger number of cores in an HPC computer cluster.</p>
 </li>
-<li><p>A <strong>GPU</strong> installed in a single computer can carry out highly parallel computations, so it offers an alternative to "MPI on a cluster of computers" for parallelizing code - but the degree of parallel operation is limited by the model of GPU that is available (unless multiple GPUs and/or GPUs on multiple MPI-connected computers are used, things not discussed in this document).</p>
+<li><p>A <a href="https://en.wikipedia.org/wiki/Graphics_processing_unit"><strong>GPU</strong></a> installed in a single computer can carry out highly parallel computations, so it offers an alternative to "MPI on a cluster of computers" for parallelizing code - but the degree of parallel operation is limited by the model of GPU that is available (unless multiple GPUs and/or GPUs on multiple MPI-connected computers are used, things not discussed in this document).</p>
 </li>
 <li><p><a href="https://apptainer.org/"><strong>Apptainer</strong></a> (formerly called <strong>Singularity</strong>) is a <strong>container</strong> system that allows user code and most of its dependencies (OS version, packages like NumPy) to be packaged together into a single large "image" file, which should then be usable  without modification or detailed environment configuration on many different computer systems from a Linux PC to a large cluster.</p>
 </li>
-<li><p>High-performance Computing (<strong>HPC</strong>) typically refers to using a large cluster of connected computers assembled and maintained by Universities and other organizations for the use of their communities.  This document only discusses an HPC cluster running Linux and managed by  <a href="https://slurm.schedmd.com/overview.html"><strong>Slurm</strong></a> scheduling software, with  the the <a href="https://unity.rc.umass.edu/index.php"><strong>UMass Unity cluster</strong></a> as the specific HPC system used here.</p>
+<li><p>High-performance Computing (<a href="https://en.wikipedia.org/wiki/High-performance_computing"><strong>HPC</strong></a>) typically refers to using a large cluster of connected computers assembled and maintained by Universities and other organizations for the use of their communities.  This document only discusses an HPC cluster running Linux and managed by  <a href="https://slurm.schedmd.com/overview.html"><strong>Slurm</strong></a> scheduling software, with  the the <a href="https://unity.rc.umass.edu/index.php"><strong>UMass Unity cluster</strong></a> as the specific HPC system used here.</p>
 </li>
 </ul>
 <p>Why Python?  Why Linux? Because those are what I use, and this is my cheat sheet.  So this document is geared towards this work flow:</p>
@@ -2451,7 +2451,7 @@ body {
 </ul>
 <p>Although there may be some information useful for the following topics, this document <strong>does not cover:</strong></p>
 <ul>
-<li><p>Other than brief mentions, the use of OpenMP (a multithreading package not to be confused with OpenMPI) and/or the Python Mutiproccessing package for parallelization on the cores of a single computer. However, multithreading by NumPy (which may use OpenMP) is discussed.</p>
+<li><p>Other than brief mentions, the use of OpenMP (a multithreading package not to be confused with OpenMPI) and/or the Python Mutiproccessing package for parallelization on the cores of a single computer. However, multithreading by NumPy (which may indirectly use OpenMP) is discussed.</p>
 </li>
 <li><p>Operating systems other than Linux (Windows, macOS...).</p>
 </li>
@@ -2765,7 +2765,7 @@ cpu MHz        : 3750.084
 <li>Runinng on 16 cores with hyperthreading worked poorly (throughput advantage 7.6). From examining the clock speeds it seems that the 16 tasks were not using all 16 physical cores in this case.  In other words some physical cores ran 2 tasks in their two virtual cores, while other physical cores ran none.</li>
 </ul>
 </li>
-<li><p><strong>Memory contention.</strong>  The cores in a CPU chip must ultimately read inputs and save outputs of computations in RAM external to the chip, and the bandwidth for moving data between RAM and the CPU cores can be the time-limiting factor for code, rather than the processing speed of the cores.  CPUs have a <a href="https://en.wikipedia.org/wiki/Cache_hierarchy">hierarchy of caches</a> to help mitigate this bottleneck, but it seems that memory access can still dominate over core processing speed for operations like sparse-matrix multiplication (see some <a href="#gpu-list">CPU and GPU test results</a> below). Here is an interesting <a href="https://siboehm.com/articles/22/Fast-MMM-on-CPU">article</a> showing how the memory-intensive operation of dense-matrix multiplication is optimized to largely eliminate the memory bottleneck.</p>
+<li><p><strong>Memory contention.</strong>  The cores in a CPU chip must ultimately read inputs and save outputs of computations in RAM external to the chip, and the bandwidth for moving data between RAM and the CPU cores can be the time-limiting factor for code, rather than the processing speed of the cores.  CPUs have a <a href="https://en.wikipedia.org/wiki/Cache_hierarchy">hierarchy of caches</a> to help mitigate this bottleneck, but it seems that memory access can still dominate over core processing speed for operations like sparse-matrix multiplication (see <a href="#gpu-list">CPU and GPU test results</a> below). Here is an interesting <a href="https://siboehm.com/articles/22/Fast-MMM-on-CPU">article</a> showing how the memory-intensive operation of dense-matrix multiplication is optimized to largely eliminate the memory bottleneck.</p>
 </li>
 <li><p><strong>NumPy multithreading.</strong></p>
 <ul>
@@ -4345,7 +4345,7 @@ module load conda/latest
 conda activate npsp                  # environment with NumPy and SciPy but not CuPy
 
 python gputest.py &gt; npapp-nogpu.out  # run gputest.py sending its output to a file</code></pre>
-<p>With this way of running, <code>sbatch</code> is run from the directory <code>try-gputest</code> and the output will go there as well -- this is why we are using a directory under /work. The script gputest.py will not try to use a GPU because CuPy cannot be imported in this environment.</p>
+<p>With this way of running, <code>sbatch</code> is run from the directory <code>try-gputest</code> and the output will go there as well -- this is why we are using a directory under /work. The script gputest.py will not try to use a GPU because CuPy cannot be imported in this environment.  <strong>TODO</strong> show how to monitor job and  sample of output, check efficiency.</p>
 </li>
 </ul>
 </li>
@@ -4473,7 +4473,7 @@ python gputest.py &gt; npapp-nogpu.out   # run gputest.py sending its output to 
 <ul>
 <li><p>The job is submitted by doing</p>
 <pre><code class="fenced-code-block">(base) try-gputest$ sbatch noapp-gpu.sh</code></pre>
-<p>which will create the output file try-gputest/noapp-gpu.out.</p>
+<p>which will create the output file try-gputest/noapp-gpu.out. </p>
 </li>
 </ul>
 </li>
@@ -4633,11 +4633,11 @@ apptainer exec --nv gpu.sif python gputest.py &gt; app-gpu.out</code></pre>
 </ul>
 <h2 class="atx" id="random-notes-on-parallel-speeduplessa-iddouble-quotespeedup-notesdouble-quotegreaterlessagreater">Random notes on parallel speedup<a id="speedup-notes"></a></h2>
 <h3 class="atx" id="wall-time-and-cpu-timelessa-iddouble-quotewall-cpu-timedouble-quotegreaterlessagreater">Wall time and CPU time<a id="wall-cpu-time"></a></h3>
+<p><strong>TODO</strong></p>
 <h3 class="atx" id="factors-other-than-parallelism-affecting-execution-speedlessa-iddouble-quoteother-speed-factorsdouble-quotegreaterlessagreater">Factors other than parallelism affecting execution speed<a id="other-speed-factors"></a></h3>
+<p><strong>TODO</strong> already have this info near intro?</p>
 <h3 class="atx" id="strong-and-weak-scalinglessa-iddouble-quotestrong-weak-scalingdouble-quotegreaterlessagreater">Strong and weak scaling<a id="strong-weak-scaling"></a></h3>
 <p>Estimating MPI communication overhead<a id="estimate-mpi-overhead"></a></p>
-<pre><code class="fenced-code-block"></code></pre>
-<pre><code class="fenced-code-block"></code></pre>
 </article>
 </body>
 </html>

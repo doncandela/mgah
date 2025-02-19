@@ -76,11 +76,11 @@ This the cheat sheet I that accumulated as I learned to combine several tools fo
 
 - [**MPI**](https://en.wikipedia.org/wiki/Message_Passing_Interface) allows multiple instances of Python to operate in parallel and communicate with each other, in the cores of a single computer or a cluster of connected computers. Code written to parallelize using MPI can utilize all the cores of a desktop computer and also scale to a larger number of cores in an HPC computer cluster.
 
-- A **GPU** installed in a single computer can carry out highly parallel computations, so it offers an alternative to "MPI on a cluster of computers" for parallelizing code - but the degree of parallel operation is limited by the model of GPU that is available (unless multiple GPUs and/or GPUs on multiple MPI-connected computers are used, things not discussed in this document).
+- A [**GPU**](https://en.wikipedia.org/wiki/Graphics_processing_unit) installed in a single computer can carry out highly parallel computations, so it offers an alternative to "MPI on a cluster of computers" for parallelizing code - but the degree of parallel operation is limited by the model of GPU that is available (unless multiple GPUs and/or GPUs on multiple MPI-connected computers are used, things not discussed in this document).
 
 - [**Apptainer**](https://apptainer.org/) (formerly called **Singularity**) is a **container** system that allows user code and most of its dependencies (OS version, packages like NumPy) to be packaged together into a single large "image" file, which should then be usable  without modification or detailed environment configuration on many different computer systems from a Linux PC to a large cluster.
 
-- High-performance Computing (**HPC**) typically refers to using a large cluster of connected computers assembled and maintained by Universities and other organizations for the use of their communities.  This document only discusses an HPC cluster running Linux and managed by  [**Slurm**](https://slurm.schedmd.com/overview.html) scheduling software, with  the the [**UMass Unity cluster**](https://unity.rc.umass.edu/index.php) as the specific HPC system used here.
+- High-performance Computing ([**HPC**](https://en.wikipedia.org/wiki/High-performance_computing)) typically refers to using a large cluster of connected computers assembled and maintained by Universities and other organizations for the use of their communities.  This document only discusses an HPC cluster running Linux and managed by  [**Slurm**](https://slurm.schedmd.com/overview.html) scheduling software, with  the the [**UMass Unity cluster**](https://unity.rc.umass.edu/index.php) as the specific HPC system used here.
 
 Why Python?  Why Linux? Because those are what I use, and this is my cheat sheet.  So this document is geared towards this work flow:
 
@@ -100,7 +100,7 @@ Why Python?  Why Linux? Because those are what I use, and this is my cheat sheet
 
 Although there may be some information useful for the following topics, this document **does not cover:**
 
-- Other than brief mentions, the use of OpenMP (a multithreading package not to be confused with OpenMPI) and/or the Python Mutiproccessing package for parallelization on the cores of a single computer. However, multithreading by NumPy (which may use OpenMP) is discussed.
+- Other than brief mentions, the use of OpenMP (a multithreading package not to be confused with OpenMPI) and/or the Python Mutiproccessing package for parallelization on the cores of a single computer. However, multithreading by NumPy (which may indirectly use OpenMP) is discussed.
 
 - Operating systems other than Linux (Windows, macOS...).
 
@@ -423,7 +423,7 @@ It might be thought that a PC using *n* cores should get *n* times as much compu
   - Running on 16 cores with hyperthreading disabled (i.e. not using `use-hwthread-cpus`) gave a somewhat smaller throughput advantage (11.9) over using one core.  So in this case hyperthreading gives a 23% speadup.
   - Runinng on 16 cores with hyperthreading worked poorly (throughput advantage 7.6). From examining the clock speeds it seems that the 16 tasks were not using all 16 physical cores in this case.  In other words some physical cores ran 2 tasks in their two virtual cores, while other physical cores ran none.
 
-- **Memory contention.**  The cores in a CPU chip must ultimately read inputs and save outputs of computations in RAM external to the chip, and the bandwidth for moving data between RAM and the CPU cores can be the time-limiting factor for code, rather than the processing speed of the cores.  CPUs have a [hierarchy of caches](https://en.wikipedia.org/wiki/Cache_hierarchy) to help mitigate this bottleneck, but it seems that memory access can still dominate over core processing speed for operations like sparse-matrix multiplication (see some [CPU and GPU test results](#gpu-list) below). Here is an interesting [article](https://siboehm.com/articles/22/Fast-MMM-on-CPU) showing how the memory-intensive operation of dense-matrix multiplication is optimized to largely eliminate the memory bottleneck.
+- **Memory contention.**  The cores in a CPU chip must ultimately read inputs and save outputs of computations in RAM external to the chip, and the bandwidth for moving data between RAM and the CPU cores can be the time-limiting factor for code, rather than the processing speed of the cores.  CPUs have a [hierarchy of caches](https://en.wikipedia.org/wiki/Cache_hierarchy) to help mitigate this bottleneck, but it seems that memory access can still dominate over core processing speed for operations like sparse-matrix multiplication (see [CPU and GPU test results](#gpu-list) below). Here is an interesting [article](https://siboehm.com/articles/22/Fast-MMM-on-CPU) showing how the memory-intensive operation of dense-matrix multiplication is optimized to largely eliminate the memory bottleneck.
 
 - **NumPy multithreading.**
   
@@ -1929,7 +1929,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
     python gputest.py > npapp-nogpu.out  # run gputest.py sending its output to a file
     ```
     
-    With this way of running, `sbatch` is run from the directory `try-gputest` and the output will go there as well -- this is why we are using a directory under /work. The script gputest.py will not try to use a GPU because CuPy cannot be imported in this environment.
+    With this way of running, `sbatch` is run from the directory `try-gputest` and the output will go there as well -- this is why we are using a directory under /work. The script gputest.py will not try to use a GPU because CuPy cannot be imported in this environment.  **TODO** show how to monitor job and  sample of output, check efficiency.
 
 #### Using MPI on Unity (without Apptainer)<a id="unity-mpi"></a>
 
@@ -2080,7 +2080,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
       (base) try-gputest$ sbatch noapp-gpu.sh
       ```
       
-      which will create the output file try-gputest/noapp-gpu.out.
+      which will create the output file try-gputest/noapp-gpu.out. 
 
 ### Using Apptainer on the Unity HPC cluster<a id="unity-apptainer"></a>
 
@@ -2268,16 +2268,12 @@ TODO haven't tried this yet
 
 ### Wall time and CPU time<a id="wall-cpu-time"></a>
 
+**TODO**
+
 ### Factors other than parallelism affecting execution speed<a id="other-speed-factors"></a>
+
+**TODO** already have this info near intro?
 
 ### Strong and weak scaling<a id="strong-weak-scaling"></a>
 
 Estimating MPI communication overhead<a id="estimate-mpi-overhead"></a>
-
-```
-
-```
-
-```
-
-```
