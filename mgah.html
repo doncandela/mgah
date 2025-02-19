@@ -2355,6 +2355,7 @@ body {
 <li><a href="#install-openmpi">Installing OpenMPI and MPI for Python</a></li>
 <li><a href="#mpi-testprogs">Simple MPI test programs: <code>mpi_hw.py</code>  and <code>osu_bw.py</code></a></li>
 <li><a href="#boxpct-dem21">A more elaborate MPI program: <code>boxpct.py</code> with the <code>dem21</code> package</a></li>
+<li><a href="#multithread-mpi">Hyperthreading and NumPy multithreading with MPI</a></li>
 </ul>
 </li>
 <li><a href="#gpu-pc">Using an NVIDIA GPU on a Linux PC</a><ul>
@@ -2607,10 +2608,11 @@ $ conda env list                    # list all defined environments
 $ conda create -n enew –clone eold  # create environment enew by cloning existing eold
 $ conda env remove -n p39           # get rid of environment p39</code></pre>
 </li>
-<li><p>Sometimes <code>conda create</code> or <code>conda install</code> will fail with the message <code>Solving environment: failed</code>.  Tips to avoid this situation:</p>
+<li><p>Sometimes <code>conda create</code> or <code>conda install</code> will fail with the message <code>Solving environment: failed</code>.  Tips to avoid or fix this situation:</p>
 <ul>
 <li>Include all of the packages needed in the initial <code>conda create</code> command, rather than adding them later with <code>conda install</code> (or at least all of the packages that seem to be interacting).</li>
 <li>Let Conda choose the version numbers rather than specifying them.</li>
+<li>Get packages from <code>conda-forge</code> as shown above.</li>
 <li>If you do specify a Python version, often an <strong>earlier Python version</strong> will be compatible with the available Conda versions of the other packages you need.</li>
 <li>An IDE like Spyder has many complex dependencies. But when used only to edit files (as opposed to running them) Spyder can be run from the base or no environment, so there is no need to install it in your environments.</li>
 </ul>
@@ -2716,14 +2718,10 @@ stoi results = 93801881091158, 6318, 249613385242335
 <p>Modern CPU chips have multiple <strong>cores</strong> (as of 1/25 CPUs in consumer PCs have 4-10 cores while CPUs for HPC have up to 128 cores), with each core able to execute an independent <strong>thread</strong> within a process, or alternatively a full <strong>process</strong> which can execute Python code.  Some fine points about <strong>counting the number of cores</strong>:</p>
 <ul>
 <li>In an HPC cluster like Unity, a <strong>node</strong> is typically a board with two <strong>sockets</strong> each holding a CPU chip with shared memory between the CPUs, often along with one or more GPUs  -- so the cores per node is typically twice the cores per CPU chip. </li>
-<li>Typical CPU chips can use <a href="https://en.wikipedia.org/wiki/Hyper-threading">"hyperthreading" or "hardware multithreading"</a> to make the number of <strong>virtual cores</strong> available to software to be more than (often twice) the number of <strong>physical cores</strong>, giving a modest increase (much less than two) in parallel throughput.<ul>
-<li>It seems that hyperthreading is usually considered detrimental for HPC workloads is, so hyperthreading is typically disabled (at least by default) on <strong>HPC clusters</strong> -- this is the case for Unity (<a href="https://docs.unity.rc.umass.edu/documentation/get-started/hpc-theory/threads-cores-processes-sockets/">link</a>, <a href="https://docs.unity.rc.umass.edu/news/2023/05/june-5-update-may-26-outage/">link</a>). Slurm does have directives to turn hyperthreading on, but I don't know if they work on Unity or are ever useful.</li>
-<li>On a <strong>PC running OpenMPI</strong> it appears that hyperthreading is turned off by default, but can be enabled by supplying the  <code>-use-hwthread-cpus</code> option to <code>mpirun</code>.  As the examples below show, it can be modestly  advantageous to use hyperthreading if all available virtual cores (twice the physical cores) are used.  But if less than all virtual cores were used hyperthreading was detrimental because my PCs sometimes assigned two tasks to the same core leaving other cores unused.</li>
-</ul>
-</li>
+<li>Typical CPU chips can use <a href="https://en.wikipedia.org/wiki/Hyper-threading">"hyperthreading" or "hardware multithreading"</a> to make the number of <strong>virtual cores</strong> available to software to be more than (often twice) the number of <strong>physical cores</strong>, giving a modest increase (much less than two) in parallel throughput.  AMD calls this technology "simultaneous multithreading" while Intel calls it "hyperthreading" -- for simplicity only the latter term is used here.</li>
 <li>In some SLURM and MPI settings, "cpu" refers to a <strong>core</strong> not a CPU chip. For example the <code>-c</code>,<code>-cpus-per-task</code> option to the SLURM <code>sbatch</code> command  and the <code>--cpus-per-proc</code> option to the OpenMPI <code>mpirun</code> command both set the the number of cores (not CPU chips) allocated to a process</li>
 </ul>
-<p>It might be thought that a PC using <em>n</em> cores should get <em>n</em> times as much computation done per second, provided the code can be efficiently split up to have <em>n</em> different things going on at the same time.  However, there are (at least) three factors that often make the gain in computation speed from using multiple cores less than the number of cores: (a) the <strong>clock speeds</strong> of the cores may depend on how many are in use, due to automatic <strong>thermal management</strong> by the CPU chip, (b) the cores may need to <strong>contend for memory access</strong>, and (c) the available cores can be used for <strong>MPI multiproccesing</strong>, or for <strong>multithreading by NumPy and similar packages</strong>, or <strong>both of these things simultaneously</strong>.</p>
+<p>It might be thought that a PC using <em>n</em> cores should get <em>n</em> times as much computation done per second, provided the code can be efficiently split up to have <em>n</em> different things going on at the same time.  However, there are (at least) three factors that often make the gain in computation speed from using multiple cores less than the number of cores: (a) the <strong>clock speeds</strong> of the cores may depend on how many are in use, due to automatic <strong>thermal management</strong> by the CPU chip, (b) the cores may need to <strong>contend for memory access</strong>, and (c) the available cores can be used for <strong>multithreading by NumPy and similar packages</strong>, or for <strong>MPI multiprocessing</strong>, or for <strong>both of these things simultaneously</strong>.</p>
 <ul>
 <li><p><strong>Clock speeds and thermal management.</strong>  To  show this effect we run the the program <strong><code>count_mpi.py</code></strong> on the <strong>16-core PC candela-21</strong> <a href="#pcs">mentioned above</a>. The The AMD Ryzen 9 5950X CPU chip in this PC has a <strong>base clock speed of 3.4 GHz</strong> and a <strong>boost clock speed up to 4.9 GHz</strong>.  <code>count_mpi.py</code> uses MPI to run a simple program that times how long it takes to count up to a specified number (1,000,000,000 in the examples shown here) on a chosen number of cores.  First we run on one core (the environment <code>ompi5</code> is defined in <a href="#mpi-pc">MPI on a Linux PC</a> below):</p>
 <pre><code class="fenced-code-block">(ompi5)$ mpirun -n 1 -use-hwthread-cpus python count_mpi.py 1000000000
@@ -2769,9 +2767,9 @@ cpu MHz        : 3750.084
 </li>
 <li><p><strong>Memory contention.</strong>  The cores in a CPU chip must ultimately read inputs and save outputs of computations in RAM external to the chip, and the bandwidth for moving data between RAM and the CPU cores can be the time-limiting factor for code, rather than the processing speed of the cores.  CPUs have a <a href="https://en.wikipedia.org/wiki/Cache_hierarchy">hierarchy of caches</a> to help mitigate this bottleneck, but it seems that memory access can still dominate over core processing speed for operations like sparse-matrix multiplication (see some <a href="#gpu-list">CPU and GPU test results</a> below). Here is an interesting <a href="https://siboehm.com/articles/22/Fast-MMM-on-CPU">article</a> showing how the memory-intensive operation of dense-matrix multiplication is optimized to largely eliminate the memory bottleneck.</p>
 </li>
-<li><p><strong>NumPy multithreading and MPI multiprocessing.</strong></p>
+<li><p><strong>NumPy multithreading.</strong></p>
 <ul>
-<li><p><strong>Without using MPI</strong> the Python script <strong><code>threadcount.py</code></strong> uses (process time)/(wall time) to estimate the number of cores in use when NumPy makes and then multiplies matrices filled with random numbers. On the 16-core PC <a href="#pcs">candela-21</a> (the environment <code>npsp</code> is defined in <a href="#unity-modules-conda">Using modules and Conda</a> below):</p>
+<li><p>The (non-MPI) Python script <strong><code>threadcount.py</code></strong> uses (process time)/(wall time) to estimate the number of cores in use when NumPy makes and then multiplies matrices filled with random numbers. On the 16-core PC <a href="#pcs">candela-21</a> (the environment <code>npsp</code> is defined in <a href="#unity-modules-conda">Using modules and Conda</a> below):</p>
 <pre><code class="fenced-code-block">$ conda activate npsp
 (npsp)$ python threadcount.py
 Making 10,000 x 10,000 random matrices...
@@ -2779,7 +2777,7 @@ Making 10,000 x 10,000 random matrices...
 Multiplying matrices 3 times...
 ...took 5.426e+00s per trial, average threads = 15.959</code></pre>
 <p>It can be seen that NumPy (specifically using <code>rng.normal</code> with <code>rng</code> a random number generator returned by <code>numpy.random.default_rng</code>) uses only one core to make a random-filled matrix, but (specifically using <code>numpy.matmul</code>) uses all 16 cores to multiply the matrices. By default the multithreaded NumPy functions (or rather the underlying linear algebra packages) are <strong>greedy</strong>, using all available cores in this the example above.</p>
-<p>According to the NumPy docs, it may be possible to control the the number of threads used by the linear algebra packages called by NumPy by setting the environment variable <code>OMP_NUM_THREADS</code>.  This worked on candela-21:</p>
+<p>According to the NumPy docs, it may be possible to control the the number of threads used by the linear algebra packages called by NumPy by setting the environment variable <strong><code>OMP_NUM_THREADS</code></strong>.  This worked on candela-21:</p>
 <pre><code class="fenced-code-block">(npsp)$ export OMP_NUM_THREADS=4
 (npsp)$ python threadcount.py
 Making 10,000 x 10,000 random matrices...
@@ -2795,63 +2793,13 @@ Multiplying matrices 3 times...
 ...took 3.112e+01s per trial, average threads = 1.000</code></pre>
 <p>For this particular example, compared to using a single core, <code>np.matmul</code> was 3.8 times faster using 4 cores and 5.7 times faster using 16 cores -- so <code>np.matmul</code> made excellent use of 4 cores but had only modest gains beyond that point.</p>
 </li>
-<li><p>When <strong>MPI</strong> is used, if the total number of cores available is limited, there may be a trade off between giving each MPI rank more cores (so NumPy can multithread) and running a program in more MPI ranks.  Here we run</p>
+<li><p>In the non-MPI experiments on the <a href="#pcs">PCs used for this document</a> Numpy never used hyperthreading -- the number of threads reported by <code>threadcount.py</code> and the number of cores in use shown by the Ubuntu System Monitor never exceeded the number of physical cores, even though the System Monitor showed twice this number of CPU's.  It may be possible to control this behavior using additonal <strong><code>OMP_...</code></strong> environment variables, as discussed <a href="https://theartofhpc.com/pcse/omp-affinity.html">here</a>; this was not tried.</p>
 </li>
-<li><p><strong>TODO OLD BELOW</strong> When <strong>OpenMPI</strong> is used the number of cores allocated to each process (and therefore available for greedy use by NumPy TODO not true on c21 without OMP_NUM_THREADS?) can be controlled by  <a href="https://www.open-mpi.org/doc/v3.0/man1/mpirun.1.php">options supplied to <code>mpirun</code></a>:</p>
-</li>
-</ul>
-</li>
-<li><p><code>mpirun -n &lt;n&gt; &lt;program&gt;</code> specifies that <code>&lt;n&gt;</code> processes (<code>&lt;n&gt;</code> independent copies of <code>&lt;program&gt;</code>) should be run, giving <code>&lt;n&gt;</code> MPI ranks.  Note: <code>-n, -c, --n, -np</code> are all synonymous as options to <code>mpirun</code>.  Without further options each process will be allocated one core, so <code>&lt;n&gt;</code> cores will be required.</p>
-</li>
-<li><p><code>mpirun -n &lt;n&gt; --cpus-per-proc &lt;c&gt; &lt;program&gt;</code>   will run <code>&lt;n&gt;</code> copies of <code>&lt;program&gt;</code> each with <code>&lt;c&gt;</code> cores available, which NumPy can greedily use. There will again be <code>&lt;n&gt;</code> MPI ranks, but now <code>&lt;n&gt;*&lt;c&gt;'</code> cores will be required.  Note "cpus" here means cores, not CPU chips.</p>
-</li>
-<li><p>The docs say <code>--cpus-per-proc</code> is deprecated and should be replaced by the more general and confusing <code>--map-by ...</code>. For the situations described in in this document I believe <code>--map-by slot:pe=&lt;c&gt;</code> is equivalent to <code>--cpus-per-proc &lt;c&gt;</code>.</p>
-</li>
-<li><p>In summary here are the various <code>mpirun</code> commands that can be used to run <code>&lt;n&gt;</code> copies of the Python script <code>myprog.py</code> in <code>&lt;n&gt;</code> MPI ranks:</p>
-<pre><code class="fenced-code-block"># This will give one core to each process, using a total of &lt;n&gt; cores.
-$ mpirun -n &lt;n&gt; python myprog.py
-
-# These two commands are equivalent (I think) but the first one is deprecated.
-# They will give &lt;c&gt; cores to each process, using a total of &lt;n&gt;*&lt;c&gt; cores.
-$ mpirun -n &lt;n&gt; --cpus-per-proc &lt;c&gt; python myprog.py
-$ mpirun -n &lt;n&gt; --map-by slot:pe=&lt;c&gt; python myprog.py</code></pre>
-</li>
-<li><p>TODO is this right?  works under Slurm and needs to match sbatch -c?</p>
-</li>
-<li><p><strong><code>threadcount_mpi.py</code></strong> uses MPI to run the code in <code>threadcount.py</code> simultaneously on multiple cores.   Using the <code>mpirun</code> options described above we can observe the speedup of a NumPy function (here <code>matmul</code>) when it can use multiple cores, and we can see the trade off between allocating cores to processes and the number of processes.  The following tests were done on the 16-core PC <a href="#pcs">candela-21</a> :</p>
-<ul>
-<li><p>To see the speedup of NumPy functions when multiple cores are used, run <code>threadcont_mpi.py</code> in one rank with 1, 4, or 16 cores:</p>
-<pre><code class="fenced-code-block"># Use default 1 core per rank:
-(ompi5)$ mpirun -n 1 python threadcount_mpi.py
-This is rank 0 of 1 on candela-21 running Open MPI v5.0.3
-(rank 0) Making 3,000 x 3,000 random matrices...
-(rank 0) ...took 1.638e-01s, average threads = 0.999
-(rank 0) Multiplying matrices 3 times...
-(rank 0) ...took 8.228e-01s per trial, average threads = 1.000
-
-# Use 4 cores per rank (two versions should be equivalent):
-(ompi5)$ mpirun -n 1 --cpus-per-proc 4 python threadcount_mpi.py
-(ompi5)$ mpirun -n 1 --map-by slot:pe=4 python threadcount_mpi.py
-
-# Use 16 cores per rank (two versions should be equivalent):
-(ompi5)$ mpirun -n 1 --cpus-per-proc 16 python threadcount_mpi.py
-(ompi5)$ mpirun -n 1 --map-by slot:pe=16 python threadcount_mpi.py</code></pre>
-<p>Generating the random matrices was the same speed with 1, 4, or 16 cores, as expected because <code>rng.normal</code> only uses one thread.  Conversely multiplying the matrices was x times faster with 4 cores and y times faster with 16 cores, as all available cores are used by <code>np.matmul</code>.  But...</p>
-<ul>
-<li>For an example of the trade off (when the total number of cores is fixed) between running <code>np.matmul</code> in more ranks vs. giving each rank more cores for NumPy multithreading, here are two tests using all 16 cores:</li>
-</ul>
-<pre><code class="fenced-code-block"># Run 16 ranks with 1 core each.
-$ mpirun -n 16 python threadcount_mpi.py
-
-# Run 4 ranks with 4 cores each.    
-$ mpirun -n 4 --cpus-per-proc 4 python threadcount_mpi.py</code></pre>
-<p>The net time per matrix multiplication was  x/x = with 16 1-core ranks, and y/y = z (better) with 4 4-core ranks.  This result is expected, as <code>threadcount_mpi.py</code> is <a href="https://en.wikipedia.org/wiki/Embarrassingly_parallel">embarrassingly parallel</a> (with throughput scaling directly with the number of ranks), while as shown above the speed of <code>np.matmul</code> grows less than linearly with the number of cores available for multithreading.  But with a less trivial MPI code than <code>threadcount_mpi.py</code> it might be advantageous to give each rank more than one core by using <code>--cpus-per-proc &lt;c&gt;</code>.</p>
-<pre><code class="fenced-code-block"></code></pre>
+<li><p><strong>Tradeoff with MPI.</strong> If MPI is used, if the total number of cores available is limited, there may be a trade off between giving each MPI rank more cores (so NumPy can multithread) and running a program in more MPI ranks.  This is discussed further in <a href="#multithread-mpi">Hyperthreading and NumPy multithreading with MPI</a> below.</p>
 </li>
 </ul>
 </li>
 </ul>
-<p><strong>TODO run on c21 and on Unity</strong></p>
 <h2 class="atx" id="part-1-mpi-gpu-and-apptainer-on-a-linux-pclessa-iddouble-quoteon-linux-pcdouble-quotegreaterlessagreater">Part 1: MPI, GPU, and Apptainer on a Linux PC<a id="on-linux-pc"></a></h2>
 <h3 class="atx" id="mpi-on-a-linux-pclessa-iddouble-quotempi-pcdouble-quotegreaterlessagreater">MPI on a Linux PC<a id="mpi-pc"></a></h3>
 <h4 class="atx" id="why-do-itlessa-iddouble-quotewhy-mpi-pcdouble-quotegreaterlessagreater">Why do it<a id="why-mpi-pc"></a></h4>
@@ -2971,7 +2919,20 @@ No gravity, 'hertz' normal force law, Coulomb w. Hookean spring friction with GG
                        ...</code></pre>
 </li>
 </ul>
-<p><strong>TODO</strong> here and in the HPC sections: When does an MPI program that uses eg NumPy multithread?  How can this be controlled?</p>
+<h4 class="atx" id="hyperthreading-and-numpy-multithreading-with-mpilessa-iddouble-quotemultithread-mpidouble-quotegreaterlessagreater">Hyperthreading and NumPy multithreading with MPI<a id="multithread-mpi"></a></h4>
+<ul>
+<li>As discussed in <a href="#multiple-cores">Parallel execution on multiple cores</a> above, "hyperthreading" or "simultaneous multithreading" is a feature of many CPU chips which makes each physical core act like two virtual cores.<ul>
+<li>It seems that hyperthreading is often turned off (or disabled?) in HPC clusters, for example some information on this for the Unity cluster is <a href="https://docs.unity.rc.umass.edu/documentation/get-started/hpc-theory/threads-cores-processes-sockets/">here</a> and <a href="https://docs.unity.rc.umass.edu/news/2023/06/june-5-maintenance-concluded/">here</a>.</li>
+<li>In trials running OpenMPI on Linux PCs, hyperthreading was turned off by default but is could be turned on by supplying the option <strong><code>--use-hwthread-cpus</code></strong> to <strong><code>mpirun</code></strong>.  I was unable to achieve significant performance improvements with hyperthreading, so it is not discussed further here.</li>
+</ul>
+</li>
+<li>As also discussed in <a href="#multiple-cores">Parallel execution on multiple cores</a>, some NumPy functions (like matrix multiplication) can take advantage of multithreading on multiple cores to speed up.  I believe this is typcially via the use of OpenMP by the underlying BLAS functions employed by NumPy.<ul>
+<li>For non-MPI programs <a href="#multiple-cores">it was found</a> that some Numpy functions will greedily use all available cores unless the environment variable <code>OMP_NUM_THREADS</code> is used to reduce the cores used.</li>
+<li>For MPI programs on PCs, I found that the number of cores used by NumPy is controlled by the <code>mpirun</code> option <code>-cpus-per-proc</code> in concert with <code>OMP_NUM_THREADS</code>.  However, it seemed difficult to get much advantage in this way so detailed trials are not shown here.</li>
+<li>When neither <code>OMP_NUM_THREADS</code> nor <code>-cpus-per-proc</code> is used, it seems  that NumPy functions called in a Python MPI program will be limited to a single core.</li>
+</ul>
+</li>
+</ul>
 <h3 class="atx" id="using-an-nvidia-gpu-on-a-linux-pclessa-iddouble-quotegpu-pcdouble-quotegreaterlessagreater">Using an NVIDIA GPU on a Linux PC<a id="gpu-pc"></a></h3>
 <h4 class="atx" id="why-do-itlessa-iddouble-quotewhy-gpu-pcdouble-quotegreaterlessagreater">Why do it<a id="why-gpu-pc"></a></h4>
 <p>A relatively inexpensive GPU can offer significant speedups. For example in test results <a href="#gpu-list">shown below</a> on the candela-21 PC assembled in 2022 the $300 GPU was about four times faster than the $550 16-core CPU chip for operations on large dense and sparse matrices.</p>
@@ -4009,6 +3970,8 @@ $ scp &lt;localfile&gt; unity:/work/pi_&lt;direc&gt;/&lt;subdirec&gt;   # copy u
 </li>
 </ul>
 </li>
+<li><p>TODO Cloning from GitHub  - public allowed via any node?  Private need to set up SSH keys?  Put info here and in GS-GIT.</p>
+</li>
 </ul>
 <h4 class="atx" id="slurm-on-unitylessa-iddouble-quoteunity-slurmdouble-quotegreaterlessagreater">Slurm on Unity<a id="unity-slurm"></a></h4>
 <ul>
@@ -4202,7 +4165,7 @@ scipy           1.15.1</code></pre>
 <ul>
 <li><p>This is done much the same way as installing a local package on a PC, as <a href="#local-package">shown above</a>.</p>
 </li>
-<li><p>Following the same example as in that section, the repository for the <strong><code>dcfuncs</code></strong> package has been copied to a directory <code>work/pi_&lt;userc&gt;...dcfuncs</code> on Unity. Then a Conda environment <strong><code>dfs</code></strong> is created and NumPy and  <code>dcfuncs</code> are installed in that environment. </p>
+<li><p>Following the same example as in that section, the repository for the <strong><code>dcfuncs</code></strong> package has been copied to a directory <code>work/pi_&lt;userc&gt;...dcfuncs</code> on Unity. Then a Conda environment <strong><code>dfs</code></strong> is created and NumPy and  <code>dcfuncs</code> are installed in that environment.   TODO clone from GH?</p>
 <pre><code class="fenced-code-block">$ unity-compute                    # get shell on a compute node
 $ module load conda/latest
 $ conda create -n dfs python=3.12
@@ -4412,7 +4375,7 @@ $ conda activate ompi5
 TODO this worked but could specify more than 6 tasks not sure how that works</code></pre>
 </li>
 <li><p><strong>A batch job using a MPI.</strong></p>
-<p><strong>TODO this is GPU text*</strong></p>
+<p><strong>TODO this is GPU text*</strong> Also: SBATCH -c interaction with mpirun -cpus-per...?</p>
 <ul>
 <li><p>As in the non-GPU background job example above, here we again run <code>gputest.py</code> in the directory <code>/work/...test_gpu</code> but now we activate the Conda evironment <code>gpu</code> with does include CuPy, so <code>gputest.py</code> will try to use a GPU. We will also need to ensure the CUDA module is loaded, request a GPU, and run the job in a GPU partition. So we will use an sbatch script <strong><code>gpu.sh</code></strong> with these contents:</p>
 <pre><code class="fenced-code-block">#!/bin/bash
