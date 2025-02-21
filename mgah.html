@@ -2330,8 +2330,90 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   2/18/25</p>
+<p>mgah.md  D. Candela   2/20/25</p>
 <ul>
+<li><p><a href="#intro">Introduction</a>  </p>
+<ul>
+<li><a href="#what-is">What is this?</a></li>
+<li><a href="#parcomp-python">Parallel computing in Python</a></li>
+<li><a href="#hardware">Hardware used</a><ul>
+<li><a href="#pcs">PCs</a></li>
+<li><a href="#gpus">GPUs</a></li>
+<li><a href="#unity-intro">Unity HPC cluster</a></li>
+</ul>
+</li>
+<li><a href="#pip-conda">Pip and Conda</a></li>
+<li><a href="#envs-testcode">Conda environments and test code used in this document</a></li>
+<li><a href="#local-package">Installing a local package</a></li>
+<li><a href="#multiple-cores">Parallel execution on multiple cores</a></li>
+</ul>
+</li>
+<li><p><a href="#on-linux-pc">Part 1: MPI, GPU, and Apptainer on a Linux PC</a></p>
+<ul>
+<li><a href="#mpi-pc">MPI on a Linux PC</a><ul>
+<li><a href="#why-mpi-pc">Why do it</a>    </li>
+<li><a href="#install-openmpi">Installing OpenMPI and MPI for Python</a></li>
+<li><a href="#mpi-testprogs">Simple MPI test programs: <code>mpi_hw.py</code>  and <code>osu_bw.py</code></a></li>
+<li><a href="#boxpct-dem21">A more elaborate MPI program: <code>boxpct.py</code> with the <code>dem21</code> package</a></li>
+<li><a href="#multithread-mpi">Hyperthreading and NumPy multithreading with MPI</a></li>
+</ul>
+</li>
+<li><a href="#gpu-pc">Using an NVIDIA GPU on a Linux PC</a><ul>
+<li><a href="#why-gpu-pc">Why do it</a></li>
+<li><a href="#non-nvidia">Non-NVIDIA GPUs</a></li>
+<li><a href="#nvidia-drivers">Installing NVIDIA drivers</a></li>
+<li><a href="#pytorch-cupy">Installing CUDA-aware Python packages: PyTorch, CuPy...</a></li>
+<li><a href="#gpu-list">A few of NVDIA's many GPUS, with test results</a></li>
+</ul>
+</li>
+<li><a href="#apptainer-pc">Using Apptainer on a Linux PC</a><ul>
+<li><a href="#why-apptainer-pc">Why do it</a></li>
+<li><a href="#apptainer-history">Apptainer history</a></li>
+<li><a href="#install-apptainer">Installing Apptainer</a></li>
+<li><a href="#os-only-container">Testing the install: An OS-only container</a></li>
+<li><a href="#packages-container">A container including chosen Python packages</a></li>
+<li><a href="#local-package-container">A container with a local Python package installed</a></li>
+<li><a href="#mpi-container">A container that can use MPI</a></li>
+<li><a href="#dem21-container">A container to run the more elaborate MPI package <code>dem21</code></a></li>
+<li><a href="#gpu-container">A container that can use a GPU</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><a href="#move-to-hpc">Part 2: Moving code to a Slurm HPC cluster</a></p>
+<ul>
+<li><a href="#why-hpc">Why do it</a></li>
+<li><a href="#unity-cluster">Unity cluster at UMass, Amherst</a><ul>
+<li><a href="#unity-history">History</a></li>
+<li><a href="#unity-login">Logging in</a></li>
+<li><a href="#unity-storage">Storage</a></li>
+<li><a href="#unity-file-transfer">Transferring files to/from Unity</a></li>
+<li><a href="#unity-slurm">Slurm on Unity</a></li>
+<li><a href="#run-interactive">Running jobs interactively: <code>salloc</code> or <code>unity-compute</code></a></li>
+<li><a href="#rc-files">Using <code>.bashrc</code> and <code>.bash_aliases</code></a></li>
+<li><a href="#unity-modules-conda">Using modules and Conda</a></li>
+<li><a href="#run-batch">Running batch jobs: <code>sbatch</code></a></li>
+<li><a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a></li>
+<li><a href="#unity-gpu">Using a GPU on Unity (without Apptainer)</a></li>
+</ul>
+</li>
+<li><a href="#unity-apptainer">Using Apptainer on the Unity HPC cluster</a><ul>
+<li><a href="#images-to-unity">Getting container images on the cluster</a></li>
+<li><a href="#unity-run-container">Running a container interactively or in batch job</a></li>
+<li><a href="#unity-mpi-container">Running a container that uses MPI</a></li>
+<li><a href="#unity-gpu-container">Running a container the uses a GPU</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><a href="#speedup-notes">Random notes on parallel speedup</a></p>
+<ul>
+<li><a href="#wall-cpu-time">Wall time and CPU time</a></li>
+<li><a href="#other-speed-factors">Factors other than parallelism affecting execution speed</a></li>
+<li><a href="#strong-weak-scaling">Strong and weak scaling</a></li>
+<li><a href="#estimate-mpi-overhead">Estimating MPI communication overhead</a></li>
+</ul>
+</li>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
 <li><a href="#what-is">What is this?</a></li>
@@ -2622,8 +2704,10 @@ $ conda env remove -n p39           # get rid of environment p39</code></pre>
 </ul>
 <h3 class="atx" id="conda-environments-and-test-code-used-in-this-documentlessa-iddouble-quoteenvs-testcodedouble-quotegreaterlessagreater">Conda environments and test code used in this document<a id="envs-testcode"></a></h3>
 <ul>
-<li><strong>Conda environments and Apptainer</strong>. Often, and for all the examples in this document, there is no need to create a Conda environment when an Apptainer container is being used - the container serves as an environment.  (One could run an Apptainer container from a Conda environment if additional packages not installed in the container were needed  -- but that is not shown here.)</li>
-<li>The following Conda environments are created and used on a PC, when Apptainer is not being used: <ul>
+<li><p><strong>Conda environments and Apptainer</strong>. Often, and for all the examples in this document, there is no need to create a Conda environment when an Apptainer container is being used - the container serves as an environment.  (One could run an Apptainer container from a Conda environment if additional packages not installed in the container were needed  -- but that is not shown here.)</p>
+</li>
+<li><p>The following Conda environments are created and used on a PC, when Apptainer is not being used: </p>
+<ul>
 <li><strong><code>p39</code></strong> (defined just above) has Python 3.9, NumPy, SciPy, etc but does not have OpenMPI, PyTorch, or CuPy.</li>
 <li><strong><code>dfs</code></strong> (defined in <a href="#local-package">Installing a local package</a> below) environment for trying out  the local package <code>dcfuncs</code>.</li>
 <li><strong><code>ompi5</code></strong> (defined in <a href="#mpi-pc">MPI on a Linux PC</a>) includes OpenMPI 5.0.3 and MPI for Python, so MPI can be used.</li>
@@ -2632,14 +2716,16 @@ $ conda env remove -n p39           # get rid of environment p39</code></pre>
 <li><strong><code>gpu</code></strong> (also defined in <a href="#pytorch-cupy">Installing CUDA-aware Python packages...</a> below) adds CuPy.</li>
 </ul>
 </li>
-<li>The following Conda environments are created and used on the Unity HPC cluster, when Apptainer is not being used.  They generally do the same things as the corresponding environments defined for PCs listed just above.<ul>
+<li><p>The following Conda environments are created and used on the Unity HPC cluster, when Apptainer is not being used.  They generally do the same things as the corresponding environments defined for PCs listed just above.</p>
+<ul>
 <li><strong><code>npsp</code></strong> (defined in <a href="#unity-modules-conda">Using modules and Conda</a>) has NumPy, SciPy, and Matplotlib, but not CuPy.</li>
 <li><strong><code>dfs</code></strong> (also defined in <a href="#unity-modules-conda">Using modules and Conda</a>) has NumPy and the local package <code>dcfuncs</code> installed.</li>
 <li><strong><code>ompi5</code></strong> (defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) includes OpenMPI 5.0.3, and MPI for Python, so MPI can be used.</li>
 <li><strong><code>gpu</code></strong> (defined in <a href="#unity-gpu">Using a GPU in Unity (without Apptainer)</a>) includes CuPy, so a GPU can be used.</li>
 </ul>
 </li>
-<li>The following test code is used:<ul>
+<li><p>The following test code is used:</p>
+<ul>
 <li><strong><code>count.py</code></strong> times how fast a Python program can count.</li>
 <li><strong><code>count_mpi.py</code></strong> times the counting speeds of multiple Python processes running simultaneously using MPI.</li>
 <li><strong><code>threadcount.py</code></strong> uses timing to estimate the number of threads in use while Numpy is multplying matrices.</li>
@@ -2649,15 +2735,18 @@ $ conda env remove -n p39           # get rid of environment p39</code></pre>
 <li><strong><code>dcfuncs</code></strong> is small package of utility functions, used in this document as an example of a Python package <a href="#local-package">installed locally</a>. </li>
 </ul>
 </li>
-<li>The following Apptainer definition files are used. They are all discussed in <a href="#apptainer-pc">Using Apptainer on a Linux PC</a> below.  They have been mostly been used to build container images (<code>.sif</code> files) on PCs, which can then be run both on the PCs and on Unity.<ul>
+<li><p>The following Apptainer definition files are used. They are all discussed in <a href="#apptainer-pc">Using Apptainer on a Linux PC</a> below.  They have been mostly been used to build container images (<code>.sif</code> files) on PCs, which can then be run both on the PCs and on Unity.</p>
+<ul>
 <li><strong><code>os-only.def</code></strong> makes a container that contains only the <strong>Ubuntu OS</strong>.</li>
 <li><strong><code>pack.def</code></strong> makes a container that contains Linux, Conda, and the <strong>Miniconda</strong> package distribution, and installs a few selected packages in the container.</li>
 <li><strong><code>dfs.def</code></strong> makes a container with the local package <strong><code>dcfuncs</code></strong> installed in it.</li>
 <li><strong><code>ompi5.def</code></strong> makes a container with <strong>OpenMPI</strong> and <strong>MPI for Python</strong> installed in it, so it can be used to run MPI programs.</li>
+<li><strong><code>dem21.def</code></strong> makes an MPI-enabled container like the one made by <code>ompi5.def</code>, but it also has the more elaborate MPI-using package <code>dem21</code> installed in the container.</li>
 <li><strong><code>gpu.def</code></strong> makes a container that imports <strong>CuPy</strong> so it can be used to run Python programs that use CuPy to run a GPU.</li>
 </ul>
 </li>
-<li>The following sbatch scripts are defined for use with Slurm on the Unity cluster:<ul>
+<li><p>The following sbatch scripts are defined for use with Slurm on the Unity cluster:</p>
+<ul>
 <li><strong><code>simple.sh</code></strong> (defined in <a href="#simple-batch">Example of a simple batch job</a>) runs job that uses none of MPI, a GPU, or Apptainer.</li>
 <li><strong><code>mpi.sh</code></strong> (defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) runs a job that uses MPI.</li>
 <li><strong><code>gpu.sh</code></strong> (defined in <a href="#unity-gpu">Using a GPU on Unity (without Apptainer)</a>) runs non-Apptainer job that uses a GPU.</li>
@@ -2669,9 +2758,11 @@ $ conda env remove -n p39           # get rid of environment p39</code></pre>
 </ul>
 <h3 class="atx" id="installing-a-local-packagelessa-iddouble-quotelocal-packagedouble-quotegreaterlessagreater">Installing a local package<a id="local-package"></a></h3>
 <p>Somtimes it is convenient to write or otherwise come by a <strong>package of Python modules</strong> (containing class and function definitions), copy the package somewhere on the computer being used, and then make it possible to import the package from any directory on the same computer -- this is a <strong>local package</strong>, as opposed to a package downloaded from a repository of published packages like Anaconda or PyPi.  A way to structure such a local package is outlined in Appendix B of the cheat sheet  <a href="https://github.com/doncandela/gs-git">Getting started with Git and GitHub</a>.</p>
-<p>In other sections of this document it is shown how a local package like this can be <a href="#local-package-unity">installed on an HPC cluster</a> like Unity (in user space), and how it can be <a href="#local-package-container">installed in an Apptainer container</a> which can then be used on a PC or on an HPC cluster.  As a starting point this section shows how a local package can be installed on a Linux PC , not using Apptainer.</p>
+<p>In other sections of this document it is shown how a local package like this can be <a href="#local-package-unity">installed on an HPC cluster</a> like Unity (in user space), and how it can be <a href="#local-package-container">installed in an Apptainer container</a> which can then be used on a PC or on an HPC cluster.  As a starting point this section shows how a local package can be installed on a Linux PC, not using Apptainer.</p>
 <ul>
-<li><p>The package used for these examples is <strong><code>dcfuncs</code></strong>, a small set of utility functions that can be downloaded from <a href="https://github.com/doncandela/dcfuncs">https://github.com/doncandela/dcfuncs</a> -- hit <code>Download Zip</code> under the <code>&lt;&gt; Code</code> tab (read the comments to find out what the functions do -- not relevant for present purposes). This repository has the following structure:</p>
+<li><p>The package used for these examples is <strong><code>dcfuncs</code></strong>, a small set of utility functions that can be downloaded from <a href="https://github.com/doncandela/dcfuncs">https://github.com/doncandela/dcfuncs</a> -- hit <code>Download Zip</code> under the <code>&lt;&gt; Code</code> tab.  Alternatively, the package can be cloned into the current directory on the local PC by doing</p>
+<pre><code class="fenced-code-block">$ git clone https://github.com/doncandela/dcfuncs.git</code></pre>
+<p>This repository has the following structure:</p>
 <pre><code class="fenced-code-block">dcfuncs/
    src/
       dcfuncs/            # installable package
@@ -2683,6 +2774,7 @@ $ conda env remove -n p39           # get rid of environment p39</code></pre>
          test-util.ipynb
    pyproject.toml
    setup.py</code></pre>
+<p>(Read the comments in <code>util.py</code> and <code>configs.py</code> to find out what the functions do -- not relevant for present purposes.)</p>
 </li>
 <li><p>Make a Conda environment <code>dfs</code> in which to install and test the <code>dcfuncs</code> package:</p>
 <pre><code class="fenced-code-block">$ conda update conda
@@ -2718,10 +2810,10 @@ stoi results = 93801881091158, 6318, 249613385242335
 <p>Modern CPU chips have multiple <strong>cores</strong> (as of 1/25 CPUs in consumer PCs have 4-10 cores while CPUs for HPC have up to 128 cores), with each core able to execute an independent <strong>thread</strong> within a process, or alternatively a full <strong>process</strong> which can execute Python code.  Some fine points about <strong>counting the number of cores</strong>:</p>
 <ul>
 <li>In an HPC cluster like Unity, a <strong>node</strong> is typically a board with two <strong>sockets</strong> each holding a CPU chip with shared memory between the CPUs, often along with one or more GPUs  -- so the cores per node is typically twice the cores per CPU chip. </li>
-<li>Typical CPU chips can use <a href="https://en.wikipedia.org/wiki/Hyper-threading">"hyperthreading" or "hardware multithreading"</a> to make the number of <strong>virtual cores</strong> available to software to be more than (often twice) the number of <strong>physical cores</strong>, giving a modest increase (much less than two) in parallel throughput.  AMD calls this technology "simultaneous multithreading" while Intel calls it "hyperthreading" -- for simplicity only the latter term is used here.</li>
+<li>Typical CPU chips can use <a href="https://en.wikipedia.org/wiki/Hyper-threading">"hyperthreading" or "hardware multithreading"</a> to make the number of <strong>virtual cores</strong> available to software to be twice the number of <strong>physical cores</strong>, giving a modest increase (less than two) in parallel throughput.  AMD calls this technology "simultaneous multithreading" while Intel calls it "hyperthreading" -- for simplicity only the latter term is used here.</li>
 <li>In some SLURM and MPI settings, "cpu" refers to a <strong>core</strong> not a CPU chip. For example the <code>-c</code>,<code>-cpus-per-task</code> option to the SLURM <code>sbatch</code> command  and the <code>--cpus-per-proc</code> option to the OpenMPI <code>mpirun</code> command both set the the number of cores (not CPU chips) allocated to a process</li>
 </ul>
-<p>It might be thought that a PC using <em>n</em> cores should get <em>n</em> times as much computation done per second, provided the code can be efficiently split up to have <em>n</em> different things going on at the same time.  However, there are (at least) three factors that often make the gain in computation speed from using multiple cores less than the number of cores: (a) the <strong>clock speeds</strong> of the cores may depend on how many are in use, due to automatic <strong>thermal management</strong> by the CPU chip, (b) the cores may need to <strong>contend for memory access</strong>, and (c) the available cores can be used for <strong>multithreading by NumPy and similar packages</strong>, or for <strong>MPI multiprocessing</strong>, or for <strong>both of these things simultaneously</strong>.</p>
+<p>It might be thought that a PC using <em>n</em> cores should get <em>n</em> times as much computation done per second, provided the code can be efficiently split up to have <em>n</em> different things going on at the same time.  However, there are (at least) three factors that often make the gain in computation speed from using multiple cores less than the number of cores, even with efficiently parallel code: (a) the <strong>clock speeds</strong> of the cores may depend on how many are in use, due to automatic <strong>thermal management</strong> by the CPU chip, (b) the cores may need to <strong>contend for memory access</strong>, and (c) the available cores can be used for <strong>multithreading by NumPy and similar packages</strong>, or for <strong>MPI multiprocessing</strong>, or for <strong>both of these things simultaneously</strong>.</p>
 <ul>
 <li><p><strong>Clock speeds and thermal management.</strong>  To  show this effect we run the the program <strong><code>count_mpi.py</code></strong> on the <strong>16-core PC candela-21</strong> <a href="#pcs">mentioned above</a>. The The AMD Ryzen 9 5950X CPU chip in this PC has a <strong>base clock speed of 3.4 GHz</strong> and a <strong>boost clock speed up to 4.9 GHz</strong>.  <code>count_mpi.py</code> uses MPI to run a simple program that times how long it takes to count up to a specified number (1,000,000,000 in the examples shown here) on a chosen number of cores.  First we run on one core (the environment <code>ompi5</code> is defined in <a href="#mpi-pc">MPI on a Linux PC</a> below):</p>
 <pre><code class="fenced-code-block">(ompi5)$ mpirun -n 1 -use-hwthread-cpus python count_mpi.py 1000000000
@@ -2729,7 +2821,7 @@ This is rank 0 of 1 on candela-21 running Open MPI v5.0.3
 (rank 0) Counting up to 1,000,000,000...
 (rank 0)...done, took 1.815e+01s, 5.510e+07counts/s
                       ...</code></pre>
-<p>If we check the clock speeds (in another terminal) while <code>count_mpi.py</code> is running, we see that a single core is running at 4.7 GHz, near the maximum boost clock speed:</p>
+<p>If we check the clock speeds in another terminal while <code>count_mpi.py</code> is running, we see that a single core is running at 4.7 GHz, near the maximum boost clock speed:</p>
 <pre><code class="fenced-code-block">$ cat /proc/cpuinfo | grep 'cpu MHz'
 cpu MHz        : 4657.204
 cpu MHz        : 2200.000
@@ -2795,7 +2887,7 @@ Multiplying matrices 3 times...
 </li>
 <li><p>In the non-MPI experiments on the <a href="#pcs">PCs used for this document</a> Numpy never used hyperthreading -- the number of threads reported by <code>threadcount.py</code> and the number of cores in use shown by the Ubuntu System Monitor never exceeded the number of physical cores, even though the System Monitor showed twice this number of CPU's.  It may be possible to control this behavior using additonal <strong><code>OMP_...</code></strong> environment variables, as discussed <a href="https://theartofhpc.com/pcse/omp-affinity.html">here</a>; this was not tried.</p>
 </li>
-<li><p><strong>Tradeoff with MPI.</strong> If MPI is used, if the total number of cores available is limited, there may be a trade off between giving each MPI rank more cores (so NumPy can multithread) and running a program in more MPI ranks.  This is discussed further in <a href="#multithread-mpi">Hyperthreading and NumPy multithreading with MPI</a> below.</p>
+<li><p><strong>Tradeoff with MPI.</strong> If MPI is used, and the total number of cores available is limited, there may be a trade off between giving each MPI rank more cores (so NumPy can multithread) and running a program in more MPI ranks.  This is discussed further in <a href="#multithread-mpi">Hyperthreading and NumPy multithreading with MPI</a> below.</p>
 </li>
 </ul>
 </li>
@@ -3743,7 +3835,7 @@ CPU timings use last 10 of 11 trials
 </ul>
 <h4 class="atx" id="a-container-that-can-use-mpilessa-iddouble-quotempi-containerdouble-quotegreaterlessagreater">A container that can use MPI<a id="mpi-container"></a></h4>
 <ul>
-<li><p><a href="https://apptainer.org/docs/user/latest/mpi.html">Apptainer and MPI applications</a> in the Apptainer docs explains in some detail how MPI works with Apptainer. Here we give some rather simpler examples showing how Python programs using <code>mpi4py</code> for MPI parallelism can be run with Apptainer.</p>
+<li><p><a href="https://apptainer.org/docs/user/latest/mpi.html">Apptainer and MPI applications</a> in the Apptainer docs explains in some detail how MPI works with Apptainer. Here we give some rather simpler examples showing how Python programs using <code>mpi4py</code> for MPI parallelism can be run with Apptainer.  Basically I have found that if Conda is used to install OpenMPI and MPI for Python (<code>mpi4py</code>) in the container, then it will be possible for Python run in multiple containers started by <code>mpirun</code> (from OpenMPI installed outside the containers) to use MPI via <code>mpi4py</code> calls.  This did not require setting any environment variables, unlike the examples in the Apptainer docs referenced above.</p>
 </li>
 <li><p>Make a definition file <strong><code>ompi5.def</code></strong> with the following contents. The <code>%post</code> commands in this file are similar to those shown above to <a href="#install-openmpi">install OpenMPI on a PC</a>, except that there is no need here to create a Conda environment like <code>ompi5</code> -- the container serves as the environment:</p>
 <pre><code class="fenced-code-block">Bootstrap: docker
@@ -3754,7 +3846,7 @@ From: continuumio/miniconda3
     conda install -c conda-forge numpy scipy matplotlib
     apt-get update
     apt install -y openmpi-bin</code></pre>
-<p>Notes on this <code>.def</code> file -- things that were found necessary for <code>apptainer build</code> to succeed:</p>
+<p>Some fine points about this <code>.def</code> file -- things that were found necessary for <code>apptainer build</code> to succeed:</p>
 <ul>
 <li>&nbsp;As of 2/25 installing <code>numpy...matplotlib</code> from the default Conda channel rather than <code>conda-forge</code> gave some tricky compatibility issues (the Docker image had Python 3.12 which was too recent if these packages were gotten from the default Conda channel).</li>
 <li>Without the <code>apt-get update</code> command to update the package list (in the container, I think), <code>apt install</code> was unable to find <code>openmpi-bin</code>.</li>
@@ -3768,7 +3860,7 @@ From: continuumio/miniconda3
 <ul>
 <li><p>While the container <code>ompi5.sif</code> could be built as above without a Conda environment like <code>ompi5</code> in which MPI is installed, to run the container <strong>MPI must be installed outside the container</strong>.  This is because, as shown in an example below, MPI outside the container will be used to run multiple copies of the container on separate cores and to handle communication between these copies.</p>
 </li>
-<li><p>In the PC on which this was tried, OpenMPI 4.1.6 was installed in the base environment, and the base environment did not include <code>mpi4py</code> which is needed by <code>mpi_hw</code>:</p>
+<li><p>In the PC on which this was tried, OpenMPI 4.1.6 was installed in the base environment, but the base environment did not include <code>mpi4py</code> which is needed by <code>mpi_hw</code>:</p>
 <pre><code class="fenced-code-block">(base)..$ ompi_info | head -n 2
                 Package: Debian OpenMPI
                Open MPI: 4.1.6
@@ -3778,7 +3870,7 @@ Traceback (most recent call last):
     from mpi4py import MPI
 ModuleNotFoundError: No module named 'mpi4py'</code></pre>
 </li>
-<li><p>If we run these same commands in the container <code>ompi5.sif</code>, we see that OpenMPI 5.0.3 is installed and we can successfully run <code>mpi_hw.py</code> and <code>osu_bw.py</code></p>
+<li><p>If we run these same commands in the container <code>ompi5.sif</code>, we see that OpenMPI 5.0.3 is installed in the container and we can successfully run <code>mpi_hw.py</code> and <code>osu_bw.py</code>:</p>
 <pre><code class="fenced-code-block">(base)..$ apptainer exec "$SIFS"/ompi5.sif ompi_info | head -n 2
                  Package: Open MPI conda@2a526d73f59c Distribution
                 Open MPI: 5.0.3
@@ -3830,7 +3922,70 @@ Hello world from rank 3 of 6 on candela-21 running Open MPI v5.0.3
 </ul>
 <h4 class="atx" id="a-container-to-run-the-more-elaborate-mpi-package-dem21lessa-iddouble-quotedem21-containerdouble-quotegreaterlessagreater">A container to run the more elaborate MPI package <code>dem21</code><a id="dem21-container"></a></h4>
 <ul>
-<li>TODO</li>
+<li><p>Make a definition file <strong><code>dem21.def</code></strong> with the following contents. This is like <code>ompi5.def</code> in the previous section, but with the following additions to install the <code>dem21</code> package in the container (see <a href="#local-package-container">A container with a local Python package installed</a> above):</p>
+<ul>
+<li>There is a <code>%files</code> section that copies the <code>dem21</code> package (assumed to be in the directory from which the <code>apptainer build</code> is run) into the container.</li>
+<li>The <code>%post</code> section includes commands that install additional remote packages needed by <code>dem21</code> and install <code>dem21</code>  as a local package, as is done without a container in <a href="#boxpct-dem21">A more elaborate MPI program...</a> above.</li>
+</ul>
+<pre><code class="fenced-code-block">Bootstrap: docker
+From: continuumio/miniconda3
+
+%files
+    dem21 /dem21
+
+%post
+    conda install -c conda-forge openmpi=5.0.3 mpi4py
+    conda install -c conda-forge dill matplotlib numba numpy pyaml scipy
+    conda install -c conda-forge quaternion
+    apt-get update
+    apt install -y openmpi-bin
+    cd /dem21
+    pip install .</code></pre>
+</li>
+<li><p>Working in a directory <code>build-dem21</code> that contains <code>dem21.def</code>, the <code>dem21</code> package (not currently public) is cloned into the current directory and the container is built. This made the 1.3 GB image file <strong><code>dem21.sif</code></strong>:</p>
+<pre><code class="fenced-code-block">build-dem21$ git clone git@github.com:doncandela/dem21.git
+build-dem$ ls
+dem21  dem21.def
+build-dem$ sudo apptainer build "$SIFS"/dem21.sif dem21.def</code></pre>
+</li>
+<li><p>To test  that the <code>dem21</code> package can run in the container (see <a href="#boxpct-dem21">A more elaborate MPI program...</a> above for the corresponding steps without a container, and the previous section <a href="#mpi-container">A container that can use MPI</a> for how MPI is run with a container):</p>
+<ul>
+<li><p>We check that MPI is installed outside the container -- it will be needed to start multiple copies of the container on different cores and pass messages between them.</p>
+</li>
+<li><p>We go to the subdirectory <code>tests/box</code> of  the cloned repo <code>dem21</code> outside the container, which has the test program <code>boxpct.py</code> and its config file <code>box.yaml</code>.</p>
+</li>
+<li><p>We do <code>export pproc=mpi</code>, which tells the <code>dem21</code> code to run in MPI-parallel mode:</p>
+<ul>
+<li><p>Each separate copy of the code, running inside its own container, will issue MPI calls to find out what its rank is and to send/receive messages from the other ranks.</p>
+</li>
+<li><p>These MPI calls will be passed to the MPI system running outside the containers which will carry out the corresponding functions.</p>
+</li>
+</ul>
+</li>
+<li><p>We run <code>mpirun -n &lt;n&gt; apptainer exec...</code> to start <code>&lt;n&gt;</code> containers on different cores.</p>
+</li>
+</ul>
+<pre><code class="fenced-code-block">...box$ ompi_info | head -n 2
+                 Package: Debian OpenMPI
+                Open MPI: 4.1.6
+buid-dem$ cd dem21/tests/box
+...box$ ls
+boxmod.yaml  boxpct.py  boxpct.sh  box.yaml  heap3.yaml  output  plots
+...box$ export pproc=mpi
+...box$ mpirun -n 16 apptainer exec "$SIFS"/dem21.sif python boxpct.py
+- Started MPI on master + 15 worker ranks.
+THIS IS: boxpct.py 12/3/22 D.C., using dem21 version: v1.2 2/11/25
+Parallel processing: MPI, GHOST_ARRAY=True
+- Read 1 config(s) from ...build-dem21/dem21/tests/box/box.yaml
+
+SIM 1/1:
+Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
+343 'sphere' grains in (7.66)x(7.66)x(7.66)mm box (phig=0.4), vrms=10.0m/s
+No gravity, 'hertz' normal force law, Coulomb w. Hookean spring friction with GG mu=0.1, GW mu=0
+-     Writing grain ICs x,v to /tmp/tmp6tpg_0pg/temp.grains
+- READYING SIM with 343 grains and 6 walls
+                    ...</code></pre>
+</li>
 </ul>
 <h4 class="atx" id="a-container-that-can-use-a-gpulessa-iddouble-quotegpu-containerdouble-quotegreaterlessagreater">A container that can use a GPU<a id="gpu-container"></a></h4>
 <ul>
