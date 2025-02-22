@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   2/20/25
+mgah.md  D. Candela   2/21/25
 
 - [Introduction](#intro)  
   
@@ -81,6 +81,8 @@ This the cheat sheet I that accumulated as I learned to combine several tools fo
 - [**Apptainer**](https://apptainer.org/) (formerly called **Singularity**) is a **container** system that allows user code and most of its dependencies (OS version, packages like NumPy) to be packaged together into a single large "image" file, which should then be usable  without modification or detailed environment configuration on many different computer systems from a Linux PC to a large cluster.
 
 - High-performance Computing ([**HPC**](https://en.wikipedia.org/wiki/High-performance_computing)) typically refers to using a large cluster of connected computers assembled and maintained by Universities and other organizations for the use of their communities.  This document only discusses an HPC cluster running Linux and managed by  [**Slurm**](https://slurm.schedmd.com/overview.html) scheduling software, with  the the [**UMass Unity cluster**](https://unity.rc.umass.edu/index.php) as the specific HPC system used here.
+
+- A few references are made in this document to [GitHub](https://github.com/) as a place from which files can be downloaded.  Many resources are available on using Git/GitHub, including [this cheat sheet]([GitHub - doncandela/gs-git: Getting started with Git and GitHub - also Markdown, PW managers...](https://github.com/doncandela/gs-git)) that I put together.
 
 Why Python?  Why Linux? Because those are what I use, and this is my cheat sheet.  So this document is geared towards this work flow:
 
@@ -1545,7 +1547,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
 
 #### Logging in<a id="unity-login"></a>
 
-- **Logging with ssh.** To login to Unity from a terminal program on a remote PC, **ssh keys must be set up** - here are the [instructions in the Unity docs](https://docs.unity.rc.umass.edu/documentation/connecting/ssh/).  While a bit of a pain to set up, ssh is convenient to use and is necessary to enable usage of the `scp` and `rsync` file transfer commands described below.
+- **Logging with SSH.** To login to Unity from a terminal program on a remote PC, **SSH keys must be set up** - here are the [instructions in the Unity docs](https://docs.unity.rc.umass.edu/documentation/connecting/ssh/).  While a bit of a pain to set up, SSH is convenient to use and is necessary to enable usage of the `scp` and `rsync` file transfer commands described below.
   
   - **Setting up keys to allow login to unity from PC.** Here **`<user>`** is a user name on a Linux PC, while **`<userc>`** is a user name on Unity (assigned by Unity admins, typically of form `netid_umass_edu`):
     
@@ -1572,7 +1574,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
           IdentityFile ~/.ssh/unity.key
       ```
     
-    - ssh will set up and maintain the file `~/.ssh/known_hosts`
+    - SSH will set up and maintain the file `~/.ssh/known_hosts`
     
     - There is a way (not shown here) to store the private key in encrypted form, such that a password will be required to use it.
   
@@ -1584,16 +1586,23 @@ Finally, the computational resources of an HPC cluster are only useful if availa
     ```
   
   - Login to Unity from one of my PCs was set up as above and previously working -- but when I tried to login 12/24 I got warning and refusal to login:
-  
-  ```
-  (base) dc:~$ ssh unity
-  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-  @    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
-  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-                       ...
-  ```
-  
-  To fix this I did the `sh-keygen -f '/home/dc/.ssh/known_hosts' -R ...` command suggested in the error message. Then I followed the instructions above to generate a new key, saving it in same file used previously (overwriting previous file), and re-did the `chmod 600 ... command`.
+    
+    ```
+    (base) dc:~$ ssh unity
+    @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    @    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+    @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+                         ...
+    ```
+    
+    Later (2/25), from another PC, I got a different error message that sounded like there was a temporary problem that someone else would fix, but that was not the case:
+    
+    ```
+    (base) dc:~$ ssh unity
+    ssh: Could not resolve hostname unity: Temporary failure in name resolution
+    ```
+    
+    In both cases this was fixed this by following the instructions above to generate a new key (including the `chmod 600 ... command`).
 
 - **Logging in with Unity OnDemand.**  The **Shell, >_Unity Shell Access** menu item of [**Unity OnDemand**](https://ood.unity.rc.umass.edu/pun/sys/dashboard) opens a login shell (in a browser window, not a terminal) without using ssh (Unity OnDemand is accessed with `netid` and `pw`). This is reasonably convenient for all platforms and also allows logging into Unity from Windows without setting up ssh keys and without software beyond a browser.  But there seem to be some limitations on what can be done from this browser-window shell.
 
@@ -1638,7 +1647,69 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   
   - You can also use **`rysnc`** to transfer a whole directory including subdirectories between a Linux PC and Unity.  Unlike `scp`, with appropriate flags `rsync` can be run repeatedly and will only update files that have been changed.  I used `rsync` on the old UMSC HPC cluster, but I haven't tried it yet  on Unity.
 
-- TODO Cloning from GitHub  - public allowed via any node?  Private need to set up SSH keys?  Put info here and in GS-GIT.
+- **Cloning repos from GitHub (GH).**  As of 2/25 I don't see information about this in the [Unity docs](https://docs.unity.rc.umass.edu/documentation/), but this was figured out by consulting with someone at Unity help and looking at at [this webpage](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/using-ssh-agent-forwarding) from GitHub. As in other places in this document `<user>..$` denotes input to a shell on the PC, while `<userc>..$` denotes input to a shell on Unity -- I have only tried these commands on a Unity login node, but they might also work on a compute node.
+  
+  - **Cloning from public GH repo.**  This can be done with no special setup by using the `git clone` command  on Unity with the  HTTPS address of the repo, available in the **`<> Code`** tab of the GH page for the repo.  For example, to clone the public repo `doncandela/dcfuncs` into a directory `foo` under `/work/pi_<userc>` do
+    
+    ```
+    <userc>..foo$ git clone https://github.com/doncandela/dcfuncs.git
+    ```
+    
+    This command resulted in the creation of a subdirectory `foo/dcfuncs`, containing this GH repo including its `.git` file (which is managed by Git and holds the repo history). 
+  
+  - **Cloning from private GH repo.** It's assumed here this a private repo to which you have SS access -- for example a repo that belongs to you.  It seemed that the easiest path was to use **SSH agent forwarding**, which allows Unity (while you are logged in) to use the SSH keys from your PC to authenticate to GH.  First check that you have SSH access to GH from your PC:
+    
+    ```
+    <user>..$ ssh -T git@github.com
+    Hi doncandela! You've successfully authenticated, but GitHub does not provide shell access.
+    ```
+    
+    Still on the PC, edit (or create) the file  `~/.ssh/config` to enable SSH agent forwarding. From previously setting up SSH access to GH I found that this file was present on my PCs with a block for Unity,  to which I added the last line shown here:
+    
+    ```
+    Host unity
+         HostName unity.rc.umass.edu
+         User candela_umass_edu                  # will be your Unity username <userc>
+         IdentityFile ~/.ssh/2025-01-unity.key   # will be your SSH key file for Unity
+         ForwardAgent yes                        # this is the new line added
+    ```
+    
+    After you do this you will be able do the same check on Unity as was done on the PC that you have SSH access to GH:
+    
+    ```
+    <userc>..$ ssh -T git@github.com
+    Hi doncandela! You've successfully authenticated, but GitHub does not provide shell access.
+    ```
+    
+    However, the *first* time you try to access GH from your Unity account you will need to answer `yes` to a multiline message like this:
+    
+    ```
+    <userc>..$ ssh -T git@github.com
+    The authenticity of host 'github.com (140.82.114.3)' can't be established.
+    ED25519 key fingerprint is SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU.
+    This key is not known by any other names.
+    Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+    ```
+    
+    Now, on Unity you can clone a private GH repo you have access to like `doncandela/dem21` by using the repo's SSH address (also available the **`<> Code`** tab of the GH page for the repo):
+    
+    ```
+    <userc>..foo$ git clone git@github.com:doncandela/dem21.git
+    ```
+    
+    This creates the subdirectory `foo/dem21` on Unity with a clone of the repo.
+
+- **Seeing how big the transferred files are.** To see the size on Unity storage of a whole set of directories and subdirectories with their contents (for example as transferred using `scp -r ...` of by cloning a GitHub repo) use the `du` command:
+  
+  ```
+  <userc>...foo$ du -h
+  0    ./dem21/.git/branches
+       ...
+  6.5K    ./dem21/tests/mpi
+  473K    ./dem21/tests
+  10M    ./dem21
+  10M    .
+  ```
 
 #### Slurm on Unity<a id="unity-slurm"></a>
 
@@ -1684,6 +1755,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   ```
   $ squeue --me                    # show info on my jobs
   $ sacct -j <jobid>               # show more detailed info on a specific job
+  $ scancel <jobid>                # kill one of my jobs.
   $ seff <jobid>                   # show utilization efficiency of a completed job
   $ sinfo -p cpu -r -l             # show status of nodes in partition cpu
   $ scontrol show partition cpu    # detailed info on partition cpu

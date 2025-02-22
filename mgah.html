@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   2/20/25</p>
+<p>mgah.md  D. Candela   2/21/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -2426,6 +2426,8 @@ body {
 <li><p><a href="https://apptainer.org/"><strong>Apptainer</strong></a> (formerly called <strong>Singularity</strong>) is a <strong>container</strong> system that allows user code and most of its dependencies (OS version, packages like NumPy) to be packaged together into a single large "image" file, which should then be usable  without modification or detailed environment configuration on many different computer systems from a Linux PC to a large cluster.</p>
 </li>
 <li><p>High-performance Computing (<a href="https://en.wikipedia.org/wiki/High-performance_computing"><strong>HPC</strong></a>) typically refers to using a large cluster of connected computers assembled and maintained by Universities and other organizations for the use of their communities.  This document only discusses an HPC cluster running Linux and managed by  <a href="https://slurm.schedmd.com/overview.html"><strong>Slurm</strong></a> scheduling software, with  the the <a href="https://unity.rc.umass.edu/index.php"><strong>UMass Unity cluster</strong></a> as the specific HPC system used here.</p>
+</li>
+<li><p>A few references are made in this document to <a href="https://github.com/">GitHub</a> as a place from which files can be downloaded.  Many resources are available on using Git/GitHub, including [this cheat sheet](<a href="https://github.com/doncandela/gs-git">GitHub - doncandela/gs-git: Getting started with Git and GitHub - also Markdown, PW managers...</a>) that I put together.</p>
 </li>
 </ul>
 <p>Why Python?  Why Linux? Because those are what I use, and this is my cheat sheet.  So this document is geared towards this work flow:</p>
@@ -3964,7 +3966,7 @@ Multiply M*M=N element dense matrices
 </ul>
 <h4 class="atx" id="logging-inlessa-iddouble-quoteunity-logindouble-quotegreaterlessagreater">Logging in<a id="unity-login"></a></h4>
 <ul>
-<li><p><strong>Logging with ssh.</strong> To login to Unity from a terminal program on a remote PC, <strong>ssh keys must be set up</strong> - here are the <a href="https://docs.unity.rc.umass.edu/documentation/connecting/ssh/">instructions in the Unity docs</a>.  While a bit of a pain to set up, ssh is convenient to use and is necessary to enable usage of the <code>scp</code> and <code>rsync</code> file transfer commands described below.</p>
+<li><p><strong>Logging with SSH.</strong> To login to Unity from a terminal program on a remote PC, <strong>SSH keys must be set up</strong> - here are the <a href="https://docs.unity.rc.umass.edu/documentation/connecting/ssh/">instructions in the Unity docs</a>.  While a bit of a pain to set up, SSH is convenient to use and is necessary to enable usage of the <code>scp</code> and <code>rsync</code> file transfer commands described below.</p>
 <ul>
 <li><p><strong>Setting up keys to allow login to unity from PC.</strong> Here <strong><code>&lt;user&gt;</code></strong> is a user name on a Linux PC, while <strong><code>&lt;userc&gt;</code></strong> is a user name on Unity (assigned by Unity admins, typically of form <code>netid_umass_edu</code>):</p>
 <ul>
@@ -3985,7 +3987,7 @@ Multiply M*M=N element dense matrices
     User &lt;userc&gt;
     IdentityFile ~/.ssh/unity.key</code></pre>
 </li>
-<li><p>ssh will set up and maintain the file <code>~/.ssh/known_hosts</code></p>
+<li><p>SSH will set up and maintain the file <code>~/.ssh/known_hosts</code></p>
 </li>
 <li><p>There is a way (not shown here) to store the private key in encrypted form, such that a password will be required to use it.</p>
 </li>
@@ -3996,14 +3998,17 @@ Multiply M*M=N element dense matrices
 &lt;userc&gt;@login2:~$        # now we are in bash shell on Unity, ctrl-d to logout</code></pre>
 </li>
 <li><p>Login to Unity from one of my PCs was set up as above and previously working -- but when I tried to login 12/24 I got warning and refusal to login:</p>
-</li>
-</ul>
 <pre><code class="fenced-code-block">(base) dc:~$ ssh unity
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
                      ...</code></pre>
-<p>To fix this I did the <code>sh-keygen -f '/home/dc/.ssh/known_hosts' -R ...</code> command suggested in the error message. Then I followed the instructions above to generate a new key, saving it in same file used previously (overwriting previous file), and re-did the <code>chmod 600 ... command</code>.</p>
+<p>Later (2/25), from another PC, I got a different error message that sounded like there was a temporary problem that someone else would fix, but that was not the case:</p>
+<pre><code class="fenced-code-block">(base) dc:~$ ssh unity
+ssh: Could not resolve hostname unity: Temporary failure in name resolution</code></pre>
+<p>In both cases this was fixed this by following the instructions above to generate a new key (including the <code>chmod 600 ... command</code>).</p>
+</li>
+</ul>
 </li>
 <li><p><strong>Logging in with Unity OnDemand.</strong>  The <strong>Shell, &gt;_Unity Shell Access</strong> menu item of <a href="https://ood.unity.rc.umass.edu/pun/sys/dashboard"><strong>Unity OnDemand</strong></a> opens a login shell (in a browser window, not a terminal) without using ssh (Unity OnDemand is accessed with <code>netid</code> and <code>pw</code>). This is reasonably convenient for all platforms and also allows logging into Unity from Windows without setting up ssh keys and without software beyond a browser.  But there seem to be some limitations on what can be done from this browser-window shell.</p>
 </li>
@@ -4043,7 +4048,44 @@ $ scp &lt;localfile&gt; unity:/work/pi_&lt;direc&gt;/&lt;subdirec&gt;   # copy u
 </li>
 </ul>
 </li>
-<li><p>TODO Cloning from GitHub  - public allowed via any node?  Private need to set up SSH keys?  Put info here and in GS-GIT.</p>
+<li><p><strong>Cloning repos from GitHub (GH).</strong>  As of 2/25 I don't see information about this in the <a href="https://docs.unity.rc.umass.edu/documentation/">Unity docs</a>, but this was figured out by consulting with someone at Unity help and looking at at <a href="https://docs.github.com/en/authentication/connecting-to-github-with-ssh/using-ssh-agent-forwarding">this webpage</a> from GitHub. As in other places in this document <code>&lt;user&gt;..$</code> denotes input to a shell on the PC, while <code>&lt;userc&gt;..$</code> denotes input to a shell on Unity -- I have only tried these commands on a Unity login node, but they might also work on a compute node.</p>
+<ul>
+<li><p><strong>Cloning from public GH repo.</strong>  This can be done with no special setup by using the <code>git clone</code> command  on Unity with the  HTTPS address of the repo, available in the <strong><code>&lt;&gt; Code</code></strong> tab of the GH page for the repo.  For example, to clone the public repo <code>doncandela/dcfuncs</code> into a directory <code>foo</code> under <code>/work/pi_&lt;userc&gt;</code> do</p>
+<pre><code class="fenced-code-block">&lt;userc&gt;..foo$ git clone https://github.com/doncandela/dcfuncs.git</code></pre>
+<p>This command resulted in the creation of a subdirectory <code>foo/dcfuncs</code>, containing this GH repo including its <code>.git</code> file (which is managed by Git and holds the repo history). </p>
+</li>
+<li><p><strong>Cloning from private GH repo.</strong> It's assumed here this a private repo to which you have SS access -- for example a repo that belongs to you.  It seemed that the easiest path was to use <strong>SSH agent forwarding</strong>, which allows Unity (while you are logged in) to use the SSH keys from your PC to authenticate to GH.  First check that you have SSH access to GH from your PC:</p>
+<pre><code class="fenced-code-block">&lt;user&gt;..$ ssh -T git@github.com
+Hi doncandela! You've successfully authenticated, but GitHub does not provide shell access.</code></pre>
+<p>Still on the PC, edit (or create) the file  <code>~/.ssh/config</code> to enable SSH agent forwarding. From previously setting up SSH access to GH I found that this file was present on my PCs with a block for Unity,  to which I added the last line shown here:</p>
+<pre><code class="fenced-code-block">Host unity
+     HostName unity.rc.umass.edu
+     User candela_umass_edu                  # will be your Unity username &lt;userc&gt;
+     IdentityFile ~/.ssh/2025-01-unity.key   # will be your SSH key file for Unity
+     ForwardAgent yes                        # this is the new line added</code></pre>
+<p>After you do this you will be able do the same check on Unity as was done on the PC that you have SSH access to GH:</p>
+<pre><code class="fenced-code-block">&lt;userc&gt;..$ ssh -T git@github.com
+Hi doncandela! You've successfully authenticated, but GitHub does not provide shell access.</code></pre>
+<p>However, the <em>first</em> time you try to access GH from your Unity account you will need to answer <code>yes</code> to a multiline message like this:</p>
+<pre><code class="fenced-code-block">&lt;userc&gt;..$ ssh -T git@github.com
+The authenticity of host 'github.com (140.82.114.3)' can't be established.
+ED25519 key fingerprint is SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU.
+This key is not known by any other names.
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes</code></pre>
+<p>Now, on Unity you can clone a private GH repo you have access to like <code>doncandela/dem21</code> by using the repo's SSH address (also available the <strong><code>&lt;&gt; Code</code></strong> tab of the GH page for the repo):</p>
+<pre><code class="fenced-code-block">&lt;userc&gt;..foo$ git clone git@github.com:doncandela/dem21.git</code></pre>
+<p>This creates the subdirectory <code>foo/dem21</code> on Unity with a clone of the repo.</p>
+</li>
+</ul>
+</li>
+<li><p><strong>Seeing how big the transferred files are.</strong> To see the size on Unity storage of a whole set of directories and subdirectories with their contents (for example as transferred using <code>scp -r ...</code> of by cloning a GitHub repo) use the <code>du</code> command:</p>
+<pre><code class="fenced-code-block">&lt;userc&gt;...foo$ du -h
+0    ./dem21/.git/branches
+     ...
+6.5K    ./dem21/tests/mpi
+473K    ./dem21/tests
+10M    ./dem21
+10M    .</code></pre>
 </li>
 </ul>
 <h4 class="atx" id="slurm-on-unitylessa-iddouble-quoteunity-slurmdouble-quotegreaterlessagreater">Slurm on Unity<a id="unity-slurm"></a></h4>
@@ -4134,6 +4176,7 @@ $ scp &lt;localfile&gt; unity:/work/pi_&lt;direc&gt;/&lt;subdirec&gt;   # copy u
 <li><p>Some useful Slurm commands:</p>
 <pre><code class="fenced-code-block">$ squeue --me                    # show info on my jobs
 $ sacct -j &lt;jobid&gt;               # show more detailed info on a specific job
+$ scancel &lt;jobid&gt;                # kill one of my jobs.
 $ seff &lt;jobid&gt;                   # show utilization efficiency of a completed job
 $ sinfo -p cpu -r -l             # show status of nodes in partition cpu
 $ scontrol show partition cpu    # detailed info on partition cpu
