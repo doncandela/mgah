@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   2/22/25
+mgah.md  D. Candela   2/23/25
 
 - [Introduction](#intro)  
   
@@ -542,16 +542,16 @@ Note, however, that parallelism across all the cores of any single node of an HP
   $ mpirun -n 4 python myprog.py
   ```
 
-- The "Hello world" of MPI programs, **`mpi_hw.py`** simply prints a message including the rank and other information.  Running `mpi_hw.py` in six ranks gives us six such messages, in an indeterminate order: **TODO this shows earlier MPI version**
+- The "Hello world" of MPI programs, **`mpi_hw.py`** simply prints a message including the rank and other information.  Running `mpi_hw.py` in six ranks gives us six such messages, in an indeterminate order:**
   
   ```
   (ompi5)..$ mpirun -n 6 python mpi_hw.py
-  Hello world from rank 0 of 6 on candela-20 running Open MPI v4.1.6
-  Hello world from rank 3 of 6 on candela-20 running Open MPI v4.1.6
-  Hello world from rank 5 of 6 on candela-20 running Open MPI v4.1.6
-  Hello world from rank 2 of 6 on candela-20 running Open MPI v4.1.6
-  Hello world from rank 4 of 6 on candela-20 running Open MPI v4.1.6
-  Hello world from rank 1 of 6 on candela-20 running Open MPI v4.1.6
+  Hello world from rank 1 of 6 on candela-21 running Open MPI v5.0.3
+  Hello world from rank 4 of 6 on candela-21 running Open MPI v5.0.3
+  Hello world from rank 2 of 6 on candela-21 running Open MPI v5.0.3
+  Hello world from rank 5 of 6 on candela-21 running Open MPI v5.0.3
+  Hello world from rank 3 of 6 on candela-21 running Open MPI v5.0.3
+  Hello world from rank 0 of 6 on candela-21 running Open MPI v5.0.3
   ```
   
   Some fine points about the number of ranks:
@@ -1876,21 +1876,20 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   
   - This is done much the same way as installing a local package on a PC, as [shown above](#local-package).
   
-  - Following the same example as in that section, the repository for the **`dcfuncs`** package has been copied to a directory `work/pi_<userc>...dcfuncs` on Unity. Then a Conda environment **`dfs`** is created and NumPy and  `dcfuncs` are installed in that environment.   TODO clone from GH?
+  - Following the same example as in that section, the repository for the **`dcfuncs`** package has been cloned to a directory `work/pi_<userc>...dcfuncs` on Unity. Then a Conda environment **`dfs`** is created and NumPy and  `dcfuncs` are installed in that environment.
     
     ```
     $ unity-compute                    # get shell on a compute node
     $ module load conda/latest
     $ conda create -n dfs python=3.12
     $ conda activate dfs
-    (dfs)...$ python --version
-    Python 3.12.3
     (dfs)..$ conda install numpy       # needed by dcfuncs
-    (dfs)...$ cd ...dcfuncs            # go to directory where dcfuncs repo was copied
-    (dfs)...dcfuncs$ ls
+    (dfs)..$ mkdir foo; cd foo         # make and go to directory where we will copy the repo...
+    (dfs)..foo$ git clone https://github.com/doncandela/dcfuncs.git
+    (dfs)...foo$ cd dcfuncs; ls        # go into cloned repo was copied
     LICENSE  README.md  pyproject.toml  setup.py  src  test
-    (dfs)...dcfuncs$ pip install -e .  # install dcfuncs to current environment
-    (dfs)...dcfuncs$ pip list
+    (dfs)...foo/dcfuncs$ pip install -e .  # install dcfuncs to current environment
+    (dfs)...foo/dcfuncs$ pip list
     Package    Version Editable project location
     ---------- ------- ------_---------------------
     dcfuncs    1.0     /work/pi_<userc>/.../dcfuncs

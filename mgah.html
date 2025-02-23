@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   2/21/25</p>
+<p>mgah.md  D. Candela   2/23/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -2850,14 +2850,14 @@ $ conda activate ompi5
 <li><p>MPI works by <strong>loading and starting <span class="katex"><span class="katex-mathml"></span><span aria-hidden="true" class="katex-html"><span class="base"><span style="height:0.4306em;" class="strut"></span><span class="mord mathnormal">n</span></span></span></span> copies of the same code</strong>, each in its own process running on a separate core.  (In principle each process could use multiple cores, for example for NumPy multithreading, but I don't have an example of that yet.)  Each process has a unique <strong>rank</strong>  in the range <span class="katex"><span class="katex-mathml"></span><span aria-hidden="true" class="katex-html"><span class="base"><span style="height:0.7278em;vertical-align:-0.0833em;" class="strut"></span><span class="mord">0</span><span style="margin-right:0.1667em;" class="mspace"></span><span class="minner">…</span><span style="margin-right:0.1667em;" class="mspace"></span><span class="mord mathnormal">n</span><span style="margin-right:0.2222em;" class="mspace"></span><span class="mbin">−</span><span style="margin-right:0.2222em;" class="mspace"></span></span><span class="base"><span style="height:0.6444em;" class="strut"></span><span class="mord">1</span></span></span></span>, and a process can find its rank via an MPI function call -- and then use the rank to figure out what it should do (this is up to the programmer!).  To simultaneously run four copies (ranks) of  the Python program <code>myprog.py</code> we do</p>
 <pre><code class="fenced-code-block">$ mpirun -n 4 python myprog.py</code></pre>
 </li>
-<li><p>The "Hello world" of MPI programs, <strong><code>mpi_hw.py</code></strong> simply prints a message including the rank and other information.  Running <code>mpi_hw.py</code> in six ranks gives us six such messages, in an indeterminate order: <strong>TODO this shows earlier MPI version</strong></p>
+<li><p>The "Hello world" of MPI programs, <strong><code>mpi_hw.py</code></strong> simply prints a message including the rank and other information.  Running <code>mpi_hw.py</code> in six ranks gives us six such messages, in an indeterminate order:**</p>
 <pre><code class="fenced-code-block">(ompi5)..$ mpirun -n 6 python mpi_hw.py
-Hello world from rank 0 of 6 on candela-20 running Open MPI v4.1.6
-Hello world from rank 3 of 6 on candela-20 running Open MPI v4.1.6
-Hello world from rank 5 of 6 on candela-20 running Open MPI v4.1.6
-Hello world from rank 2 of 6 on candela-20 running Open MPI v4.1.6
-Hello world from rank 4 of 6 on candela-20 running Open MPI v4.1.6
-Hello world from rank 1 of 6 on candela-20 running Open MPI v4.1.6</code></pre>
+Hello world from rank 1 of 6 on candela-21 running Open MPI v5.0.3
+Hello world from rank 4 of 6 on candela-21 running Open MPI v5.0.3
+Hello world from rank 2 of 6 on candela-21 running Open MPI v5.0.3
+Hello world from rank 5 of 6 on candela-21 running Open MPI v5.0.3
+Hello world from rank 3 of 6 on candela-21 running Open MPI v5.0.3
+Hello world from rank 0 of 6 on candela-21 running Open MPI v5.0.3</code></pre>
 <p>Some fine points about the number of ranks:</p>
 <ul>
 <li><p>Omitting <code>-n 6</code> above will set the number of ranks equal to the  number of available cores, while setting the number of ranks to more than the available cores will cause <code>mpirun</code> to fail.</p>
@@ -4032,8 +4032,8 @@ ssh: Could not resolve hostname unity: Temporary failure in name resolution</cod
 <li><p><strong>CLI:</strong> The following commands are part of OpenSSH and <strong>require ssh keys to be set up</strong> as shown above. Then the <strong><code>rsync</code></strong> and <strong><code>scp</code></strong> commands shown here can be run on the PC. Some info on using these commands with Unity is on <a href="https://docs.unity.rc.umass.edu/documentation/managing-files/cli/">this page</a>.</p>
 <ul>
 <li><p>Use <strong><code>scp</code></strong> to copy an individual file <code>localfile</code> on the PC to a the cluster:</p>
-<pre><code class="fenced-code-block">$ scp &lt;localfile&gt; unity:~/&lt;subdirec&gt;                  # copy under directory /home/&lt;userc
-$ scp &lt;localfile&gt; unity:/work/pi_&lt;direc&gt;/&lt;subdirec&gt;   # copy under group working directory</code></pre>
+<pre><code class="fenced-code-block">$ scp &lt;localfile&gt; unity:~/&lt;subdirec&gt;                  # copy under directory /home/&lt;userc&gt;/
+$ scp &lt;localfile&gt; unity:/work/&lt;direc&gt;/&lt;subdirec&gt;      # copy under group working directory</code></pre>
 <p>Unlike Unity OnDemand drag-and-drop, scp successfully copied a 3.5 GB file to Unity from my home PC with its slow internet  uplink (took 23 min).</p>
 </li>
 <li><p>Similarly use <strong><code>scp</code></strong> to copy an individual file <code>remotefile</code> on the cluster to the current directory on the PC (note the period indicating the current directory):</p>
@@ -4052,7 +4052,7 @@ $ scp &lt;localfile&gt; unity:/work/pi_&lt;direc&gt;/&lt;subdirec&gt;   # copy u
 <ul>
 <li><p><strong>Cloning from public GH repo.</strong>  This can be done with no special setup by using the <code>git clone</code> command  on Unity with the  HTTPS address of the repo, available in the <strong><code>&lt;&gt; Code</code></strong> tab of the GH page for the repo.  For example, to clone the public repo <code>doncandela/dcfuncs</code> into a directory <code>foo</code> under <code>/work/pi_&lt;userc&gt;</code> do</p>
 <pre><code class="fenced-code-block">&lt;userc&gt;..foo$ git clone https://github.com/doncandela/dcfuncs.git</code></pre>
-<p>This command resulted in the creation of a subdirectory <code>foo/dcfuncs</code>, containing this GH repo including its <code>.git</code> file (which is managed by Git and holds the repo history). </p>
+<p>This command resulted in the creation on Unity of the subdirectory <code>foo/dcfuncs</code>, containing this GH repo including its <code>.git</code> file (which is managed by Git and holds the repo history). </p>
 </li>
 <li><p><strong>Cloning from private GH repo.</strong> It's assumed here this a private repo to which you have SS access -- for example a repo that belongs to you.  It seemed that the easiest path was to use <strong>SSH agent forwarding</strong>, which allows Unity (while you are logged in) to use the SSH keys from your PC to authenticate to GH.  First check that you have SSH access to GH from your PC:</p>
 <pre><code class="fenced-code-block">&lt;user&gt;..$ ssh -T git@github.com
@@ -4086,6 +4086,7 @@ Are you sure you want to continue connecting (yes/no/[fingerprint])? yes</code><
 473K    ./dem21/tests
 10M    ./dem21
 10M    .</code></pre>
+<p>Variants: <code>du -h</code> as shown above will show the sizes of directories only, while <code>du -ah</code> will also show the sizes of all files in the directories.</p>
 </li>
 </ul>
 <h4 class="atx" id="slurm-on-unitylessa-iddouble-quoteunity-slurmdouble-quotegreaterlessagreater">Slurm on Unity<a id="unity-slurm"></a></h4>
@@ -4281,19 +4282,18 @@ scipy           1.15.1</code></pre>
 <ul>
 <li><p>This is done much the same way as installing a local package on a PC, as <a href="#local-package">shown above</a>.</p>
 </li>
-<li><p>Following the same example as in that section, the repository for the <strong><code>dcfuncs</code></strong> package has been copied to a directory <code>work/pi_&lt;userc&gt;...dcfuncs</code> on Unity. Then a Conda environment <strong><code>dfs</code></strong> is created and NumPy and  <code>dcfuncs</code> are installed in that environment.   TODO clone from GH?</p>
+<li><p>Following the same example as in that section, the repository for the <strong><code>dcfuncs</code></strong> package has been cloned to a directory <code>work/pi_&lt;userc&gt;...dcfuncs</code> on Unity. Then a Conda environment <strong><code>dfs</code></strong> is created and NumPy and  <code>dcfuncs</code> are installed in that environment.</p>
 <pre><code class="fenced-code-block">$ unity-compute                    # get shell on a compute node
 $ module load conda/latest
 $ conda create -n dfs python=3.12
 $ conda activate dfs
-(dfs)...$ python --version
-Python 3.12.3
 (dfs)..$ conda install numpy       # needed by dcfuncs
-(dfs)...$ cd ...dcfuncs            # go to directory where dcfuncs repo was copied
-(dfs)...dcfuncs$ ls
+(dfs)..$ mkdir foo; cd foo         # make and go to directory where we will copy the repo...
+(dfs)..foo$ git clone https://github.com/doncandela/dcfuncs.git
+(dfs)...foo$ cd dcfuncs; ls        # go into cloned repo was copied
 LICENSE  README.md  pyproject.toml  setup.py  src  test
-(dfs)...dcfuncs$ pip install -e .  # install dcfuncs to current environment
-(dfs)...dcfuncs$ pip list
+(dfs)...foo/dcfuncs$ pip install -e .  # install dcfuncs to current environment
+(dfs)...foo/dcfuncs$ pip list
 Package    Version Editable project location
 ---------- ------- ------_---------------------
 dcfuncs    1.0     /work/pi_&lt;userc&gt;/.../dcfuncs
