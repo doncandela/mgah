@@ -4096,6 +4096,7 @@ Are you sure you want to continue connecting (yes/no/[fingerprint])? yes</code><
 <li><a href="https://slurm.schedmd.com/quickstart.html">Quick Start User Guide</a> in the <a href="https://slurm.schedmd.com/documentation.html">Slurm docs</a>.</li>
 <li><a href="https://docs.unity.rc.umass.edu/documentation/get-started/hpc-theory/threads-cores-processes-sockets/">Overview of threads, cores, and sockets in Slurm</a> in the <a href="https://docs.unity.rc.umass.edu/documentation/">Unity docs</a>.</li>
 <li>Stanford tutorial <a href="https://stanford-rc.github.io/docs-earth/docs/slurm-basics">SLURM Basics</a>.</li>
+<li>A list of <a href="https://docs.rc.fas.harvard.edu/kb/convenient-slurm-commands/">Convenient Slurm Commands</a>  with detailed instructions from Harvard.</li>
 <li><a href="http://acadix.biz/RCUG/HTML/index.html">Research Computing User's Guide</a> (esp Ch. 11 "Job Scheduling with SLURM").</li>
 <li>A few more advanced resources are linked in <a href="#run-batch">Running batch jobs</a> below.</li>
 </ul>
@@ -4449,19 +4450,72 @@ conda activate myenv</code></pre>
 <ul>
 <li><p>As a container is not being used, a Conda environment must be set up on Unity with the needed packages. This example uses the environment <strong><code>npsp</code></strong> <a href="#conda-hpc">set up above</a> with Python, Numpy, and Scipy, but not CuPy.</p>
 </li>
-<li><p>The program <code>gputest.py</code> described above (which won't try to use a GPU if CuPy cannot be imported) was put in a directory <code>/work/.../try-gputest</code> along with an sbatch script <strong><code>noapp-nogpu.sh</code></strong> with these contents:</p>
+<li><p>The program <code>gputest.py</code> described above (which won't try to use a GPU if CuPy cannot be imported) was put in a directory <code>/work/.../try-gputest</code> along with an sbatch script <strong><code>simple.sh</code></strong> with these contents:</p>
 <pre><code class="fenced-code-block">#!/bin/bash
-# simple.sh 2/5/25 D.C.
+# simple.sh 2/23/25 D.C.
 # One-task sbatch script using none of MPI, a GPU, or Apptainer.
-#SBATCH -c 6                        # use 6 CPU cores
-#SBATCH -p cpu                      # submit to partition cpu
+#SBATCH -c 6                       # use 6 CPU cores
+#SBATCH -p cpu                     # submit to partition cpu
+echo nodelist=$SLURM_JOB_NODELIST  # get list of nodes used
+module purge                       # unload all modules
+module load conda/latest           # need this to use conda commands
+conda activate npsp                # environment with NumPy and SciPy but not CuPy
+python gputest.py &gt; simple.out     # run gputest.py sending its output to a file</code></pre>
+<p>The <code>echo nodelist...</code> command in this script will put a list of the nodes used in the <code>...out</code> file. Here is a <a href="https://hpcc.umd.edu/hpcc/help/slurmenv.html">list of Slurm environment variables</a> that can be used in this way.</p>
+</li>
+<li><p>To submit the job we do</p>
+<pre><code class="fenced-code-block">try-gputest$ sbatch simple.sh
+Submitted batch job 29132740</code></pre>
+<p>  Notes:</p>
+<ul>
+<li><p>With this way of running, <code>sbatch</code> is run from the directory <code>try-gputest</code> and the output will go there as well -- this is why we are using a directory under <code>/work</code>.</p>
+</li>
+<li><p>The <code>sbatch</code> command returns immediately with the jobid, no matter how long the actual job takes.</p>
+</li>
+<li><p><code>sbatch</code> can be run from a login node, since the job runs on nodes allocated according to the <code>#SBATCH</code> lines in <code>simple.sh</code>, not on the node where <code>sbatch</code> was run.</p>
+</li>
+<li><p>Since <code>simple.sh</code> sets the Conda environment, there is no need to set it before running <code>sbatch</code>.</p>
+</li>
+</ul>
+</li>
+<li><p>To see our pending and running jobs do</p>
+<pre><code class="fenced-code-block">try-gputest$ sbatch squeue --me
+            JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
+          29132740       cpu simple.s candela_  R       0:10      1 cpu005</code></pre>
+<p>Jobs that haven't started running yet will have <code>PD</code> in the <code>ST</code> column.  Here <code>R</code> means the job is running (and has used 10 seconds so far).  To cancel the job (for example, if it runs much longer than expected) do</p>
+<pre><code class="fenced-code-block">try-gputest$ scancel 29132740</code></pre>
+<p>One the job has completed, it will no longer be shown by <code>squeue</code>, but we can get info on the job's efficiency by doing</p>
+<pre><code class="fenced-code-block">try-gputest$ seff 29132740
+Job ID: 29132740
+Cluster: unity
+User/Group: candela_umass_edu/candela_umass_edu
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 6
+CPU Utilized: 00:03:10
+CPU Efficiency: 20.17% of 00:15:42 core-walltime
+Job Wall-clock time: 00:02:37
+Memory Utilized: 1.88 GB
+Memory Efficiency: 31.26% of 6.00 GB</code></pre>
+<p>We can get more info on completed jobs by using <code>sacct</code> as detailed in <a href="https://docs.rc.fas.harvard.edu/kb/convenient-slurm-commands/">this page</a> from Harvard.</p>
+</li>
+<li><p>Using <code>simple.sh</code> as listed above, two output files are created: The default output file <code>slurm-29132740.out</code> will contain the output produced by the batch file <code>simple.sh</code> including the <code>echo nodelist=...</code> command, while <code>simple.out</code> will have the output produced by <code>gputest.py</code>:</p>
+<pre><code class="fenced-code-block">try-gputest$ cat slurm-29132740.out
+nodelist=cpu005
+Loading conda
+try-gputest$ cat simple.out
+Running: gputest.py 11/22/23 D.C.
+Local time: Sun Feb 23 22:47:49 2025
+Import cupy failed, using CPU only
+CPU timings use last 10 of 11 trials
 
-module purge                         # unload all modules
-module load conda/latest
-conda activate npsp                  # environment with NumPy and SciPy but not CuPy
-
-python gputest.py &gt; npapp-nogpu.out  # run gputest.py sending its output to a file</code></pre>
-<p>With this way of running, <code>sbatch</code> is run from the directory <code>try-gputest</code> and the output will go there as well -- this is why we are using a directory under /work. The script gputest.py will not try to use a GPU because CuPy cannot be imported in this environment.  <strong>TODO</strong> show how to monitor job and  sample of output, check efficiency.</p>
+***************** Doing test dense_mult ******************
+                     ...</code></pre>
+<ul>
+<li>This was produced by writing <code>python gputest.py &gt; simple.out</code> in <code>simple.sh</code></li>
+<li>If we change this line to <code>python gputest.py</code> then both the batch file output and the program output will be added to <code>slurm-&lt;jobid&gt;.out</code>.</li>
+<li>If we change this line to <code>python gputest.py |&amp; tee simple.out</code> then both regular and error output of <code>gputest.py</code> will be written to the file  <code>simple.out</code> (due to the <code>|&amp;</code>), and they will also be included in the <code>slurm-&lt;jobid&gt;.out</code> file along with the batch file output (due to the <code>tee</code>).</li>
+</ul>
 </li>
 </ul>
 </li>
