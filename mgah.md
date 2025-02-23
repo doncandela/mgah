@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   2/21/25
+mgah.md  D. Candela   2/22/25
 
 - [Introduction](#intro)  
   
@@ -1625,8 +1625,8 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   - Use **`scp`** to copy an individual file `localfile` on the PC to a the cluster:
     
     ```
-    $ scp <localfile> unity:~/<subdirec>                  # copy under directory /home/<userc
-    $ scp <localfile> unity:/work/pi_<direc>/<subdirec>   # copy under group working directory
+    $ scp <localfile> unity:~/<subdirec>                  # copy under directory /home/<userc>/
+    $ scp <localfile> unity:/work/<direc>/<subdirec>      # copy under group working directory
     ```
     
     Unlike Unity OnDemand drag-and-drop, scp successfully copied a 3.5 GB file to Unity from my home PC with its slow internet  uplink (took 23 min).
@@ -1655,7 +1655,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
     <userc>..foo$ git clone https://github.com/doncandela/dcfuncs.git
     ```
     
-    This command resulted in the creation of a subdirectory `foo/dcfuncs`, containing this GH repo including its `.git` file (which is managed by Git and holds the repo history). 
+    This command resulted in the creation on Unity of the subdirectory `foo/dcfuncs`, containing this GH repo including its `.git` file (which is managed by Git and holds the repo history). 
   
   - **Cloning from private GH repo.** It's assumed here this a private repo to which you have SS access -- for example a repo that belongs to you.  It seemed that the easiest path was to use **SSH agent forwarding**, which allows Unity (while you are logged in) to use the SSH keys from your PC to authenticate to GH.  First check that you have SSH access to GH from your PC:
     
@@ -1710,6 +1710,8 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   10M    ./dem21
   10M    .
   ```
+  
+  Variants: `du -h` as shown above will show the sizes of directories only, while `du -ah` will also show the sizes of all files in the directories.
 
 #### Slurm on Unity<a id="unity-slurm"></a>
 
