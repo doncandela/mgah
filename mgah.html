@@ -4484,6 +4484,7 @@ Submitted batch job 29132740</code></pre>
           29132740       cpu simple.s candela_  R       0:10      1 cpu005</code></pre>
 <p>Jobs that haven't started running yet will have <code>PD</code> in the <code>ST</code> column.  Here <code>R</code> means the job is running (and has used 10 seconds so far).  To cancel the job (for example, if it runs much longer than expected) do</p>
 <pre><code class="fenced-code-block">try-gputest$ scancel 29132740</code></pre>
+<p>Unlike an interactive job, <strong>a job submitted using <code>sbatch</code> will not be cancelled when you log out</strong> -- it will continue running until your code ends, or the job time limit (<strong>default one hour</strong>) is exceeded, or you cancel it with <code>scancel</code>.</p>
 <p>One the job has completed, it will no longer be shown by <code>squeue</code>, but we can get info on the job's efficiency by doing</p>
 <pre><code class="fenced-code-block">try-gputest$ seff 29132740
 Job ID: 29132740

@@ -2120,6 +2120,8 @@ Finally, the computational resources of an HPC cluster are only useful if availa
     try-gputest$ scancel 29132740
     ```
     
+    Unlike an interactive job, **a job submitted using `sbatch` will not be cancelled when you log out** -- it will continue running until your code ends, or the job time limit (**default one hour**) is exceeded, or you cancel it with `scancel`.
+    
     One the job has completed, it will no longer be shown by `squeue`, but we can get info on the job's efficiency by doing
     
     ```
