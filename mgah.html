@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   2/24/25</p>
+<p>mgah.md  D. Candela   2/25/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -2393,10 +2393,10 @@ body {
 <li><a href="#rc-files">Using <code>.bashrc</code> and <code>.bash_aliases</code></a></li>
 <li><a href="#unity-modules-conda">Using modules and Conda</a></li>
 <li><a href="#run-batch">Running batch jobs: <code>sbatch</code></a></li>
-<li><a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a></li>
-<li><a href="#unity-gpu">Using a GPU on Unity (without Apptainer)</a></li>
 </ul>
 </li>
+<li><a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a></li>
+<li><a href="#unity-gpu">Using a GPU on Unity (without Apptainer)</a></li>
 <li><a href="#unity-apptainer">Using Apptainer on the Unity HPC cluster</a><ul>
 <li><a href="#images-to-unity">Getting container images on the cluster</a></li>
 <li><a href="#unity-run-container">Running a container interactively or in batch job</a></li>
@@ -4360,7 +4360,8 @@ conda activate myenv</code></pre>
 <pre><code class="fenced-code-block">srun python myscript.py &gt; output</code></pre>
 <p>Using <code>srun</code> establishes a <strong>job step</strong> and can also launch <strong>multiple copies of the program</strong> as separate tasks if <code>#SBATCH -n=..</code> was used to specify more than one task – see <a href="https://groups.oist.jp/scs/advanced-slurm">this page</a> for more info.</p>
 </li>
-<li><p>MPI programs can be run using <code>srun</code> or <code>mpirun</code>. This starts 10 copies of <code>myscript.py</code> as separate tasks:</p>
+<li><p>MPI programs can be run using <code>srun</code> or <code>mpirun</code>.  Note <code>srun</code> is a Slurm command that can start multiple copies of any program, whether or note MPI is available.  Conversely <code>mpirun</code> is only available in an environment in which MPI is available, see <a href="#unity-mpi">Using MPI on Unity</a> below.</p>
+<p>This starts 10 copies of <code>myscript.py</code> as separate tasks:</p>
 <pre><code class="fenced-code-block">mpirun -n 10 python myscript.py &gt; output</code></pre>
 <p>while this sets the number of copies (MPI tasks) according to the <code>#SBATCH -n=...</code> setting:</p>
 <pre><code class="fenced-code-block">mpirun python myscript.py &gt; output</code></pre>
@@ -4523,70 +4524,90 @@ CPU timings use last 10 of 11 trials
 </ul>
 </li>
 </ul>
-<h4 class="atx" id="using-mpi-on-unity-without-apptainerlessa-iddouble-quoteunity-mpidouble-quotegreaterlessagreater">Using MPI on Unity (without Apptainer)<a id="unity-mpi"></a></h4>
+<h3 class="atx" id="using-mpi-on-unity-without-apptainerlessa-iddouble-quoteunity-mpidouble-quotegreaterlessagreater">Using MPI on Unity (without Apptainer)<a id="unity-mpi"></a></h3>
 <ul>
-<li><p>A <strong>Conda environment <code>ompi</code> capable of using OpenMPI</strong> was created as follows, running an interactive shell on a Unity compute node:</p>
-<pre><code class="fenced-code-block">$ module load conda/latest
-$ conda create -n ompi5 python=3.11
-$ conda activate ompi5
-(opmi5)..$ module av openmpi     # see which OpenMPI versions are available
------------------------ /modules/modulefiles/spack/latest/linux-ubuntu24.04-x86_64/Core -------------------------
-   openmpi/4.1.6-cuda12.6    openmpi/4.1.6    openmpi/5.0.3-cuda12.6    openmpi/5.0.3
-(ompi5)..$ module load openmpi/5.0.3-cuda12.6
-(ompi5)..$ conda install mpi4py
-(ompi5)..$ conda install numpy scipy matplotlib</code></pre>
-<p>TODO this is the GPU commentary --- Unlike on my PCs, on Unity it was not necessary to explicitly specify <code>-c conda-forge</code> to get an up-to-date version of CuPy (see <a href="#pytorch-cupy">Installing CUDA-aware Python packages</a> above). This may be because <a href="https://docs.unity.rc.umass.edu/documentation/software/conda/">on Unity, Conda uses Minforge</a> rather than Anaconda.</p>
-</li>
-<li><p><strong>Run <code>mpi_hw.py</code> on Unity interactively.</strong></p>
-<p>TODO this is GPU commentary Here we get an interactive shell with 6 cores and one GPU on a compute node in the <code>gpu</code> partition, and load a CUDA module (although CUDA typically seems to be loaded already on GPU nodes). Then we run <code>nvidia-smi</code> to check that the GPU and CUDA are available and get info on them (not sure why CUDA version reported by <code>nvidia-smi</code> doesn’t match module loaded):</p>
-<pre><code class="fenced-code-block">$ salloc -c 6 -p cpu
+<li><p>A <strong>Conda environment capable of using OpenMPI</strong> was created as follows.  First we see which OpenMPI modules are available -- from these we will select OpenMPI 5.0.3:</p>
+<pre><code class="fenced-code-block">$ module av openmpi
+
+---------------------- /modules/modulefiles/spack/latest/linux-ubuntu24.04-x86_64/Core -----------------------
+   openmpi/4.1.6-cuda12.6    openmpi/4.1.6    openmpi/5.0.3-cuda12.6    openmpi/5.0.3</code></pre>
+<p>In the examples shown below, the latest version (5.0.3) was used, without CUDA  -- this worked, and at least sometimes it seemed that using the version with CUDA caused a problem -- but this was not explored in detail.</p>
+<p>Next we create a Conda environment <strong><code>ompi5</code></strong> with Python, <code>mpi4py</code>, and other packages likely to be needed by programs running in this environment (here we show <code>numpy</code>, <code>scipy</code>, and <code>matplotlib</code>):</p>
+<pre><code class="fenced-code-block">$ unity-compute                 # get an interactive shell on a compute node
 $ module load conda/latest
-$ module load openmpi/5.0.3-cuda12.6
+$ module load openmpi/5.0.3
+$ conda create -n ompi5 python=3.12
 $ conda activate ompi5
-(ompi5)$ cd ..             # cd to directory containing mpi_hw.py
-(ompi5)$ mpirun -n 4 python mpi_hw.py
-TODO this worked but could specify more than 6 tasks not sure how that works</code></pre>
-</li>
-<li><p>TODO Random notes from trying things 2/24/25:</p>
+(ompi5)..$ conda install mpi4py
+(ompi5)..$ conda install numpy scipy matplotlib
+(ompi5)..$ mpirun --version
+mpirun (Open MPI) 5.0.7</code></pre>
+<p>  It is probably not necessary follow the steps exactly as shown above:</p>
 <ul>
-<li>Running as above on Unity could specify more tasks than nodes, also mpi_hw reported using Intel MPI, also mpirun command seemed to be the Intel command (didn't accept OpenMPI mpirun options)</li>
-<li>Switching from mpirun to srun, tasks were limited to number of nodes as expected (one when run as above, more than one if used salloc -n ).  But mpi_hw still reported using Intel MPI.</li>
-<li>Running mpi_hw from container ompi5.sif (built on PC), mpi_hw reported OpenMPI.  mpirun apptainer exec acted funny in a different way - only allowed -n 2 even though had done salloc -n 3 (got two nodes but with three sockets, I think).  srun worked as expected (allowed up to -n 3)</li>
-<li>Upshot seems to be that at least for interactive running srun "makes more sense" than mpirun (doesn't mean is faster or even as fast).</li>
-<li>Next should test what happens with sbatch - does mpirun still act strangely (allow more tasks than #SBATCH -n ?) Doe srun still behave more understandably?  Does mpi_hw still report Intel MPI when run outside of container?</li>
-<li>Should also compare osu_bw speeds between srun and mpirun.</li>
-<li>There are extensive online discussions of using srun vs mpirun, can see no clear conclusion.</li>
-<li>srun is a slurm command, not available on PC following PC instructions in part I (but apparently apt can install, not clear I want to do that).  on PCs mpirun does seem to be the OpenMPI version -- accepts options like --display BINDINGS -- and does behave "normally" i.e. refuses to run more tasks than cores.</li>
-</ul>
+<li><p>It might be OK to load an OpenMPI module with CUDA, or it might not be necessary to load any OpenMPI module while creating the environment.</p>
 </li>
-<li><p><strong>A batch job using a MPI.</strong></p>
-<p><strong>TODO this is GPU text*</strong> Also: SBATCH -c interaction with mpirun -cpus-per...?</p>
+<li><p>It might be OK to include <code>openmpi</code> in the <code>conda install mpi4py</code> command.</p>
+</li>
+</ul>
+<p>However, under some combinations of doing things a dysfunctional environment was created, which was usually detectable by the output from <code>mpirun --version</code> -- either no version or an Intel MPI version was shown.</p>
+</li>
+<li><p><strong>Run the MPI test programs <code>mpi_hw.py</code> and <code>osu_bw.py</code> on Unity interactively.</strong></p>
+<p>Here we get an interactive shell with resources for 4 MPI tasks (<code>-n 4</code>) and Infiniband connectivity (<code>-C ib</code>).  Then, after activating <code>ompi5</code> it is possible to run both test programs:</p>
+<pre><code class="fenced-code-block">$ salloc -n 4 -C ib -p cpu    # allocate resources for 4 tasks with infiniband connectivity
+$ module load conda/latest
+$ conda activate ompi5
+(ompi5)$ cd ..                # cd to directory containing mpi_hw.py and osu_bw.py
+(ompi5)$ mpirun python mpi_hw.py
+Hello world from rank 3 of 4 on cpu045 running Open MPI v5.0.7
+Hello world from rank 1 of 4 on cpu045 running Open MPI v5.0.7
+Hello world from rank 0 of 4 on cpu045 running Open MPI v5.0.7
+Hello world from rank 2 of 4 on cpu045 running Open MPI v5.0.7
+(ompi5)$ mpirun -n 2 python osu_bw.py
+2
+2
+# MPI Bandwidth Test
+# Size [B]    Bandwidth [MB/s]
+         1                2.34
+         2                4.70
+         4                9.50
+         8               18.89
+        16               38.12
+        32               75.55
+        64              151.97
+       128              281.79
+       256              568.91
+       512            1,112.57
+     1,024            2,186.24
+     2,048            4,075.44
+     4,096            7,339.38
+     8,192            5,063.21
+    16,384            7,586.27
+    32,768            4,978.93
+    65,536           14,129.02
+   131,072           17,683.36
+   262,144           14,483.06
+   524,288           12,724.91
+ 1,048,576           12,466.87
+ 2,097,152           12,909.73
+ 4,194,304           13,240.96
+ 8,388,608           13,533.30
+16,777,216           12,812.09</code></pre>
+<p>Notes:</p>
 <ul>
-<li><p>As in the non-GPU background job example above, here we again run <code>gputest.py</code> in the directory <code>/work/...test_gpu</code> but now we activate the Conda evironment <code>gpu</code> with does include CuPy, so <code>gputest.py</code> will try to use a GPU. We will also need to ensure the CUDA module is loaded, request a GPU, and run the job in a GPU partition. So we will use an sbatch script <strong><code>gpu.sh</code></strong> with these contents:</p>
-<pre><code class="fenced-code-block">#!/bin/bash
-# gpu.sh 2/5/24 D.C.
-# One-task sbatch script using a GPU but not Apptainer.
-#SBATCH -c 6                  # use 6 CPU cores
-#SBATCH -G 1                  # use one GPU
-#SBATCH -p cpu                # submit to partition gpu
-
-module purge                  # unload all modules
-module load conda/latest
-module load cuda/12.6         # need CUDA to use a GPU
-conda activate gpu            # environment with NumPy, SciPy, and CuPy
-
-python gputest.py &gt; npapp-nogpu.out   # run gputest.py sending its output to a file</code></pre>
+<li>If <code>-n</code> is not supplied, the number of MPI ranks started by <code>mpirun</code> will default to the number of tasks allocated in Slurm, here 4 as specified to <code>salloc</code>.  But <code>osu_bw.py</code> requires exactly two ranks, so <code>-n 2</code> is supplied.</li>
+<li>The speeds reported by <code>osu_bw.py</code> (up to 17 GB/s) are vaguely similar to those seen on a PC in Part 1 of this document.  But without the <code>-C ib</code> option on <code>salloc</code>, speeds about 100 times slower were sometimes (but not always) seen.</li>
+<li>It doesn't seem necessary or helpful to load the OpenMPI module - the environment <code>ompi5</code> seems to create the needed conditions for running these MPI programs.</li>
+</ul>
+</li>
+<li><p><strong>Run MPI programs with <code>sbatch</code>.</strong></p>
+</li>
+</ul>
+<p>TODO</p>
 <ul>
-<li><p>The job is submitted by doing</p>
-<pre><code class="fenced-code-block">(base) try-gputest$ sbatch noapp-gpu.sh</code></pre>
-<p>which will create the output file try-gputest/noapp-gpu.out.</p>
-</li>
+<li><strong>Use the more elaborate MPI package <code>dem21</code> with MPI on Unity.</strong></li>
 </ul>
-</li>
-</ul>
-</li>
-</ul>
-<h4 class="atx" id="using-a-gpu-on-unity-without-apptainerlessa-iddouble-quoteunity-gpudouble-quotegreaterlessagreater">Using a GPU on Unity (without Apptainer)<a id="unity-gpu"></a></h4>
+<p>TODO</p>
+<h3 class="atx" id="using-a-gpu-on-unity-without-apptainerlessa-iddouble-quoteunity-gpudouble-quotegreaterlessagreater">Using a GPU on Unity (without Apptainer)<a id="unity-gpu"></a></h3>
 <ul>
 <li><p>A <strong>Conda environment <code>gpu</code> capable of using a GPU</strong> was created on Unity as follows (as of 1/25 it seemed the current version of Python, 3.13, was incompatible with CuPy - hence the specification here python=3.12):</p>
 <pre><code class="fenced-code-block">$ module load conda/latest
@@ -4597,15 +4618,17 @@ Python 3.12.8
 (gpu)$ conda install numpy scipy matplotlib cupy
 (gpu)$ pip list
 Package         Version
+
 --------------- -----------
+
 cupy            13.3.0
 matplotlib      3.10.0
 numpy           2.2.1
 scipy           1.15.1</code></pre>
-<p>  Unlike on my PCs, on Unity it was not necessary to explicitly specify <code>-c conda-forge</code> to get an up-to-date version of CuPy (see <a href="#pytorch-cupy">Installing CUDA-aware Python packages</a> above).  This may be because <a href="https://docs.unity.rc.umass.edu/documentation/software/conda/">on Unity, Conda uses Minforge</a> rather than Anaconda.</p>
+<p>Unlike on my PCs, on Unity it was not necessary to explicitly specify <code>-c conda-forge</code> to get an up-to-date version of CuPy (see <a href="#pytorch-cupy">Installing CUDA-aware Python packages</a> above).  This may be because <a href="https://docs.unity.rc.umass.edu/documentation/software/conda/">on Unity, Conda uses Minforge</a> rather than Anaconda.</p>
 </li>
 <li><p><strong>Run <code>gputest.py</code> on Unity interactively.</strong></p>
-<ul>
+</li>
 <li><p>Here we get an interactive shell with 6 cores and one GPU on a compute node in the <code>gpu</code> partition, and load a CUDA module (although CUDA typically seems to be loaded already on GPU nodes). Then we run <code>nvidia-smi</code> to check that the GPU and CUDA are available and get info on them (not sure why CUDA version reported by <code>nvidia-smi</code> doesn’t match module loaded):</p>
 <pre><code class="fenced-code-block">$ salloc -c 6 -G 1 -p gpu
 $ module load cuda/12.6
@@ -4617,8 +4640,9 @@ Wed Jan 15 16:48:06 2025
 | GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
 | Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
                                      ...</code></pre>
-</li>
-<li><p>Next we activate the environment <code>gpu</code> created as above.  Then the program <a href="#gputest-py"><code>gputest.py</code></a> can be run and it will use the GPU:</p>
+<ul>
+<li>Next we activate the environment <code>gpu</code> created as above.  Then the program <a href="#gputest-py"><code>gputest.py</code></a> can be run and it will use the GPU:</li>
+</ul>
 <pre><code class="fenced-code-block">$ module load conda/latest
 $ conda activate gpu
 (gpu)$ cd ..                # cd to directory containing gputest.py
@@ -4631,20 +4655,20 @@ GPU timings use last 25 of 28 trials
 
 ***************** Doing test dense_mult ******************
 Multiply M*M=N element dense matrices
+
 *********************************************************
 
 ************ Using float64 **************
      N     flop make mats  CPU test *CPU op/s*  GPU test *GPU op/s*  GPU xfer xfer rate
 99,856 6.30e+07 7.61e-03s 1.20e-02s 5.25e+09/s 2.79e-04s 2.26e+11/s 4.42e-03s  0.72GB/s</code></pre>
 </li>
-</ul>
-</li>
 <li><p><strong>A batch job using a GPU.</strong></p>
-<ul>
+</li>
 <li><p>As in the non-GPU background job example above, here we again run <code>gputest.py</code> in the directory <code>/work/...test_gpu</code> but now we activate the Conda evironment <code>gpu</code> with does include CuPy, so <code>gputest.py</code> will try to use a GPU.  We will also need to ensure the CUDA module is loaded, request a GPU, and run the job in a GPU partition.  So we will use an sbatch script <strong><code>gpu.sh</code></strong> with these contents:</p>
 <pre><code class="fenced-code-block">#!/bin/bash
 # gpu.sh 2/5/24 D.C.
 # One-task sbatch script using a GPU but not Apptainer.
+
 #SBATCH -c 6                  # use 6 CPU cores
 #SBATCH -G 1                  # use one GPU
 #SBATCH -p cpu                # submit to partition gpu
@@ -4655,14 +4679,10 @@ module load cuda/12.6         # need CUDA to use a GPU
 conda activate gpu            # environment with NumPy, SciPy, and CuPy
 
 python gputest.py &gt; npapp-nogpu.out   # run gputest.py sending its output to a file</code></pre>
-<ul>
+</li>
 <li><p>The job is submitted by doing</p>
 <pre><code class="fenced-code-block">(base) try-gputest$ sbatch noapp-gpu.sh</code></pre>
 <p>which will create the output file try-gputest/noapp-gpu.out. </p>
-</li>
-</ul>
-</li>
-</ul>
 </li>
 </ul>
 <h3 class="atx" id="using-apptainer-on-the-unity-hpc-clusterlessa-iddouble-quoteunity-apptainerdouble-quotegreaterlessagreater">Using Apptainer on the Unity HPC cluster<a id="unity-apptainer"></a></h3>
@@ -4677,7 +4697,7 @@ python gputest.py &gt; npapp-nogpu.out   # run gputest.py sending its output to 
 <p>This section describes how to run a container that <strong>does not use MPI or a GPU</strong> -- the additional steps needed for those things are in separate sections below.</p>
 <ul>
 <li><p><strong>Running the container interactively:</strong> Obtain a shell on a compute node, and in this shell load the Apptainer module (in fact, Apptainer typically is already loaded on Unity).  For many purposes it should not be necessary to load other modules, etc.:</p>
-<ul>
+</li>
 <li><p>Python and packages typically loaded with Conda like NumPy and SciPy should be pre-loaded in the container, all in the desired versions.</p>
 </li>
 <li><p>User packages installed locally should also be pre-loaded in the container.</p>
@@ -4685,6 +4705,8 @@ python gputest.py &gt; npapp-nogpu.out   # run gputest.py sending its output to 
 <li><p>It should not be necessary to set a Conda environment before running the container, unless this is required for code running outside the container.</p>
 <pre><code class="fenced-code-block">$ salloc -c 6 -p cpu    # Get 6 cores on a compute node in the cpu partition
 $ module load apptainer/latest</code></pre>
+</li>
+</ul>
 <p>Here we have made a directory on Unity and copied into it:</p>
 <ul>
 <li><p>The container <strong><code>dsf.sif</code></strong> that was built in the section <a href="#local-package-container">A container with a local Python package installed</a> that can run programs that import the <strong><code>dcfuncs</code></strong> package.</p>
@@ -4714,12 +4736,8 @@ This is: dutil.py 8/19/24 D.C.
 Using: util.py 8/18/24 D.C.
     ...</code></pre>
 </li>
-</ul>
-</li>
-</ul>
-</li>
 <li><p><strong>Running a batch job using the container.</strong></p>
-<ul>
+</li>
 <li><p>For this purpose we have copied the python script <code>gputest.py</code> to the Unity directory that holds <strong><code>dsf.sif</code></strong>.  Because this container does not contain CuPy, if we use it to run <code>gputest.py</code> only the CPU will be used.  Here is an sbatch script called <strong><code>app.sh</code></strong>:</p>
 <pre><code class="fenced-code-block">#!/bin/bash
 # app.sh 2/5/25 D.C.
@@ -4730,13 +4748,10 @@ Using: util.py 8/18/24 D.C.
 
 module purge                  # unload all modules
 module load apptainer/latest
-
 # run gputest.py in a container without CuPy, sending its output to a file
 apptainer exec dsf.sif python gputest.py &gt; app-nogpu.out</code></pre>
 <p>Notice the only module we need to load is Apptainer, and we do not need to set a Conda environment. To run the job:</p>
 <pre><code class="fenced-code-block">(base) $ sbatch app-gpu.sh    # run in directory containing dsf.sif and gputest.py</code></pre>
-</li>
-</ul>
 </li>
 </ul>
 <h4 class="atx" id="running-a-container-that-uses-mpilessa-iddouble-quoteunity-mpi-containerdouble-quotegreaterlessagreater">Running a container that uses MPI<a id="unity-mpi-container"></a></h4>
@@ -4744,15 +4759,17 @@ apptainer exec dsf.sif python gputest.py &gt; app-nogpu.out</code></pre>
 <h4 class="atx" id="running-a-container-the-uses-a-gpulessa-iddouble-quoteunity-gpu-containerdouble-quotegreaterlessagreater">Running a container the uses a GPU<a id="unity-gpu-container"></a></h4>
 <ul>
 <li><p>This is very similar to running a non-GPU container as described above, with these differences:</p>
-<ul>
-<li>Obviously this must be done on a node with GPU(s), with a GPU allocated to the job by SLURM.</li>
-<li>Both CUDA and Apptainer modules should be loaded (although both packages seem to be pre-loaded on GPU nodes).</li>
-<li>The container (<code>.sif file</code>) must have been built with CUDA libraries. Installing CuPy in the container build definition seems to accomplish this.</li>
-<li>Apptainer commands running the container must have the --nv flag to make the external CUDA libraries available.</li>
-</ul>
+</li>
+<li><p>Obviously this must be done on a node with GPU(s), with a GPU allocated to the job by SLURM.</p>
+</li>
+<li><p>Both CUDA and Apptainer modules should be loaded (although both packages seem to be pre-loaded on GPU nodes).</p>
+</li>
+<li><p>The container (<code>.sif file</code>) must have been built with CUDA libraries. Installing CuPy in the container build definition seems to accomplish this.</p>
+</li>
+<li><p>Apptainer commands running the container must have the --nv flag to make the external CUDA libraries available.</p>
 </li>
 <li><p>Here is an example of these things in action for <strong>interactive use of a GPU with a container</strong>:</p>
-<ul>
+</li>
 <li><p>An interactive shell is allocated on a compute node with 6 cores and one GPU, then CUDA and Apptainer modules are loaded (<code>nvidia-smi</code> checks that the GPU is available but is not necessary here):</p>
 <pre><code class="fenced-code-block">$ salloc -c 6 -G 1 -p gpu
 $ module load cuda/12.6
@@ -4775,6 +4792,7 @@ GPU timings use last 25 of 28 trials
 
 ***************** Doing test dense_mult ******************
 Multiply M*M=N element dense matrices
+
 *********************************************************
 
 ************ Using float64 **************
@@ -4782,17 +4800,17 @@ Multiply M*M=N element dense matrices
   99,856 6.30e+07 5.57e-03s 1.04e-03s 6.04e+10/s 2.76e-04s 2.28e+11/s 9.48e-03s  0.34GB/s
                                     ...</code></pre>
 </li>
-</ul>
-</li>
 <li><p><strong>A batch job using a container, with a GPU.</strong></p>
-<ul>
+</li>
 <li><p>This is similar to the non-GPU container job shown earlier, with these differences:</p>
-<ul>
-<li>We request a GPU, and submit to a GPU partition.</li>
-<li>In addition to Apptainer, we need to load the module for CUDA.</li>
-<li>We use the container <code>gpu.sif</code> that was built including Cupy.</li>
-<li>We need the <code>–-nv</code> flag on apptainer exec.</li>
-</ul>
+</li>
+<li><p>We request a GPU, and submit to a GPU partition.</p>
+</li>
+<li><p>In addition to Apptainer, we need to load the module for CUDA.</p>
+</li>
+<li><p>We use the container <code>gpu.sif</code> that was built including Cupy.</p>
+</li>
+<li><p>We need the <code>–-nv</code> flag on apptainer exec.</p>
 </li>
 <li><p>Here is an sbatch script <strong><code>app-gpu.sh</code></strong> that incorporates these changes:</p>
 <pre><code class="fenced-code-block">#!/bin/bash
@@ -4814,8 +4832,6 @@ apptainer exec --nv gpu.sif python gputest.py &gt; app-gpu.out</code></pre>
 <pre><code class="fenced-code-block">(base) try-gputest$ sbatch app-gpu.sh # run in a directory containing gpu.sif and gputest.py</code></pre>
 </li>
 </ul>
-</li>
-</ul>
 <h2 class="atx" id="random-notes-on-parallel-speeduplessa-iddouble-quotespeedup-notesdouble-quotegreaterlessagreater">Random notes on parallel speedup<a id="speedup-notes"></a></h2>
 <h3 class="atx" id="wall-time-and-cpu-timelessa-iddouble-quotewall-cpu-timedouble-quotegreaterlessagreater">Wall time and CPU time<a id="wall-cpu-time"></a></h3>
 <p><strong>TODO</strong></p>
@@ -4823,6 +4839,7 @@ apptainer exec --nv gpu.sif python gputest.py &gt; app-gpu.out</code></pre>
 <p><strong>TODO</strong> already have this info near intro?</p>
 <h3 class="atx" id="strong-and-weak-scalinglessa-iddouble-quotestrong-weak-scalingdouble-quotegreaterlessagreater">Strong and weak scaling<a id="strong-weak-scaling"></a></h3>
 <p>Estimating MPI communication overhead<a id="estimate-mpi-overhead"></a></p>
+<pre><code class="fenced-code-block"></code></pre>
 </article>
 </body>
 </html>
