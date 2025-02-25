@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   2/23/25</p>
+<p>mgah.md  D. Candela   2/24/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -4452,16 +4452,17 @@ conda activate myenv</code></pre>
 </li>
 <li><p>The program <code>gputest.py</code> described above (which won't try to use a GPU if CuPy cannot be imported) was put in a directory <code>/work/.../try-gputest</code> along with an sbatch script <strong><code>simple.sh</code></strong> with these contents:</p>
 <pre><code class="fenced-code-block">#!/bin/bash
-# simple.sh 2/23/25 D.C.
+# simple.sh 2/24/25 D.C.
 # One-task sbatch script using none of MPI, a GPU, or Apptainer.
-#SBATCH -c 6                       # use 6 CPU cores
-#SBATCH -p cpu                     # submit to partition cpu
-echo nodelist=$SLURM_JOB_NODELIST  # get list of nodes used
-module purge                       # unload all modules
-module load conda/latest           # need this to use conda commands
-conda activate npsp                # environment with NumPy and SciPy but not CuPy
-python gputest.py &gt; simple.out     # run gputest.py sending its output to a file</code></pre>
-<p>The <code>echo nodelist...</code> command in this script will put a list of the nodes used in the <code>...out</code> file. Here is a <a href="https://hpcc.umd.edu/hpcc/help/slurmenv.html">list of Slurm environment variables</a> that can be used in this way.</p>
+#SBATCH -c 6                         # use 6 CPU cores
+#SBATCH -p cpu                       # submit to partition cpu
+echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used
+echo cores/node=$SLURM_CPUS_ON_NODE  # get number of cores on each node
+module purge                         # unload all modules
+module load conda/latest             # need this to use conda commands
+conda activate npsp                  # environment with NumPy and SciPy but not CuPy
+python gputest.py &gt; simpleoutput     # run gputest.py sending its output to a file   </code></pre>
+<p>The <code>echo nodelist...</code>  and  <code>echo cores/node...</code> commands in this script are not necessary but they will put useful information in the <code>slurm-&lt;jobid&gt;.out</code> file -- in this case the specific nodes used and the number of cores used on each node. Here is a <a href="https://hpcc.umd.edu/hpcc/help/slurmenv.html">list of Slurm environment variables</a> that can be used in this way.</p>
 </li>
 <li><p>To submit the job we do</p>
 <pre><code class="fenced-code-block">try-gputest$ sbatch simple.sh
@@ -4500,11 +4501,12 @@ Memory Utilized: 1.88 GB
 Memory Efficiency: 31.26% of 6.00 GB</code></pre>
 <p>We can get more info on completed jobs by using <code>sacct</code> as detailed in <a href="https://docs.rc.fas.harvard.edu/kb/convenient-slurm-commands/">this page</a> from Harvard.</p>
 </li>
-<li><p>Using <code>simple.sh</code> as listed above, two output files are created: The default output file <code>slurm-29132740.out</code> will contain the output produced by the batch file <code>simple.sh</code> including the <code>echo nodelist=...</code> command, while <code>simple.out</code> will have the output produced by <code>gputest.py</code>:</p>
+<li><p>Using <code>simple.sh</code> as listed above, two output files are created: The default output file <code>slurm-29132740.out</code> will contain the output produced by the batch file <code>simple.sh</code> including the <code>echo nodelist=...</code> command, while <code>output</code> will have the output produced by <code>gputest.py</code>:</p>
 <pre><code class="fenced-code-block">try-gputest$ cat slurm-29132740.out
 nodelist=cpu005
+cores/node=6
 Loading conda
-try-gputest$ cat simple.out
+try-gputest$ cat output
 Running: gputest.py 11/22/23 D.C.
 Local time: Sun Feb 23 22:47:49 2025
 Import cupy failed, using CPU only
@@ -4513,9 +4515,9 @@ CPU timings use last 10 of 11 trials
 ***************** Doing test dense_mult ******************
                      ...</code></pre>
 <ul>
-<li>This was produced by writing <code>python gputest.py &gt; simple.out</code> in <code>simple.sh</code></li>
-<li>If we change this line to <code>python gputest.py</code> then both the batch file output and the program output will be added to <code>slurm-&lt;jobid&gt;.out</code>.</li>
-<li>If we change this line to <code>python gputest.py |&amp; tee simple.out</code> then both regular and error output of <code>gputest.py</code> will be written to the file  <code>simple.out</code> (due to the <code>|&amp;</code>), and they will also be included in the <code>slurm-&lt;jobid&gt;.out</code> file along with the batch file output (due to the <code>tee</code>).</li>
+<li>This was produced by writing <code>python gputest.py &gt; output</code> in <code>simple.sh</code></li>
+<li>If we change this line to <code>python gputest.py</code> then both the batch file output and the program output will be added to <code>slurm-&lt;jobid&gt;.out</code>, and no other output file will be produced.</li>
+<li>If we change this line to <code>python gputest.py |&amp; tee output</code> then both regular and error output of <code>gputest.py</code> (due to the <code>|&amp;</code>) will be written to the file  <code>output</code>  and they will also be included (due to the <code>tee</code> command) in the <code>slurm-&lt;jobid&gt;.out</code> file along with the batch file output.</li>
 </ul>
 </li>
 </ul>
@@ -4544,6 +4546,18 @@ $ conda activate ompi5
 (ompi5)$ cd ..             # cd to directory containing mpi_hw.py
 (ompi5)$ mpirun -n 4 python mpi_hw.py
 TODO this worked but could specify more than 6 tasks not sure how that works</code></pre>
+</li>
+<li><p>TODO Random notes from trying things 2/24/25:</p>
+<ul>
+<li>Running as above on Unity could specify more tasks than nodes, also mpi_hw reported using Intel MPI, also mpirun command seemed to be the Intel command (didn't accept OpenMPI mpirun options)</li>
+<li>Switching from mpirun to srun, tasks were limited to number of nodes as expected (one when run as above, more than one if used salloc -n ).  But mpi_hw still reported using Intel MPI.</li>
+<li>Running mpi_hw from container ompi5.sif (built on PC), mpi_hw reported OpenMPI.  mpirun apptainer exec acted funny in a different way - only allowed -n 2 even though had done salloc -n 3 (got two nodes but with three sockets, I think).  srun worked as expected (allowed up to -n 3)</li>
+<li>Upshot seems to be that at least for interactive running srun "makes more sense" than mpirun (doesn't mean is faster or even as fast).</li>
+<li>Next should test what happens with sbatch - does mpirun still act strangely (allow more tasks than #SBATCH -n ?) Doe srun still behave more understandably?  Does mpi_hw still report Intel MPI when run outside of container?</li>
+<li>Should also compare osu_bw speeds between srun and mpirun.</li>
+<li>There are extensive online discussions of using srun vs mpirun, can see no clear conclusion.</li>
+<li>srun is a slurm command, not available on PC following PC instructions in part I (but apparently apt can install, not clear I want to do that).  on PCs mpirun does seem to be the OpenMPI version -- accepts options like --display BINDINGS -- and does behave "normally" i.e. refuses to run more tasks than cores.</li>
+</ul>
 </li>
 <li><p><strong>A batch job using a MPI.</strong></p>
 <p><strong>TODO this is GPU text*</strong> Also: SBATCH -c interaction with mpirun -cpus-per...?</p>
