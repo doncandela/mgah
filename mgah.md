@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   2/25/25
+mgah.md  D. Candela   2/27/25
 
 - [Introduction](#intro)  
   
@@ -299,7 +299,9 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
 - The following sbatch scripts are defined for use with Slurm on the Unity cluster:
   
   - **`simple.sh`** (defined in [Example of a simple batch job](#simple-batch)) runs job that uses none of MPI, a GPU, or Apptainer.
-  - **`mpi.sh`** (defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) runs a job that uses MPI.
+  - **`osu_bw.sh`** (defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) runs the MPI messaging-bandwidth test program `osu_bw.py`.
+  - **`threadcount_mpi.sh`** (also defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) runs `threadcount_mpi.py` which tests the possibility of using NumPy multithreading along with MPI parallelism.
+  - **`boxpct_mpi.sh`** (also defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) runs `boxpct.py` (which uses the `dem21` package) in MPI-parallel mode.
   - **`gpu.sh`** (defined in [Using a GPU on Unity (without Apptainer)](#unity-gpu)) runs non-Apptainer job that uses a GPU.
   - **`app.sh`** (defined in [Running a container interactively or in batch job](#unity-run-container)) runs an Apptainer (containerized) job that doesn't use MPI or a GPU.
   - **`app-mpi.sh`** (defined in [Running a container the uses MPI](#unity-mpi-container)) runs an Apptainer job that uses a GPU.
@@ -1076,7 +1078,7 @@ Probably the best reason for containerizing code is to make it easy to run the c
   $ sudo apptainer build "$SIFS"/os-only.sif os-only.def
   ```
 
-- This created a 30 MB image file **`os-only.sif`** ` in the directory $SIFS`. We can open a shell running inside the container using the `apptainer shell` command.  This gives a prompt `Apptainer>` from which we can issue shell commands that will run inside the container:
+- This created a 30 MB image file **`os-only.sif`** in the directory `$SIFS`. We can open a shell running inside the container using the `apptainer shell` command.  This gives a prompt `Apptainer>` from which we can issue shell commands that will run inside the container:
   
   ```
   $ apptainer shell "$SIFS"/os-only.sif
@@ -1115,7 +1117,7 @@ Probably the best reason for containerizing code is to make it easy to run the c
     
     Possible point of confusion: The container has its own file system with its own root, independent of the file system outside the container.  Thus `/etc/os-release` in the `cat` command above prints a file that exists inside the container with OS information.  Once a container is built, **the file system inside the container is read-only**. However, for convenience, **certain directories inside the container are automatically bound to directories outside the container with the same names** when the container is run. Typically these will include **the user's current working and home directories** -- making it possible to access and write to the same files and directories from inside the container as outside.
     
-    I believe these two things: (a) the ability to run a container as a non-superuser, and (b) the ability to access files outside the container are among the primary differences between Apptainer and Docker containers, making Apptainer more suitable for use on a shared HPC system.  I think Docker containers are most frequently run in cloud-based virtual machines for which the user will have superuser access.
+    I believe that these two things: (a) the ability to run a container as a non-superuser, and (b) the ability to access files outside the container are among the primary differences between Apptainer and Docker containers, making Apptainer more suitable for use on a shared HPC system.  I think Docker containers are most frequently run in cloud-based virtual machines for which the user will have superuser access.
     
     **Note on the initial working directory in an Apptainer container.**  In 2023 when Unity was newer, the current working directory (CWD) inside an Apptainer container was not automatically bound to the CWD from which the container was run, if it was run from a subdirectory of `/work` (the normal place for job I/O) - I think because `/work` is not under `/home` unlike the work directories for some other HPC clusters like the former USMC.  But as of 1/25 this seems to have been fixed -- even when run from a directory under `/work`, the CWD is bound as usual.
 
@@ -1657,7 +1659,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
     
     This command resulted in the creation on Unity of the subdirectory `foo/dcfuncs`, containing this GH repo including its `.git` file (which is managed by Git and holds the repo history). 
   
-  - **Cloning from private GH repo.** It's assumed here this a private repo to which you have SS access -- for example a repo that belongs to you.  It seemed that the easiest path was to use **SSH agent forwarding**, which allows Unity (while you are logged in) to use the SSH keys from your PC to authenticate to GH.  First check that you have SSH access to GH from your PC:
+  - **Cloning from private GH repo.** It's assumed here this a private repo to which you have SS access -- for example a repo that belongs to you.  It seemed that the easiest way was to use **SSH agent forwarding**, which allows Unity (while you are logged in) to use the SSH keys from your PC to authenticate to GH.  First check that you have SSH access to GH from your PC:
     
     ```
     <user>..$ ssh -T git@github.com
@@ -2030,7 +2032,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   #SBATCH -G=1                # allocate one GPU for the whole job
   #SBATCH --gpus=1            # “ “
   
-  #SBATCH --mem-per-cpu=500M  # allocate 500 MB of memory per core (not cpu!)
+  #SBATCH --mem-per-cpu=4G   # allocate 4 GB of memory per core (not cpu!)
   
   #SBATCH -q=<qos>            # request quality of service <qos>
   #SBATCH –-qos=<qos>         # “ “
@@ -2078,25 +2080,24 @@ Finally, the computational resources of an HPC cluster are only useful if availa
     
     ```
     #!/bin/bash
-    # simple.sh 2/24/25 D.C.
-    # One-task sbatch script using none of MPI, a GPU, or Apptainer.
+    # simple.sh 2/27/25 D.C.
+    # One-task sbatch script runs gputest.py using none of MPI, a GPU, or Apptainer.
     #SBATCH -c 6                         # use 6 CPU cores
     #SBATCH -p cpu                       # submit to partition cpu
-    echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used
-    echo cores/node=$SLURM_CPUS_ON_NODE  # get number of cores on each node
+    echo nodelist=$SLURM_JOB_NODELIST    # print list of nodes used
     module purge                         # unload all modules
     module load conda/latest             # need this to use conda commands
     conda activate npsp                  # environment with NumPy and SciPy but not CuPy
-    python gputest.py > simpleoutput     # run gputest.py sending its output to a file   
+    python gputest.py                    # run gputest.py, output will be in slurm_<jobid>.out  
     ```
     
-    The `echo nodelist...`  and  `echo cores/node...` commands in this script are not necessary but they will put useful information in the `slurm-<jobid>.out` file -- in this case the specific nodes used and the number of cores used on each node. Here is a [list of Slurm environment variables](https://hpcc.umd.edu/hpcc/help/slurmenv.html) that can be used in this way.
+    As written above both the output of the commands like `echo nodelist...` and `module load...` will go to a file `slurm-<jobid>.out` in the directory from which `sbatch` is run, along with any output to sdout or stderr by `gputest.py`.  If desired the stdout+stderr output of `gputest.py` can be directed to a different file by replacing the last line above with `python gputest.py &> <filename>`. The `echo nodelist...`  command in this script is not necessary but they will put useful information in the output file -- in this case the specific nodes used. Here is a [list of Slurm environment variables](https://hpcc.umd.edu/hpcc/help/slurmenv.html) that can be used in this way.
   
   - To submit the job we do
     
     ```
     try-gputest$ sbatch simple.sh
-    Submitted batch job 29132740
+    Submitted batch job 29258794
     ```
     
       Notes:
@@ -2114,56 +2115,50 @@ Finally, the computational resources of an HPC cluster are only useful if availa
     ```
     try-gputest$ sbatch squeue --me
                 JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
-              29132740       cpu simple.s candela_  R       0:10      1 cpu005
+              29258794       cpu simple.s candela_  R       0:10      1 cpu001
     ```
     
     Jobs that haven't started running yet will have `PD` in the `ST` column.  Here `R` means the job is running (and has used 10 seconds so far).  To cancel the job (for example, if it runs much longer than expected) do
     
     ```
-    try-gputest$ scancel 29132740
+    try-gputest$ scancel 29258794
     ```
     
     Unlike an interactive job, **a job submitted using `sbatch` will not be cancelled when you log out** -- it will continue running until your code ends, or the job time limit (**default one hour**) is exceeded, or you cancel it with `scancel`.
-    
-    One the job has completed, it will no longer be shown by `squeue`, but we can get info on the job's efficiency by doing
+  
+  - Once the job has completed, it will no longer be shown by `squeue`, but we can get info on the job's efficiency by doing
     
     ```
-    try-gputest$ seff 29132740
-    Job ID: 29132740
+    try-gputest$ seff 29258794
+    Job ID: 29258794
     Cluster: unity
     User/Group: candela_umass_edu/candela_umass_edu
     State: COMPLETED (exit code 0)
     Nodes: 1
     Cores per node: 6
-    CPU Utilized: 00:03:10
-    CPU Efficiency: 20.17% of 00:15:42 core-walltime
-    Job Wall-clock time: 00:02:37
-    Memory Utilized: 1.88 GB
-    Memory Efficiency: 31.26% of 6.00 GB
+    CPU Utilized: 00:02:36
+    CPU Efficiency: 18.57% of 00:14:00 core-walltime
+    Job Wall-clock time: 00:02:20
+    Memory Utilized: 1.08 GB
+    Memory Efficiency: 18.02% of 6.00 GB
     ```
     
-    We can get more info on completed jobs by using `sacct` as detailed in [this page](https://docs.rc.fas.harvard.edu/kb/convenient-slurm-commands/) from Harvard.
+      We can get more info on completed jobs by using `sacct` as detailed in [this page](https://docs.rc.fas.harvard.edu/kb/convenient-slurm-commands/) from Harvard.
   
-  - Using `simple.sh` as listed above, two output files are created: The default output file `slurm-29132740.out` will contain the output produced by the batch file `simple.sh` including the `echo nodelist=...` command, while `output` will have the output produced by `gputest.py`:
+  - We can look at the output file when the job is completed (or while the job is still running, to see the output so far):
     
     ```
-    try-gputest$ cat slurm-29132740.out
-    nodelist=cpu005
-    cores/node=6
+    nodelist=cpu001
     Loading conda
-    try-gputest$ cat output
     Running: gputest.py 11/22/23 D.C.
-    Local time: Sun Feb 23 22:47:49 2025
+    Local time: Thu Feb 27 23:57:35 2025
     Import cupy failed, using CPU only
     CPU timings use last 10 of 11 trials
     
     ***************** Doing test dense_mult ******************
-                         ...
+    Multiply M*M=N element dense matrices
+                                ...
     ```
-    
-    - This was produced by writing `python gputest.py > output` in `simple.sh`
-    - If we change this line to `python gputest.py` then both the batch file output and the program output will be added to `slurm-<jobid>.out`, and no other output file will be produced.
-    - If we change this line to `python gputest.py |& tee output` then both regular and error output of `gputest.py` (due to the `|&`) will be written to the file  `output`  and they will also be included (due to the `tee` command) in the `slurm-<jobid>.out` file along with the batch file output.
 
 ### Using MPI on Unity (without Apptainer)<a id="unity-mpi"></a>
 
@@ -2252,11 +2247,66 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   - The speeds reported by `osu_bw.py` (up to 17 GB/s) are vaguely similar to those seen on a PC in Part 1 of this document.  But without the `-C ib` option on `salloc`, speeds about 100 times slower were sometimes (but not always) seen.
   - It doesn't seem necessary or helpful to load the OpenMPI module - the environment `ompi5` seems to create the needed conditions for running these MPI programs.
 
-- **Run MPI programs with `sbatch`.**
+- **Use `sbatch` to run the MPI messaging-bandwidth test program `osu_bw.py`** 
+  
+  Make an sbatch script **`osu_bw.sh`** with the following contents, and put it in a directory `try_mpi` along with the test program `osu_bw.py`:
+  
+  ```
+  #!/bin/bash
+  # osu_bw.sh 2/27/25 D.C.
+  # sbatch script to run osu_bw.py, which times the speed of MPI messaging
+  # between two MPI ranks.  As wrt
+  #SBATCH -n 2                         # run 4 MPI ranks
+  #SBATCH -p cpu                       # submit to partition cpu
+  #SBATCH -C ib                        # require inifiniband connectivity
+  echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used
+  module purge                         # unload all modules
+  module load conda/latest             # need this to use conda commands
+  conda activate ompi5                 # environment with OpenMPI, NumPy and SciPy
+  mpirun --display bindings python osu_bw.py
+  ```
+  
+  The option `--display bindings` supplied to `mpirun` will print out which cores on which nodes each MPI rank is running on, which can be handy for debugging -- the many other options for the OpenMPI version of `mpirun` are [here](https://docs.open-mpi.org/en/main/man-openmpi/man1/mpirun.1.html).  Note that the versions of `mpirun` in other MPI packages such as MPICH have different, incompatible options.
+  
+  Here is the output file produced by running `sbatch osu_bw.sh`.  In this case the two ranks happened to be allocated on the same node, but there is nothing in `osu_bw.sh` that forces that to be the case:
+  
+  ```
+  nodelist=uri-cpu008
+  Loading conda
+  [uri-cpu008:845867] Rank 0 bound to package[1][core:48]
+  [uri-cpu008:845867] Rank 1 bound to package[1][core:54]
+  2
+  2
+  # MPI Bandwidth Test
+  # Size [B]    Bandwidth [MB/s]
+           1                1.70
+           2                3.34
+           4                6.77
+           8               13.60
+          16               17.85
+          32               43.95
+          64               92.51
+         128              210.64
+         256              403.88
+         512              870.67
+       1,024            1,671.19
+       2,048            3,046.24
+       4,096            5,130.12
+       8,192            4,964.96
+      16,384            8,143.36
+      32,768            5,812.37
+      65,536           16,890.32
+     131,072           22,452.58
+     262,144           25,971.58
+     524,288           28,711.98
+   1,048,576           21,080.91
+   2,097,152           15,786.18
+   4,194,304           15,866.15
+   8,388,608           15,942.06
+  16,777,216           15,207.25
+  ```
 
-TODO
-
-- **Use the more elaborate MPI package `dem21` with MPI on Unity.**
+- **Use `sbatch` to run `threadcount_mpi.py`.**  This tests the possibility of using NumPy multithreading along with MPI parallelism.  
 
 TODO
 
@@ -2281,8 +2331,8 @@ TODO
   numpy           2.2.1
   scipy           1.15.1
   ```
-  
-  Unlike on my PCs, on Unity it was not necessary to explicitly specify `-c conda-forge` to get an up-to-date version of CuPy (see [Installing CUDA-aware Python packages](#pytorch-cupy) above).  This may be because [on Unity, Conda uses Minforge](https://docs.unity.rc.umass.edu/documentation/software/conda/) rather than Anaconda.
+
+Unlike on my PCs, on Unity it was not necessary to explicitly specify `-c conda-forge` to get an up-to-date version of CuPy (see [Installing CUDA-aware Python packages](#pytorch-cupy) above).  This may be because [on Unity, Conda uses Minforge](https://docs.unity.rc.umass.edu/documentation/software/conda/) rather than Anaconda.
 
 - **Run `gputest.py` on Unity interactively.**
 
@@ -2300,8 +2350,8 @@ TODO
   | Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
                                        ...
   ```
-  
-  - Next we activate the environment `gpu` created as above.  Then the program [`gputest.py`](#gputest-py) can be run and it will use the GPU:
+
+- Next we activate the environment `gpu` created as above.  Then the program [`gputest.py`](#gputest-py) can be run and it will use the GPU:
   
   ```
   $ module load conda/latest
@@ -2332,7 +2382,6 @@ TODO
   #!/bin/bash
   # gpu.sh 2/5/24 D.C.
   # One-task sbatch script using a GPU but not Apptainer.
-  
   #SBATCH -c 6                  # use 6 CPU cores
   #SBATCH -G 1                  # use one GPU
   #SBATCH -p cpu                # submit to partition gpu
@@ -2387,8 +2436,7 @@ Here we have made a directory on Unity and copied into it:
 
 - The short program `np-version.py` that imports Numpy and prints its version number.
 
-- The program `test-util.py` that imports the `dcfuncs` package and tests that it can be run.
-  First we check the version of Python loaded on the Unity node we are using:
+- The program `test-util.py` that imports the `dcfuncs` package and tests that it can be run. First we check the version of Python loaded on the Unity node we are using:
   
   ```
   $ ls
@@ -2424,8 +2472,8 @@ Here we have made a directory on Unity and copied into it:
   Using: util.py 8/18/24 D.C.
       ...
   ```
-
-- **Running a batch job using the container.**
+  
+  - **Running a batch job using the container.**
 
 - For this purpose we have copied the python script `gputest.py` to the Unity directory that holds **`dsf.sif`**.  Because this container does not contain CuPy, if we use it to run `gputest.py` only the CPU will be used.  Here is an sbatch script called **`app.sh`**:
   
@@ -2439,6 +2487,7 @@ Here we have made a directory on Unity and copied into it:
   
   module purge                  # unload all modules
   module load apptainer/latest
+  
   # run gputest.py in a container without CuPy, sending its output to a file
   apptainer exec dsf.sif python gputest.py > app-nogpu.out
   ```
@@ -2448,8 +2497,8 @@ Here we have made a directory on Unity and copied into it:
   ```
   (base) $ sbatch app-gpu.sh    # run in directory containing dsf.sif and gputest.py
   ```
-
-#### Running a container that uses MPI<a id="unity-mpi-container"></a>
+  
+  #### Running a container that uses MPI<a id="unity-mpi-container"></a>
 
 TODO haven't tried this yet
 
@@ -2540,8 +2589,8 @@ TODO haven't tried this yet
   ```
   (base) try-gputest$ sbatch app-gpu.sh # run in a directory containing gpu.sif and gputest.py
   ```
-
-## Random notes on parallel speedup<a id="speedup-notes"></a>
+  
+  ## Random notes on parallel speedup<a id="speedup-notes"></a>
 
 ### Wall time and CPU time<a id="wall-cpu-time"></a>
 
@@ -2554,6 +2603,10 @@ TODO haven't tried this yet
 ### Strong and weak scaling<a id="strong-weak-scaling"></a>
 
 Estimating MPI communication overhead<a id="estimate-mpi-overhead"></a>
+
+```
+
+```
 
 ```
 
