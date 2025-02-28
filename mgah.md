@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   2/27a/25
+mgah.md  D. Candela   2/28/25
 
 - [Introduction](#intro)  
   
@@ -54,8 +54,16 @@ mgah.md  D. Candela   2/27a/25
     - [Using modules and Conda](#unity-modules-conda)
     - [Running batch jobs: `sbatch`](#run-batch)
   - [Using MPI on Unity (without Apptainer)](#unity-mpi)
+    - [A Conda environment capable of using OpenMPI](#conda-mpi-unity)
+    - [Run the MPI test programs `mpi_hw.py` and `osu_bw.py` interactively](#mpi-interactive)
+    - [Use `sbatch` to run `osu_bw.py`](#sbatch-mpi)
+    - [Enabling NumPy multithreading in MPI batch jobs](#sbatch-multithread)
+    - [Use `sbatch` to run `boxpct.py + dem21` with MPI](#sbatch-dem21)
   - [Using a GPU on Unity (without Apptainer)](#unity-gpu)
-  - [Using Apptainer on the Unity HPC cluster](#unity-apptainer)
+    - [A Conda environment capable of using a GPU](#conda-gpu-unity)
+    - [Run `gputest.py` on Unity interactively](#gputest-interactive)
+    - [A batch job using a GPU](#gpu-sbatch)
+  - [Using Apptainer on Unity](#unity-apptainer)
     - [Getting container images on the cluster](#images-to-unity)
     - [Running a container interactively or in batch job](#unity-run-container)
     - [Running a container that uses MPI](#unity-mpi-container)
@@ -302,7 +310,7 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
   - **`osu_bw.sh`** (defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) runs the MPI messaging-bandwidth test program `osu_bw.py`.
   - **`threadcount_mpi.sh`** (also defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) runs `threadcount_mpi.py` which tests the possibility of using NumPy multithreading along with MPI parallelism.
   - **`boxpct_mpi.sh`** (also defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) runs `boxpct.py` (which uses the `dem21` package) in MPI-parallel mode.
-  - **`gpu.sh`** (defined in [Using a GPU on Unity (without Apptainer)](#unity-gpu)) runs non-Apptainer job that uses a GPU.
+  - **`gputest.sh`** (defined in [Using a GPU on Unity (without Apptainer)](#unity-gpu)) runs `gputest.py` as a non-Apptainer job that uses a GPU.
   - **`app.sh`** (defined in [Running a container interactively or in batch job](#unity-run-container)) runs an Apptainer (containerized) job that doesn't use MPI or a GPU.
   - **`app-mpi.sh`** (defined in [Running a container the uses MPI](#unity-mpi-container)) runs an Apptainer job that uses a GPU.
   - **`app-gpu.sh`** (defined in [Running a container the uses a GPU](#unity-gpu-container)) runs an Apptainer job that uses a GPU.
@@ -645,6 +653,7 @@ Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (n
   - For non-MPI programs [it was found](#multiple-cores) that some Numpy functions will greedily use all available cores unless the environment variable `OMP_NUM_THREADS` is used to reduce the cores used.
   - For MPI programs on PCs, I found that the number of cores used by NumPy is controlled by the `mpirun` option `-cpus-per-proc` in concert with `OMP_NUM_THREADS`.  However, it seemed difficult to get much advantage in this way so detailed trials are not shown here.
   - When neither `OMP_NUM_THREADS` nor `-cpus-per-proc` is used, it seems  that NumPy functions called in a Python MPI program will be limited to a single core.
+  - The section [Enabling NumPy multithreading in MPI batch jobs](#sbatch-multithread) below shows how NumPy multithreading can be controlled in and MPI program running on the Unity HPC cluster.
 
 ### Using an NVIDIA GPU on a Linux PC<a id="gpu-pc"></a>
 
@@ -1992,7 +2001,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
 - Some resources for writing sbatch scripts, especially on choosing and setting #SBATCH parameters:
   
   - In Unity docs: [Introduction to batch jobs](https://docs.unity.rc.umass.edu/documentation/jobs/sbatch/),  [Overview of threads, cores and sockets](https://docs.unity.rc.umass.edu/documentation/get-started/hpc-theory/threads-cores-processes-sockets/), and [Slurm cheat sheet](https://docs.unity.rc.umass.edu/documentation/jobs/slurm/).
-  - In official Slurm docs: [sbatch options](https://slurm.schedmd.com/archive/slurm-23.11.6/sbatch.html#SECTION_OPTIONS) (there are many options).
+  - In official Slurm docs: [sbatch options](https://slurm.schedmd.com/sbatch.html) (there are many options).
   - A [quick-start guide](https://hpc.llnl.gov/banks-jobs/running-jobs/slurm-quick-start-guide) from Lawrence Livermore National Lab. Warning: some things here are particular to LLNL, won’t apply to Unity.
   - [Examples of sbatch scripts for different kinds](https://docs-research-it.berkeley.edu/services/high-performance-computing/user-guide/running-your-jobs/scheduler-examples/) of jobs from Berkeley (same warning).
   - Some [more advanced Slurm topics](https://groups.oist.jp/scs/advanced-slurm) (array jobs, using srun in sbatch scripts to run multiple copies of one or more programs…) from Okinawa Institute of Science and Technology.
@@ -2063,8 +2072,9 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   #SBATCH --gpus-per-task=1 # allocate one GPU per task
   
   # To use following probably need to set node constraints:
-  #SBATCH -N=10            # run the job on 10 nodes
+  #SBATCH -N=10             # run the job on 10 nodes
   #SBATCH --nodes=10        # “ “
+  #SBATCH --nodelist=cpu[049-068] # run on specific nodes
   #SBATCH --exclusive       # use entire nodes (don’t share nodes with other jobs)
   #SBATCH --mem=5G          # allocate 5 GB of memory per node
   #SBATCH –-mem=0           # allocate all available memory on nodes use
@@ -2162,7 +2172,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
 
 ### Using MPI on Unity (without Apptainer)<a id="unity-mpi"></a>
 
-- A **Conda environment capable of using OpenMPI** was created as follows.  First we see which OpenMPI modules are available -- from these we will select OpenMPI 5.0.3:
+- **A Conda environment capable of using OpenMPI**<a id="conda-mpi-unity"></a> was created as follows.  First we see which OpenMPI modules are available -- from these we will select OpenMPI 5.0.3:
   
   ```
   $ module av openmpi
@@ -2187,7 +2197,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   mpirun (Open MPI) 5.0.7
   ```
   
-    It is probably not necessary follow the steps exactly as shown above:
+    It probably is not necessary follow the steps exactly as shown above:
   
   - It might be OK to load an OpenMPI module with CUDA, or it might not be necessary to load any OpenMPI module while creating the environment.
   
@@ -2195,7 +2205,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   
   However, under some combinations of doing things a dysfunctional environment was created, which was usually detectable by the output from `mpirun --version` -- either no version or an Intel MPI version was shown.
 
-- **Run the MPI test programs `mpi_hw.py` and `osu_bw.py` on Unity interactively.**
+- **Run the MPI test programs `mpi_hw.py` and `osu_bw.py` on Unity interactively.**<a id="mpi-interactive"></a>
   
   Here we get an interactive shell with resources for 4 MPI tasks (`-n 4`) and Infiniband connectivity (`-C ib`).  Then, after activating `ompi5` it is possible to run both test programs:
   
@@ -2247,7 +2257,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   - The speeds reported by `osu_bw.py` (up to 17 GB/s) are vaguely similar to those seen on a PC in Part 1 of this document.  But without the `-C ib` option on `salloc`, speeds about 100 times slower were sometimes (but not always) seen.
   - It doesn't seem necessary or helpful to load the OpenMPI module - the environment `ompi5` seems to create the needed conditions for running these MPI programs.
 
-- **Use `sbatch` to run the MPI messaging-bandwidth test program `osu_bw.py`** 
+- **Use `sbatch` to run `osu_bw.py`** <a id="sbatch-mpi"></a>
   
   Make an sbatch script **`osu_bw.sh`** with the following contents, and put it in a directory `try_mpi` along with the test program `osu_bw.py`:
   
@@ -2266,7 +2276,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   mpirun --display bindings python osu_bw.py
   ```
   
-  The option `--display bindings` supplied to `mpirun` will print out which cores on which nodes each MPI rank is running on, which can be handy for debugging -- the many other options for the OpenMPI version of `mpirun` are [here](https://docs.open-mpi.org/en/main/man-openmpi/man1/mpirun.1.html).  Note that the versions of `mpirun` in other MPI packages such as MPICH have different, incompatible options.
+  The option `--display bindings` supplied to `mpirun` will print out which cores on which nodes are used by each MPI rank, which can be handy for debugging -- the many other options for the OpenMPI version of `mpirun` are [here](https://docs.open-mpi.org/en/main/man-openmpi/man1/mpirun.1.html).  Note that in other MPI packages such as MPICH  `mpirun` has different, incompatible options.
   
   Here is the output file produced by running `sbatch osu_bw.sh`.  In this case the two ranks happened to be allocated on the same node, but there is nothing in `osu_bw.sh` that forces that to be the case:
   
@@ -2306,13 +2316,244 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   16,777,216           15,207.25
   ```
 
-- **Use `sbatch` to run `threadcount_mpi.py`.**  This tests the possibility of using NumPy multithreading along with MPI parallelism.  
+- **Enabling NumPy multithreading in MPI batch jobs.**<a id="sbatch-multithread"></a>  For background see [Parallel execution on multiple cores](#multiple-cores) and [Hyperthreading and NumPy multithreading with MPI](#multithread-mpi) above.  Make an sbatch script **`threadcount_mpi.sh`**  with the following contents and put it in the directory `try-mpi` along with `threadcount_mpi.py`, which is an MPI-parallel version of `threadcount.py`  [discussed above](#multiple-cores). 
+  
+  ```
+  #!/bin/bash
+  # threadcount_mpi.sh 2/28/25 D.C.
+  # sbatch script to run threadcount_mpi.py, which uses MPI to time matrix
+  # multiplications in parallel in several MPI tasks.
+  #SBATCH -n 4                         # run 4 MPI ranks
+  #SBATCH --mem-per-cpu=8G             # give each core 8 GB of memory
+  #SBATCH -p cpu                       # submit to partition cpu
+  #SBATCH -C ib                        # require inifiniband connectivity
+  echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used
+  module purge                         # unload all modules
+  module load conda/latest             # need this to use conda commands
+  conda activate ompi5                 # environment with OpenMPI, NumPy and SciPy
+  mpirun --display bindings python threadcount_mpi.py
+  ```
+  
+  Run this sbatch script, and examine its output file and efficiency as reported by `seff`. With the `sbatch` defaults, NumPy only uses one thread (one core) in each MPI rank:
+  
+  ```
+  try-mpi$ sbatch threadcount_mpi.sh
+  Submitted batch job 29270594
+  (wait for job to complete)
+  /try-mpi$ cat slurm-29270594.out
+  nodelist=cpu[046-048],uri-cpu006
+  Loading conda
+  [cpu046:3233583] Rank 0 bound to package[1][core:44]
+  [cpu048:812940] Rank 2 bound to package[0][core:12]
+  [uri-cpu006:1412965] Rank 3 bound to package[0][core:5]
+  [cpu047:1048628] Rank 1 bound to package[0][core:31]
+  This is rank 0 of 4 on cpu046 running Open MPI v5.0.7
+  This is rank 3 of 4 on uri-cpu006 running Open MPI v5.0.7
+  This is rank 1 of 4 on cpu047 running Open MPI v5.0.7
+  This is rank 2 of 4 on cpu048 running Open MPI v5.0.7
+  (rank 0) Making 10,000 x 10,000 random matrices...
+  (rank 3) Making 10,000 x 10,000 random matrices...
+  (rank 1) Making 10,000 x 10,000 random matrices...
+  (rank 2) Making 10,000 x 10,000 random matrices...
+  (rank 0) ...took 3.043e+00s, average threads = 1.000
+  (rank 0) Multiplying matrices 3 times...
+  (rank 1) ...took 3.078e+00s, average threads = 1.000
+  (rank 1) Multiplying matrices 3 times...
+  (rank 3) ...took 3.284e+00s, average threads = 1.000
+  (rank 3) Multiplying matrices 3 times...
+  (rank 2) ...took 3.292e+00s, average threads = 1.000
+  (rank 2) Multiplying matrices 3 times...
+  (rank 3) ...took 2.574e+01s per trial, average threads = 1.000
+  (rank 2) ...took 4.091e+01s per trial, average threads = 1.000
+  (rank 0) ...took 4.332e+01s per trial, average threads = 1.000
+  (rank 1) ...took 4.397e+01s per trial, average threads = 1.000
+  try-mpi$ seff 29270594
+  Job ID: 29270594
+  Cluster: unity
+  User/Group: candela_umass_edu/candela_umass_edu
+  State: COMPLETED (exit code 0)
+  Nodes: 4
+  Cores per node: 1
+  CPU Utilized: 00:08:01
+  CPU Efficiency: 85.28% of 00:09:24 core-walltime
+  Job Wall-clock time: 00:02:21
+  Memory Utilized: 7.31 GB (estimated maximum)
+  Memory Efficiency: 22.84% of 32.00 GB (8.00 GB/core)
+  ```
+  
+  Here is a modified sbatch script **`threadcount_mpi2.sh`** that will enable NumPy to use two threads (two cores) in each MPI rank.  The modifications are (a) setting `#SBATCH -c 2` to allocate two cores per MPI rank, and (b) supplying the option `--cpus-per-rank 2` to `mpirun`.  Experimentally both of these modifications are needed to allow NumPy to multithread; conversely setting `OMP_NUM_THREADS` as  [discussed above](#multiple-cores) for a non-MPI setting seems to have no effect here.
+  
+  ```
+  #!/bin/bash
+  # threadcount_mpi2.sh 2/28/25 D.C.
+  # sbatch script to run threadcount_mpi.py, which uses MPI to time matrix
+  # multiplications in parallel in several MPI tasks.
+  # threadcount_mpi2.sh has been modified from threadcount_mpi.sh so NumPy can
+  # use 2 threads.
+  #SBATCH -n 4                         # run 4 MPI ranks
+  #SBATCH -c 2                         # give each rank two cores
+  #SBATCH --mem-per-cpu=8G             # give each core 8 GB of memory
+  #SBATCH -p cpu                       # submit to partition cpu
+  #SBATCH -C ib                        # require inifiniband connectivity
+  echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used
+  module purge                         # unload all modules
+  module load conda/latest             # need this to use conda commands
+  conda activate ompi5                 # environment with OpenMPI, NumPy and SciPy
+  mpirun --display bindings --cpus-per-rank 2 python threadcount_mpi.py
+  ```
+  
+  Run the modified sbatch script, and examine its output file and efficiency:
+  
+  ```
+  try-mpi$ sbatch threadcount_mpi2.sh
+  Submitted batch job 29273079
+  (wait for job to complete)
+  /try-mpi$ cat slurm-29273079.out
+  nodelist=cpu[045-046],uri-cpu[009,049]
+  Loading conda
+  [cpu045:1329365] Rank 0 bound to package[0][core:15-16]
+  [cpu046:3239344] Rank 1 bound to package[1][core:40-41]
+  [uri-cpu049:3879069] Rank 3 bound to package[0][core:11-12]
+  [uri-cpu009:313846] Rank 2 bound to package[0][core:3,7]
+  This is rank 0 of 4 on cpu045 running Open MPI v5.0.7
+  This is rank 1 of 4 on cpu046 running Open MPI v5.0.7
+  This is rank 2 of 4 on uri-cpu009 running Open MPI v5.0.7
+  This is rank 3 of 4 on uri-cpu049 running Open MPI v5.0.7
+  (rank 1) Making 10,000 x 10,000 random matrices...
+  (rank 0) Making 10,000 x 10,000 random matrices...
+  (rank 2) Making 10,000 x 10,000 random matrices...
+  (rank 3) Making 10,000 x 10,000 random matrices...
+  (rank 0) ...took 2.847e+00s, average threads = 1.000
+  (rank 0) Multiplying matrices 3 times...
+  (rank 1) ...took 3.030e+00s, average threads = 1.000
+  (rank 1) Multiplying matrices 3 times...
+  (rank 3) ...took 3.227e+00s, average threads = 1.000
+  (rank 3) Multiplying matrices 3 times...
+  (rank 2) ...took 3.364e+00s, average threads = 1.000
+  (rank 2) Multiplying matrices 3 times...
+  (rank 3) ...took 1.293e+01s per trial, average threads = 1.999
+  (rank 2) ...took 1.298e+01s per trial, average threads = 1.999
+  (rank 0) ...took 2.095e+01s per trial, average threads = 1.999
+  (rank 1) ...took 2.166e+01s per trial, average threads = 2.000
+  try-mpi$ seff 29273079
+  Job ID: 29273079
+  Cluster: unity
+  User/Group: candela_umass_edu/candela_umass_edu
+  State: COMPLETED (exit code 0)
+  Nodes: 4
+  Cores per node: 2
+  CPU Utilized: 00:07:10
+  CPU Efficiency: 72.64% of 00:09:52 core-walltime
+  Job Wall-clock time: 00:01:14
+  Memory Utilized: 7.41 GB (estimated maximum)
+  Memory Efficiency: 11.57% of 64.00 GB (8.00 GB/core)
+  ```
+  
+  Notes:
+  
+  - The modified job used twice as many cores (8 rather than 4), and it ran about twice as fast because the time-consuming part of `threadcount_mpi.py` (a call to `np.matmul` to do the matrix multiplications) was able to use two threads rather than one.
+  
+  - Only some NumPy functions can use multithreading to run faster -- for example the creation of the matrices using `rng.normal` only used one thread even though two cores were available.
+  
+  - The [OpenMPI docs for `mpirun`](https://docs.open-mpi.org/en/main/man-openmpi/man1/mpirun.1.html) say `--cpus-per-rank` is deprecated in favor of something like `--map-by <obj>:PE=n` but I haven't tried to figure this out.
+  
+  - If the settings for `#SBATCH -c...` and `mpirun --cpus-per-rank...` do not agree, strange things happen that I do not understand.
+  
+  - **This job did not work reliably and probably requires additional `#SBATCH` settings.**  For example, sometimes one MPI rank took much longer to run, or used less threads than the other ranks.  It may be necessary to constrain the job to certain nodes, but this has not been tried.
 
-TODO
+- **Use `sbatch` to run `boxpct.py + dem21` with MPI.**<a id="sbatch-dem21"></a> See [A more elaborate MPI program](#boxpct-dem21) above for the corresponding steps on a PC.
+  
+  - As in that section, the **`dem21`** package is cloned into a directory `try-dem21` on Unity:
+    
+    ```
+    try-dem21$ git clone git@github.com:doncandela/dem21.git
+    ```
+  
+  - As in [A Conda environment capable of using OpenMPI](#conda-mpi-unity) above a conda environment **`dem21`** is defined on Unity, but now the `dem21` package is installed in the environment, along with additional the additional packages that `dem21` requires:
+    
+    ```
+    try-dem21$ unity-compute             # get an interactive shell on a compute node
+    try-dem21$ module load conda/latest
+    try-dem21$ module load openmpi/5.0.3
+    try-dem21$ conda create -n dem21 python=3.12
+    try-dem21$ conda activate dem21 
+    (dem21)..try-dem21$ conda install mpi4py
+    (dem21)..try-dem21$ conda install dill matplotlib numba numpy pyaml scipy
+    (dem21)..try-dem21$ conda install quaternion
+    (dem21)..try-dem21$ cd dem21; ls      # cd into the dem21 repo and list its contents
+    LICENSE.txt  README.md  develop  doc  pyproject.toml  setup.py  src  tests
+    (dem21)..try-dem21/dem21$ pip install -e .
+    ```
+  
+  - At this point we can log out and back into Unity, and there is not need to activate the environment `dem21` interactively by sbatch scripts as needed.
+    
+    We go back to `try-dem` and copy the test program `boxpct.py` and its configuration file `box.yaml` there from the `tests` subdirectory of the cloned repo:
+    
+    ```
+    try-dem21$ ls dem21/tests/box
+    box.yaml  boxmod.yaml  boxpct.py  boxpct.sh  heap3.yaml  output  plots
+    try-dem21$ cp dem21/tests/box/boxpct.py .
+    tri-dem21$ cp dem21/tests/box/box.yaml .
+    ```
+  
+  - An sbatch script **`boxpct.sh`** is created in the directory `try-dem21` with these contents:
+    
+    ```
+    #!/bin/bash
+    # boxpct.sh 2/28/25 D.C.
+    # sbatch script to run boxpct.py, using the dem21 package in MPI-parallel mode.
+    #SBATCH -n 4                         # run 4 MPI ranks
+    #SBATCH --mem-per-cpu=8G             # give each core 8 GB of memory
+    #SBATCH -p cpu                       # submit to partition cpu
+    #SBATCH -C ib                        # require inifiniband connectivity
+    echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used
+    module purge                         # unload all modules
+    module load conda/latest             # need this to use conda commands
+    conda activate dem21                 # environment with OpenMPI, dem21, and dependencies
+    export pproc=mpi                     # tells dem21 to run in MPI-parallel mode
+    mpirun --display bindings python boxpct.py
+    ```
+  
+  - Now we can use this script to run `boxpct.py` in MPI-parallel mode:
+    
+    ```
+    try-dem21$ sbatch boxpct.sh
+    Submitted batch job 29279146
+    (wait for job to complete)
+    try-dem21$ cat slurm-29279146.out
+    nodelist=cpu045
+    Loading conda
+    [cpu045:1344137] Rank 0 bound to package[0][core:3]
+    [cpu045:1344137] Rank 1 bound to package[1][core:39]
+    [cpu045:1344137] Rank 2 bound to package[1][core:40]
+    [cpu045:1344137] Rank 3 bound to package[1][core:41]
+    - Started MPI on master + 3 worker ranks.
+    THIS IS: boxpct.py 12/3/22 D.C., using dem21 version: v1.2 2/11/25
+    Parallel processing: MPI, GHOST_ARRAY=True
+    - Read 1 config(s) from /work/pi_candela_umass_edu/2025-01-apptainer/try-dem21/box.yaml
+    
+    SIM 1/1:
+    Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
+                         ...
+    ```
+  
+  - Eamon Dwight has run much bigger simulations using the `dem21` package on Unity.  Here are some lines from a typical sbatch script he uses.  These were for simulations that ran well on 109 MPI ranks (due to the structure of `dem21`, which split the simulation domain into 216 boxes then allocated one MPI rank per two boxes plus one MPI rank for the control program).
+    
+    ```
+    #SBATCH -q long                     # required for jobs running more than 2 days
+    #SBATCH -N 1                        # run on a single node
+    #SBATCH --nodelistcp=cpu[049-068]     # limit to nodes with 128 cores
+    #SBATCH -n 109                      # allocated for 109 MPI ranks
+    #SBATCH --mem=15000                 # allocate 15 GB memory (per node, one node here)
+    #SBATCH -t 300:00:00                # time limit 300 hrs (max allowed is 14 days = 336 hrs)
+    #SBATCH --constraint=ib
+    ```
+    
+    The [docs for `sbatch`](https://slurm.schedmd.com/sbatch.html) seem to imply that *all* of the nodes listed in `--nodelist=..` will be allocated to the job, but experimentally only the number of nodes specified by `-N...` will be allocated.  With the `#SBATCH` settings shown above all MPI ranks were on a single node, which proved to be more efficient than some other ways of running.
 
 ### Using a GPU on Unity (without Apptainer)<a id="unity-gpu"></a>
 
-- A **Conda environment `gpu` capable of using a GPU** was created on Unity as follows (as of 1/25 it seemed the current version of Python, 3.13, was incompatible with CuPy - hence the specification here python=3.12):
+- **A Conda environment capable of using a GPU**<a id="conda-gpu-unity"></a> called **`gpu`** was created on Unity as follows (as of 1/25 it seemed the current version of Python, 3.13, was incompatible with CuPy - hence the specification here python=3.12):
   
   ```
   $ module load conda/latest
@@ -2334,75 +2575,93 @@ TODO
 
 Unlike on my PCs, on Unity it was not necessary to explicitly specify `-c conda-forge` to get an up-to-date version of CuPy (see [Installing CUDA-aware Python packages](#pytorch-cupy) above).  This may be because [on Unity, Conda uses Minforge](https://docs.unity.rc.umass.edu/documentation/software/conda/) rather than Anaconda.
 
-- **Run `gputest.py` on Unity interactively.**
+- **Run `gputest.py` on Unity interactively.**<a id="gputest-interactive"></a>
+  
+  - Here we get an interactive shell with 6 cores and one GPU on a compute node in the `gpu` partition, and load a CUDA module (although CUDA typically seems to be loaded already on GPU nodes). Then we run `nvidia-smi` to check that the GPU and CUDA are available and get info on them (not sure why CUDA version reported by `nvidia-smi` doesn’t match module loaded):
+    
+    ```
+    $ salloc -c 6 -G 1 -p gpu
+    $ module load cuda/12.6
+    $ nvidia-smi
+    Wed Jan 15 16:48:06 2025       
+    +-----------------------------------------------------------------------------------------+
+    | NVIDIA-SMI 550.127.05             Driver Version: 550.127.05     CUDA Version: 12.4     |
+    |-----------------------------------------+------------------------+----------------------+
+    | GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+    | Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+                                         ...
+    ```
+  
+  - Next we activate the environment `gpu` created as above.  Then the program [`gputest.py`](#gputest-py) can be run and it will use the GPU:
+    
+    ```
+    $ module load conda/latest
+    $ conda activate gpu
+    (gpu)$ cd ..                # cd to directory containing gputest.py
+    (gpu)$ python gputest.py
+    Running: gputest.py 11/22/23 D.C.
+    Local time: Sun Jan 12 23:25:36 2025
+    GPU 0 has compute capacity 6.1, 28 SMs, 11.71 GB RAM, guess model = None
+    CPU timings use last 10 of 11 trials
+    GPU timings use last 25 of 28 trials
+    
+    ***************** Doing test dense_mult ******************
+    Multiply M*M=N element dense matrices
+    
+    *********************************************************
+    
+    ************ Using float64 **************
+         N     flop make mats  CPU test *CPU op/s*  GPU test *GPU op/s*  GPU xfer xfer rate
+    99,856 6.30e+07 7.61e-03s 1.20e-02s 5.25e+09/s 2.79e-04s 2.26e+11/s 4.42e-03s  0.72GB/s
+                                    ...
+    ```
 
-- Here we get an interactive shell with 6 cores and one GPU on a compute node in the `gpu` partition, and load a CUDA module (although CUDA typically seems to be loaded already on GPU nodes). Then we run `nvidia-smi` to check that the GPU and CUDA are available and get info on them (not sure why CUDA version reported by `nvidia-smi` doesn’t match module loaded):
+- **A batch job using a GPU.**<a id="gpu-sbatch"></a>
   
-  ```
-  $ salloc -c 6 -G 1 -p gpu
-  $ module load cuda/12.6
-  $ nvidia-smi
-  Wed Jan 15 16:48:06 2025       
-  +-----------------------------------------------------------------------------------------+
-  | NVIDIA-SMI 550.127.05             Driver Version: 550.127.05     CUDA Version: 12.4     |
-  |-----------------------------------------+------------------------+----------------------+
-  | GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
-  | Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
-                                       ...
-  ```
+  - As in the non-GPU background job example above, here we again run `gputest.py` in the directory `/work/...test_gpu` but now we activate the Conda environment `gpu` with does include CuPy, so `gputest.py` will try to use a GPU.  We will also need to ensure the CUDA module is loaded, request a GPU, and run the job in a GPU partition.  So we will use an sbatch script **`gputest.sh`** with these contents:
+    
+    ```
+    #!/bin/bash
+    # gputest.sh 2/28/25 D.C.
+    # One-task sbatch script using a GPU but not Apptainer, runs gputest.py
+    #SBATCH -c 6                  # use 6 CPU cores
+    #SBATCH -G 1                  # use one GPU
+    #SBATCH -p gpu                # submit to partition gpu
+    echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used
+    module purge                  # unload all modules
+    module load conda/latest
+    module load cuda/12.6         # need CUDA to use a GPU
+    conda activate gpu            # environment with NumPy, SciPy, and CuPy
+    python gputest.py
+    ```
+    
+    As written, this script puts no constraints on the type of GPU that will be allocated or how much memory it will have. Here is an [article in the Unity docs](https://docs.unity.rc.umass.edu/documentation/tools/gpus/) with extensive information on the GPUs available on Unity and how to select them.
+  
+  - Here we submit the job, then examine its output. Note this can be run in any (or no) Conda environment, and if desired on a login node, as the node allocated by `sbatch` is used to run the job:
+    
+    ```
+    try-gputest$ sbatch gputest.sh
+    Submitted batch job 29282756
+    (wait for job to complete)
+    $ cat slurm-29282756.out
+    nodelist=gypsum-gpu168
+    Loading conda
+    Loading cuda version 12.6
+    Running: gputest.py 11/22/23 D.C.
+    Local time: Fri Feb 28 22:30:40 2025
+    GPU 0 has compute capacity 7.5, 68 SMs, 11.54 GB RAM, guess model = None
+    CPU timings use last 10 of 11 trials
+    GPU timings use last 25 of 28 trials
+    
+    ***************** Doing test dense_mult ******************
+    Multiply M*M=N element dense matrices
+    *********************************************************
+                               ...
+    ```
+    
+    Looking at the [Unity node list](https://docs.unity.rc.umass.edu/documentation/cluster_specs/nodes/) we see that node `gypsum-gpu168` has NVIDIA RTX 2080ti GPUs, which according to the [Unity GPU info](https://docs.unity.rc.umass.edu/documentation/tools/gpus/) has compute capability 7.5 in agreement with the output of `gputest.py`.
 
-- Next we activate the environment `gpu` created as above.  Then the program [`gputest.py`](#gputest-py) can be run and it will use the GPU:
-  
-  ```
-  $ module load conda/latest
-  $ conda activate gpu
-  (gpu)$ cd ..                # cd to directory containing gputest.py
-  (gpu)$ python gputest.py
-  Running: gputest.py 11/22/23 D.C.
-  Local time: Sun Jan 12 23:25:36 2025
-  GPU 0 has compute capacity 6.1, 28 SMs, 11.71 GB RAM, guess model = None
-  CPU timings use last 10 of 11 trials
-  GPU timings use last 25 of 28 trials
-  
-  ***************** Doing test dense_mult ******************
-  Multiply M*M=N element dense matrices
-  
-  *********************************************************
-  
-  ************ Using float64 **************
-       N     flop make mats  CPU test *CPU op/s*  GPU test *GPU op/s*  GPU xfer xfer rate
-  99,856 6.30e+07 7.61e-03s 1.20e-02s 5.25e+09/s 2.79e-04s 2.26e+11/s 4.42e-03s  0.72GB/s
-  ```
-
-- **A batch job using a GPU.**
-
-- As in the non-GPU background job example above, here we again run `gputest.py` in the directory `/work/...test_gpu` but now we activate the Conda evironment `gpu` with does include CuPy, so `gputest.py` will try to use a GPU.  We will also need to ensure the CUDA module is loaded, request a GPU, and run the job in a GPU partition.  So we will use an sbatch script **`gpu.sh`** with these contents:
-  
-  ```
-  #!/bin/bash
-  # gpu.sh 2/5/24 D.C.
-  # One-task sbatch script using a GPU but not Apptainer.
-  #SBATCH -c 6                  # use 6 CPU cores
-  #SBATCH -G 1                  # use one GPU
-  #SBATCH -p cpu                # submit to partition gpu
-  
-  module purge                  # unload all modules
-  module load conda/latest
-  module load cuda/12.6         # need CUDA to use a GPU
-  conda activate gpu            # environment with NumPy, SciPy, and CuPy
-  
-  python gputest.py > npapp-nogpu.out   # run gputest.py sending its output to a file
-  ```
-
-- The job is submitted by doing
-  
-  ```
-  (base) try-gputest$ sbatch noapp-gpu.sh
-  ```
-  
-  which will create the output file try-gputest/noapp-gpu.out. 
-
-### Using Apptainer on the Unity HPC cluster<a id="unity-apptainer"></a>
+### Using Apptainer on Unity<a id="unity-apptainer"></a>
 
 #### Getting container images on the cluster<a id="images-to-unity"></a>
 
