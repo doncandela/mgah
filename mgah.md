@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   2/27/25
+mgah.md  D. Candela   2/27a/25
 
 - [Introduction](#intro)  
   
@@ -2255,8 +2255,8 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   #!/bin/bash
   # osu_bw.sh 2/27/25 D.C.
   # sbatch script to run osu_bw.py, which times the speed of MPI messaging
-  # between two MPI ranks.  As wrt
-  #SBATCH -n 2                         # run 4 MPI ranks
+  # between two MPI ranks.
+  #SBATCH -n 2                         # run 2 MPI ranks
   #SBATCH -p cpu                       # submit to partition cpu
   #SBATCH -C ib                        # require inifiniband connectivity
   echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used
