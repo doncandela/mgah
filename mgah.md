@@ -2485,7 +2485,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
     (dem21)..try-dem21/dem21$ pip install -e .
     ```
   
-  - At this point we can log out and back into Unity, and there is not need to activate the environment `dem21` interactively by sbatch scripts as needed.
+  - At this point we can log out and back into Unity, and there is no need to activate the environment `dem21` interactively as it is activated by sbatch scripts as needed.
     
     We go back to `try-dem` and copy the test program `boxpct.py` and its configuration file `box.yaml` there from the `tests` subdirectory of the cloned repo:
     
@@ -2618,7 +2618,7 @@ Unlike on my PCs, on Unity it was not necessary to explicitly specify `-c conda-
 
 - **A batch job using a GPU.**<a id="gpu-sbatch"></a>
   
-  - As in the non-GPU background job example above, here we again run `gputest.py` in the directory `/work/...test_gpu` but now we activate the Conda environment `gpu` with does include CuPy, so `gputest.py` will try to use a GPU.  We will also need to ensure the CUDA module is loaded, request a GPU, and run the job in a GPU partition.  So we will use an sbatch script **`gputest.sh`** with these contents:
+  - As in the non-GPU background job example above, here we again run `gputest.py` in the directory `/work/...test_gpu` but now we activate the Conda environment `gpu` which does include CuPy, so `gputest.py` will try to use a GPU.  We will also need to ensure the CUDA module is loaded, request a GPU, and run the job in a GPU partition.  So we will use an sbatch script **`gputest.sh`** with these contents:
     
     ```
     #!/bin/bash
@@ -2637,7 +2637,7 @@ Unlike on my PCs, on Unity it was not necessary to explicitly specify `-c conda-
     
     As written, this script puts no constraints on the type of GPU that will be allocated or how much memory it will have. Here is an [article in the Unity docs](https://docs.unity.rc.umass.edu/documentation/tools/gpus/) with extensive information on the GPUs available on Unity and how to select them.
   
-  - Here we submit the job, then examine its output. Note this can be run in any (or no) Conda environment, and if desired on a login node, as the node allocated by `sbatch` is used to run the job:
+  - Here we submit the job, then examine its output. Note this can be run in any (or no) Conda environment, and if desired on a login node, as it is the node allocated by `sbatch` that will be used to run the job:
     
     ```
     try-gputest$ sbatch gputest.sh
