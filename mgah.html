@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   2/28/25</p>
+<p>mgah.md  D. Candela   3/1/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -2653,6 +2653,7 @@ $ conda env remove -n p39           # get rid of environment p39</code></pre>
 <li><strong><code>npsp</code></strong> (defined in <a href="#unity-modules-conda">Using modules and Conda</a>) has NumPy, SciPy, and Matplotlib, but not CuPy.</li>
 <li><strong><code>dfs</code></strong> (also defined in <a href="#unity-modules-conda">Using modules and Conda</a>) has NumPy and the local package <code>dcfuncs</code> installed.</li>
 <li><strong><code>ompi5</code></strong> (defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) includes OpenMPI 5.0.3, and MPI for Python, so MPI can be used.</li>
+<li><strong><code>dem21</code></strong> (also defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) is like <code>ompi5</code> but additionally includes the locally-installed package <code>dem21</code> and additional packages that <code>dem21</code> imports.</li>
 <li><strong><code>gpu</code></strong> (defined in <a href="#unity-gpu">Using a GPU in Unity (without Apptainer)</a>) includes CuPy, so a GPU can be used.</li>
 </ul>
 </li>
@@ -2660,33 +2661,41 @@ $ conda env remove -n p39           # get rid of environment p39</code></pre>
 <ul>
 <li><strong><code>count.py</code></strong> times how fast a Python program can count.</li>
 <li><strong><code>count_mpi.py</code></strong> times the counting speeds of multiple Python processes running simultaneously using MPI.</li>
-<li><strong><code>threadcount.py</code></strong> uses timing to estimate the number of threads in use while Numpy is multplying matrices.</li>
-<li><strong><code>threadcount_mpi.py</code></strong> esimates the numer of threads in use in each rank of an MPI run.</li>
+<li><strong><code>threadcount.py</code></strong> uses timing to estimate the number of threads in use while NumPy is multiplying matrices.</li>
+<li><strong><code>threadcount_mpi.py</code></strong> estimates the number of threads in use in each rank of an MPI run.</li>
 <li><strong><code>gputest.py</code></strong> makes dense and sparse matrices of various sizes and floating-point types, and times operations using these matrices on the CPU and (if available) the GPU. If run in an environment without CuPy like <strong><code>p39</code></strong>, only CPU tests will be run. But if run in <strong><code>gpu</code></strong> and a GPU can be initialized, will also run GPU tests.</li>
-<li><strong><code>np-version.py</code></strong> is a very short program that imports Numpy and prints out its version.</li>
-<li><strong><code>dcfuncs</code></strong> is small package of utility functions, used in this document as an example of a Python package <a href="#local-package">installed locally</a>. </li>
+<li><strong><code>np-version.py</code></strong> is a very short program that imports NumPy and prints out its version.</li>
+<li><strong><code>dcfuncs</code></strong> is small package of utility functions, used in this document as an example of a Python package <a href="#local-package">installed locally</a>.  It is available from the public GitHub repo <a href="https://github.com/doncandela/dcfuncs">doncandela/dcfuncs</a>, which also includes the test programs <strong><code>test_util.py</code></strong>, etc, mentioned in this document.</li>
+<li><strong><code>dem21</code></strong> is a complex package for doing DEM simulations of granular media using MPI parallelism. It is stored  in the currently private GitHub repo <a href="https://github.com/doncandela/dem21">doncandela/dem21</a>.  Although not available publicly it is mentioned in this document as an example of how a large, complex MPI code can be run.</li>
 </ul>
 </li>
 <li><p>The following Apptainer definition files are used. They are all discussed in <a href="#apptainer-pc">Using Apptainer on a Linux PC</a> below.  They have been mostly been used to build container images (<code>.sif</code> files) on PCs, which can then be run both on the PCs and on Unity.</p>
 <ul>
-<li><strong><code>os-only.def</code></strong> makes a container that contains only the <strong>Ubuntu OS</strong>.</li>
-<li><strong><code>pack.def</code></strong> makes a container that contains Linux, Conda, and the <strong>Miniconda</strong> package distribution, and installs a few selected packages in the container.</li>
-<li><strong><code>dfs.def</code></strong> makes a container with the local package <strong><code>dcfuncs</code></strong> installed in it.</li>
-<li><strong><code>ompi5.def</code></strong> makes a container with <strong>OpenMPI</strong> and <strong>MPI for Python</strong> installed in it, so it can be used to run MPI programs.</li>
-<li><strong><code>dem21.def</code></strong> makes an MPI-enabled container like the one made by <code>ompi5.def</code>, but it also has the more elaborate MPI-using package <code>dem21</code> installed in the container.</li>
-<li><strong><code>gpu.def</code></strong> makes a container that imports <strong>CuPy</strong> so it can be used to run Python programs that use CuPy to run a GPU.</li>
+<li><p><strong><code>os-only.def</code></strong> makes a container that contains only the <strong>Ubuntu OS</strong>.</p>
+</li>
+<li><p><strong><code>pack.def</code></strong> makes a container that contains Linux, Conda, and the <strong>Miniconda</strong> package distribution, and installs a few selected packages in the container.</p>
+</li>
+<li><p><strong><code>dfs.def</code></strong> makes a container with the local package <strong><code>dcfuncs</code></strong> installed in it.</p>
+</li>
+<li><p><strong><code>ompi5.def</code></strong> makes a container with <strong>OpenMPI</strong> and <strong>MPI for Python</strong> installed in it, so it can be used to run MPI programs.</p>
+</li>
+<li><p><strong><code>dem21.def</code></strong> makes an MPI-enabled container like the one made by <code>ompi5.def</code>, but it also has the more elaborate MPI-using package <code>dem21</code> installed in the container.</p>
+</li>
+<li><p><strong><code>gpu.def</code></strong> makes a container that imports <strong>CuPy</strong> so it can be used to run Python programs that use CuPy to run a GPU.</p>
+</li>
 </ul>
 </li>
 <li><p>The following sbatch scripts are defined for use with Slurm on the Unity cluster:</p>
 <ul>
 <li><strong><code>simple.sh</code></strong> (defined in <a href="#simple-batch">Example of a simple batch job</a>) runs job that uses none of MPI, a GPU, or Apptainer.</li>
 <li><strong><code>osu_bw.sh</code></strong> (defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) runs the MPI messaging-bandwidth test program <code>osu_bw.py</code>.</li>
-<li><strong><code>threadcount_mpi.sh</code></strong> (also defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) runs <code>threadcount_mpi.py</code> which tests the possibility of using NumPy multithreading along with MPI parallelism.</li>
+<li><strong><code>threadcount_mpi.sh</code></strong> and <strong><code>threadcount_mpi2.sh</code></strong> (both also defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) run <code>threadcount_mpi.py</code> to demonstrate the use NumPy multithreading along with MPI parallelism.</li>
 <li><strong><code>boxpct_mpi.sh</code></strong> (also defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) runs <code>boxpct.py</code> (which uses the <code>dem21</code> package) in MPI-parallel mode.</li>
-<li><strong><code>gputest.sh</code></strong> (defined in <a href="#unity-gpu">Using a GPU on Unity (without Apptainer)</a>) runs <code>gputest.py</code> as a non-Apptainer job that uses a GPU.</li>
-<li><strong><code>app.sh</code></strong> (defined in <a href="#unity-run-container">Running a container interactively or in batch job</a>) runs an Apptainer (containerized) job that doesn't use MPI or a GPU.</li>
-<li><strong><code>app-mpi.sh</code></strong> (defined in <a href="#unity-mpi-container">Running a container the uses MPI</a>) runs an Apptainer job that uses a GPU.</li>
-<li><strong><code>app-gpu.sh</code></strong> (defined in <a href="#unity-gpu-container">Running a container the uses a GPU</a>) runs an Apptainer job that uses a GPU.</li>
+<li><strong><code>gputest.sh</code></strong> (defined in <a href="#unity-gpu">Using a GPU on Unity (without Apptainer)</a>) runs <code>gputest.py</code> which uses a GPU.</li>
+<li><strong><code>app-simple.sh</code></strong> (defined in <a href="#unity-run-container">Running a container interactively or in batch job</a>) uses an Apptainer container to run <code>gputest.py</code> without a GPU.</li>
+<li><strong><code>app-osubw.sh</code></strong> (defined in <a href="#unity-mpi-container">Running a container the uses MPI</a>) uses an Apptainer container to run the MPI bandwidth-test program <code>osu_bw.py</code> in two MPI ranks.</li>
+<li><strong><code>app-boxpct.sh</code></strong> (also defined in <a href="#unity-mpi-container">Running a container the uses MPI</a>) uses an Apptainer container to run the test program <code>boxpct.py</code> which uses the <code>dem21</code> package in n MPI ranks.</li>
+<li><strong><code>app-gputest.sh</code></strong> (defined in <a href="#unity-gpu-container">Running a container the uses a GPU</a>) uses an Apptainer container to run <code>gputest.py</code>  which uses a GPU.</li>
 </ul>
 </li>
 </ul>
@@ -4807,7 +4816,7 @@ try-dem21$ conda activate dem21
 LICENSE.txt  README.md  develop  doc  pyproject.toml  setup.py  src  tests
 (dem21)..try-dem21/dem21$ pip install -e .</code></pre>
 </li>
-<li><p>At this point we can log out and back into Unity, and there is not need to activate the environment <code>dem21</code> interactively by sbatch scripts as needed.</p>
+<li><p>At this point we can log out and back into Unity, and there is no need to activate the environment <code>dem21</code> interactively as it is activated by sbatch scripts as needed.</p>
 <p>We go back to <code>try-dem</code> and copy the test program <code>boxpct.py</code> and its configuration file <code>box.yaml</code> there from the <code>tests</code> subdirectory of the cloned repo:</p>
 <pre><code class="fenced-code-block">try-dem21$ ls dem21/tests/box
 box.yaml  boxmod.yaml  boxpct.py  boxpct.sh  heap3.yaml  output  plots
@@ -4923,7 +4932,7 @@ Multiply M*M=N element dense matrices
 </li>
 <li><p><strong>A batch job using a GPU.</strong><a id="gpu-sbatch"></a></p>
 <ul>
-<li><p>As in the non-GPU background job example above, here we again run <code>gputest.py</code> in the directory <code>/work/...test_gpu</code> but now we activate the Conda environment <code>gpu</code> with does include CuPy, so <code>gputest.py</code> will try to use a GPU.  We will also need to ensure the CUDA module is loaded, request a GPU, and run the job in a GPU partition.  So we will use an sbatch script <strong><code>gputest.sh</code></strong> with these contents:</p>
+<li><p>As in the non-GPU background job example above, here we again run <code>gputest.py</code> in the directory <code>/work/...test_gpu</code> but now we activate the Conda environment <code>gpu</code> which does include CuPy, so <code>gputest.py</code> will try to use a GPU.  We will also need to ensure the CUDA module is loaded, request a GPU, and run the job in a GPU partition.  So we will use an sbatch script <strong><code>gputest.sh</code></strong> with these contents:</p>
 <pre><code class="fenced-code-block">#!/bin/bash
 # gputest.sh 2/28/25 D.C.
 # One-task sbatch script using a GPU but not Apptainer, runs gputest.py
@@ -4938,7 +4947,7 @@ conda activate gpu            # environment with NumPy, SciPy, and CuPy
 python gputest.py</code></pre>
 <p>As written, this script puts no constraints on the type of GPU that will be allocated or how much memory it will have. Here is an <a href="https://docs.unity.rc.umass.edu/documentation/tools/gpus/">article in the Unity docs</a> with extensive information on the GPUs available on Unity and how to select them.</p>
 </li>
-<li><p>Here we submit the job, then examine its output. Note this can be run in any (or no) Conda environment, and if desired on a login node, as the node allocated by <code>sbatch</code> is used to run the job:</p>
+<li><p>Here we submit the job, then examine its output. Note this can be run in any (or no) Conda environment, and if desired on a login node, as it is the node allocated by <code>sbatch</code> that will be used to run the job:</p>
 <pre><code class="fenced-code-block">try-gputest$ sbatch gputest.sh
 Submitted batch job 29282756
 (wait for job to complete)

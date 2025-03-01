@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   2/28/25
+mgah.md  D. Candela   3/1/25
 
 - [Introduction](#intro)  
   
@@ -283,37 +283,45 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
   - **`npsp`** (defined in [Using modules and Conda](#unity-modules-conda)) has NumPy, SciPy, and Matplotlib, but not CuPy.
   - **`dfs`** (also defined in [Using modules and Conda](#unity-modules-conda)) has NumPy and the local package `dcfuncs` installed.
   - **`ompi5`** (defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) includes OpenMPI 5.0.3, and MPI for Python, so MPI can be used.
+  - **`dem21`** (also defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) is like `ompi5` but additionally includes the locally-installed package `dem21` and additional packages that `dem21` imports.
   - **`gpu`** (defined in [Using a GPU in Unity (without Apptainer)](#unity-gpu)) includes CuPy, so a GPU can be used.
 
 - The following test code is used:
   
   - **`count.py`** times how fast a Python program can count.
   - **`count_mpi.py`** times the counting speeds of multiple Python processes running simultaneously using MPI.
-  - **`threadcount.py`** uses timing to estimate the number of threads in use while Numpy is multplying matrices.
-  - **`threadcount_mpi.py`** esimates the numer of threads in use in each rank of an MPI run.
+  - **`threadcount.py`** uses timing to estimate the number of threads in use while NumPy is multiplying matrices.
+  - **`threadcount_mpi.py`** estimates the number of threads in use in each rank of an MPI run.
   - **`gputest.py`** makes dense and sparse matrices of various sizes and floating-point types, and times operations using these matrices on the CPU and (if available) the GPU. If run in an environment without CuPy like **`p39`**, only CPU tests will be run. But if run in **`gpu`** and a GPU can be initialized, will also run GPU tests.
-  - **`np-version.py`** is a very short program that imports Numpy and prints out its version.
-  - **`dcfuncs`** is small package of utility functions, used in this document as an example of a Python package [installed locally](#local-package). 
+  - **`np-version.py`** is a very short program that imports NumPy and prints out its version.
+  - **`dcfuncs`** is small package of utility functions, used in this document as an example of a Python package [installed locally](#local-package).  It is available from the public GitHub repo [doncandela/dcfuncs](https://github.com/doncandela/dcfuncs), which also includes the test programs **`test_util.py`**, etc, mentioned in this document.
+  - **`dem21`** is a complex package for doing DEM simulations of granular media using MPI parallelism. It is stored  in the currently private GitHub repo [doncandela/dem21](https://github.com/doncandela/dem21).  Although not available publicly it is mentioned in this document as an example of how a large, complex MPI code can be run.
 
 - The following Apptainer definition files are used. They are all discussed in [Using Apptainer on a Linux PC](#apptainer-pc) below.  They have been mostly been used to build container images (`.sif` files) on PCs, which can then be run both on the PCs and on Unity.
   
   - **`os-only.def`** makes a container that contains only the **Ubuntu OS**.
+  
   - **`pack.def`** makes a container that contains Linux, Conda, and the **Miniconda** package distribution, and installs a few selected packages in the container.
+  
   - **`dfs.def`** makes a container with the local package **`dcfuncs`** installed in it.
+  
   - **`ompi5.def`** makes a container with **OpenMPI** and **MPI for Python** installed in it, so it can be used to run MPI programs.
+  
   - **`dem21.def`** makes an MPI-enabled container like the one made by `ompi5.def`, but it also has the more elaborate MPI-using package `dem21` installed in the container.
+  
   - **`gpu.def`** makes a container that imports **CuPy** so it can be used to run Python programs that use CuPy to run a GPU.
 
 - The following sbatch scripts are defined for use with Slurm on the Unity cluster:
   
   - **`simple.sh`** (defined in [Example of a simple batch job](#simple-batch)) runs job that uses none of MPI, a GPU, or Apptainer.
   - **`osu_bw.sh`** (defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) runs the MPI messaging-bandwidth test program `osu_bw.py`.
-  - **`threadcount_mpi.sh`** (also defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) runs `threadcount_mpi.py` which tests the possibility of using NumPy multithreading along with MPI parallelism.
+  - **`threadcount_mpi.sh`** and **`threadcount_mpi2.sh`** (both also defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) run `threadcount_mpi.py` to demonstrate the use NumPy multithreading along with MPI parallelism.
   - **`boxpct_mpi.sh`** (also defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) runs `boxpct.py` (which uses the `dem21` package) in MPI-parallel mode.
-  - **`gputest.sh`** (defined in [Using a GPU on Unity (without Apptainer)](#unity-gpu)) runs `gputest.py` as a non-Apptainer job that uses a GPU.
-  - **`app.sh`** (defined in [Running a container interactively or in batch job](#unity-run-container)) runs an Apptainer (containerized) job that doesn't use MPI or a GPU.
-  - **`app-mpi.sh`** (defined in [Running a container the uses MPI](#unity-mpi-container)) runs an Apptainer job that uses a GPU.
-  - **`app-gpu.sh`** (defined in [Running a container the uses a GPU](#unity-gpu-container)) runs an Apptainer job that uses a GPU.
+  - **`gputest.sh`** (defined in [Using a GPU on Unity (without Apptainer)](#unity-gpu)) runs `gputest.py` which uses a GPU.
+  - **`app-simple.sh`** (defined in [Running a container interactively or in batch job](#unity-run-container)) uses an Apptainer container to run `gputest.py` without a GPU.
+  - **`app-osubw.sh`** (defined in [Running a container the uses MPI](#unity-mpi-container)) uses an Apptainer container to run the MPI bandwidth-test program `osu_bw.py` in two MPI ranks.
+  - **`app-boxpct.sh`** (also defined in [Running a container the uses MPI](#unity-mpi-container)) uses an Apptainer container to run the test program `boxpct.py` which uses the `dem21` package in n MPI ranks.
+  - **`app-gputest.sh`** (defined in [Running a container the uses a GPU](#unity-gpu-container)) uses an Apptainer container to run `gputest.py`  which uses a GPU.
 
 ### Installing a local package<a id="local-package"></a>
 
