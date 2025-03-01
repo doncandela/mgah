@@ -325,7 +325,7 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
 
 ### Installing a local package<a id="local-package"></a>
 
-Somtimes it is convenient to write or otherwise come by a **package of Python modules** (containing class and function definitions), copy the package somewhere on the computer being used, and then make it possible to import the package from any directory on the same computer -- this is a **local package**, as opposed to a package downloaded from a repository of published packages like Anaconda or PyPi.  A way to structure such a local package is outlined in Appendix B of the cheat sheet  [Getting started with Git and GitHub](https://github.com/doncandela/gs-git).
+sometimes it is convenient to write or otherwise come by a **package of Python modules** (containing class and function definitions), copy the package somewhere on the computer being used, and then make it possible to import the package from any directory on the same computer -- this is a **local package**, as opposed to a package downloaded from a repository of published packages like Anaconda or PyPi.  A way to structure such a local package is outlined in Appendix B of the cheat sheet  [Getting started with Git and GitHub](https://github.com/doncandela/gs-git).
 
 In other sections of this document it is shown how a local package like this can be [installed on an HPC cluster](#local-package-unity) like Unity (in user space), and how it can be [installed in an Apptainer container](#local-package-container) which can then be used on a PC or on an HPC cluster.  As a starting point this section shows how a local package can be installed on a Linux PC, not using Apptainer.
 
@@ -1693,6 +1693,8 @@ Finally, the computational resources of an HPC cluster are only useful if availa
          ForwardAgent yes                        # this is the new line added
     ```
     
+    It will be necessary to do this on **every PC** that you will use to SSH into Unity and then tell Unity to clone from GH, and you will need to disconnect form Unity and SSH into it again for this to take effect.
+    
     After you do this you will be able do the same check on Unity as was done on the PC that you have SSH access to GH:
     
     ```
@@ -1896,20 +1898,21 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   
   - This is done much the same way as installing a local package on a PC, as [shown above](#local-package).
   
-  - Following the same example as in that section, the repository for the **`dcfuncs`** package has been cloned to a directory `work/pi_<userc>...dcfuncs` on Unity. Then a Conda environment **`dfs`** is created and NumPy and  `dcfuncs` are installed in that environment.
+  - Following the same example as in that section, the repository for the **`dcfuncs`** package is cloned to a directory `work/pi_<userc>...clones/dcfuncs` on Unity. Then a Conda environment **`dfs`** is created and NumPy and  `dcfuncs` are installed in that environment.
     
     ```
-    $ unity-compute                    # get shell on a compute node
+    $ unity-compute                          # get shell on a compute node
+    (wait for shell on compute node to come up)
     $ module load conda/latest
     $ conda create -n dfs python=3.12
     $ conda activate dfs
-    (dfs)..$ conda install numpy       # needed by dcfuncs
-    (dfs)..$ mkdir foo; cd foo         # make and go to directory where we will copy the repo...
-    (dfs)..foo$ git clone https://github.com/doncandela/dcfuncs.git
-    (dfs)...foo$ cd dcfuncs; ls        # go into cloned repo was copied
+    (dfs)..$ conda install numpy              # needed by dcfuncs
+    (dfs)$ cd ..clones                        # go to directory where will put clone
+    (dfs)..clones$ git clone https://github.com/doncandela/dcfuncs.git
+    (dfs)..clones$ cd dcfuncs; ls             # go into the cloned repo
     LICENSE  README.md  pyproject.toml  setup.py  src  test
-    (dfs)...foo/dcfuncs$ pip install -e .  # install dcfuncs to current environment
-    (dfs)...foo/dcfuncs$ pip list
+    (dfs)...clones/dcfuncs$ pip install -e .  # install dcfuncs to current environment
+    (dfs)...clones/dcfuncs$ pip list
     Package    Version Editable project location
     ---------- ------- ------_---------------------
     dcfuncs    1.0     /work/pi_<userc>/.../dcfuncs
@@ -1922,13 +1925,14 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   - Now that the environment `dfs` has been created, we can log completely out of Unity.  The environment it will persist and with it activated `dcfuncs` is available for importing in any directory. In a new login:
     
     ```
-    $ unity-compute                     # get shell on a compute node
+    $ unity-compute                       # get shell on a compute node
+    (wait for compute-node shell to come up)
     $ module load conda/latest
     $ conda activate dfs
-    (dfs)...$ cd ...tests               # go to directory test code for dcfuncs is located
+    (dfs)...$ cd ...clones/dcfuncs/test   # go to test-code directory in cloned repo
     (dfs)...test$ ls
     test-configs.py  test-util.ipynb  test-util.py  test0.yaml  test1.yaml
-    (dfs)...test$ python test-util.py   # we can run this program that imports dcfuncs
+    (dfs)...test$ python test-util.py     # we can run this program that imports dcfuncs
     This is: dutil.py 8/19/24 D.C.
     Using: util.py 8/18/24 D.C.
     
@@ -2215,55 +2219,104 @@ Finally, the computational resources of an HPC cluster are only useful if availa
 
 - **Run the MPI test programs `mpi_hw.py` and `osu_bw.py` on Unity interactively.**<a id="mpi-interactive"></a>
   
-  Here we get an interactive shell with resources for 4 MPI tasks (`-n 4`) and Infiniband connectivity (`-C ib`).  Then, after activating `ompi5` it is possible to run both test programs:
+  Here we get an interactive shell with resources for 4 MPI tasks (`-n 4`) on two nodes (-N 2) and Infiniband connectivity (`-C ib`) on the `cpu` partition.  Then, after activating `ompi5` it is possible to run the MPI hello-world program:
   
   ```
-  $ salloc -n 4 -C ib -p cpu    # allocate resources for 4 tasks with infiniband connectivity
+  $ salloc -n 4 -N 2 -C ib -p cpu
+  $ module load openmpi/5.0.3
   $ module load conda/latest
   $ conda activate ompi5
-  (ompi5)$ cd ..                # cd to directory containing mpi_hw.py and osu_bw.py
-  (ompi5)$ mpirun python mpi_hw.py
+  (ompi5)$ cd python-scripts         # cd to directory containing mpi_hw.py and osu_bw.py
+  (ompi5)python-scripts$ mpirun python mpi_hw.py
   Hello world from rank 3 of 4 on cpu045 running Open MPI v5.0.7
   Hello world from rank 1 of 4 on cpu045 running Open MPI v5.0.7
   Hello world from rank 0 of 4 on cpu045 running Open MPI v5.0.7
   Hello world from rank 2 of 4 on cpu045 running Open MPI v5.0.7
-  (ompi5)$ mpirun -n 2 python osu_bw.py
-  2
-  2
-  # MPI Bandwidth Test
-  # Size [B]    Bandwidth [MB/s]
-           1                2.34
-           2                4.70
-           4                9.50
-           8               18.89
-          16               38.12
-          32               75.55
-          64              151.97
-         128              281.79
-         256              568.91
-         512            1,112.57
-       1,024            2,186.24
-       2,048            4,075.44
-       4,096            7,339.38
-       8,192            5,063.21
-      16,384            7,586.27
-      32,768            4,978.93
-      65,536           14,129.02
-     131,072           17,683.36
-     262,144           14,483.06
-     524,288           12,724.91
-   1,048,576           12,466.87
-   2,097,152           12,909.73
-   4,194,304           13,240.96
-   8,388,608           13,533.30
-  16,777,216           12,812.09
   ```
   
   Notes:
   
-  - If `-n` is not supplied, the number of MPI ranks started by `mpirun` will default to the number of tasks allocated in Slurm, here 4 as specified to `salloc`.  But `osu_bw.py` requires exactly two ranks, so `-n 2` is supplied.
-  - The speeds reported by `osu_bw.py` (up to 17 GB/s) are vaguely similar to those seen on a PC in Part 1 of this document.  But without the `-C ib` option on `salloc`, speeds about 100 times slower were sometimes (but not always) seen.
-  - It doesn't seem necessary or helpful to load the OpenMPI module - the environment `ompi5` seems to create the needed conditions for running these MPI programs.
+  - If `-n` is not supplied, the number of MPI ranks started by `mpirun` will default to the number of tasks allocated in Slurm, here 4 as specified to `salloc`.  
+  - Two nodes were specified (`-N 2`) so intra- and inter-node communication  could be compared, see below.  For other purposes it may not be necessary to specify the number of nodes (`-N` can be omitted) or it may be wished to force all the ranks to be on one node (`-N 1`).
+  - We did not do `module load openmpi/5.0.3` to load OpenMPI.  This did not seem necessary or helpful -- it seemed that the environment `ompi5` built as above had the necessary information and linking for efficient running.
+  
+  Continuing the example above, we run the messaging speed test `osu_bw.py` supplying `-n 2` to MPI run because this program requires exactly 2 MPI ranks.  We also supply `--display bindings` which prints out which node and core each MPI rank is bound to:
+  
+  ```
+  python-scripts$ mpirun -n 2 --display bindings python osu_bw.py
+  [cpu045:789158] Rank 0 bound to package[0][core:15]
+  [cpu045:789158] Rank 1 bound to package[0][core:16]
+  2
+  2
+  # MPI Bandwidth Test
+  # Size [B]    Bandwidth [MB/s]
+           1                1.90
+           2                3.35
+           4                6.97
+           8               14.94
+          16               25.92
+          32               60.26
+          64              122.90
+         128              226.53
+         256              445.71
+         512              873.39
+       1,024            1,596.58
+       2,048            2,331.47
+       4,096            3,421.14
+       8,192            4,795.98
+      16,384            7,295.17
+      32,768            5,479.43
+      65,536           16,217.49
+     131,072           19,317.21
+     262,144           16,496.67
+     524,288           11,960.54
+   1,048,576           11,558.17
+   2,097,152           11,555.04
+   4,194,304           11,775.86
+   8,388,608           11,805.32
+  16,777,216           11,503.32
+  ```
+  
+  The speeds reported by `osu_bw.py` (up to 19 GB/s) are vaguely similar to those seen on a PC in Part 1 of this document. But without the `-C ib` option on `salloc`, speeds about 100 times slower were sometimes (but not always) seen.
+  
+  Note that with the [default binding strategy](https://docs.open-mpi.org/en/v5.0.x/launching-apps/scheduling.html) "by slot", both MPI ranks were placed on the same node.  To measure the communication speed between nodes, we can supply `--map-by node` to `mpirun`. The speeds were about the same for intra- and inter-node messaging, in this case:
+  
+  ```
+  python-scripts$ mpirun -n 2 --display bindings --map-by node python osu_bw.py
+  [cpu045:789178] Rank 0 bound to package[0][core:15]
+  [cpu046:1170654] Rank 1 bound to package[1][core:41]
+  2
+  # MPI Bandwidth Test
+  # Size [B]    Bandwidth [MB/s]
+  2
+           1                1.33
+           2                2.60
+           4                5.17
+           8               10.30
+          16               21.38
+          32               42.57
+          64               83.94
+         128              164.05
+         256              314.37
+         512              610.84
+       1,024            1,139.45
+       2,048            2,250.33
+       4,096            3,559.67
+       8,192            6,206.17
+      16,384            8,967.27
+      32,768           10,108.80
+      65,536           11,330.24
+     131,072           11,816.48
+     262,144           12,068.09
+     524,288           12,171.13
+   1,048,576           12,257.80
+   2,097,152           12,289.23
+   4,194,304           12,285.12
+   8,388,608           12,297.28
+  16,777,216           12,312.21
+  ```
+  
+  The OpenMPI version of `mpirun` has [many other options](https://docs.open-mpi.org/en/main/man-openmpi/man1/mpirun.1.html).  Note that in other MPI packages such as MPICH  `mpirun` has different, incompatible options.
 
 - **Use `sbatch` to run `osu_bw.py`** <a id="sbatch-mpi"></a>
   
@@ -2283,8 +2336,6 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   conda activate ompi5                 # environment with OpenMPI, NumPy and SciPy
   mpirun --display bindings python osu_bw.py
   ```
-  
-  The option `--display bindings` supplied to `mpirun` will print out which cores on which nodes are used by each MPI rank, which can be handy for debugging -- the many other options for the OpenMPI version of `mpirun` are [here](https://docs.open-mpi.org/en/main/man-openmpi/man1/mpirun.1.html).  Note that in other MPI packages such as MPICH  `mpirun` has different, incompatible options.
   
   Here is the output file produced by running `sbatch osu_bw.sh`.  In this case the two ranks happened to be allocated on the same node, but there is nothing in `osu_bw.sh` that forces that to be the case:
   
@@ -2676,7 +2727,31 @@ Unlike on my PCs, on Unity it was not necessary to explicitly specify `-c conda-
 To run on Unity, a suitable container image (`.sif` file) must be present in a Unity job I/O location under `/work/pi_<userc>`.  Note `.sif` files are typically one to several GB in size.
 
 - An image can be built on a Linux PC as described in [Using Apptainer on a Linux PC](#apptainer-pc) above, then [tranferred to Unity](#unity-file-transfer) using `scp` (the graphical [**Unity OnDemand**](https://ood.unity.rc.umass.edu/pun/sys/dashboard) does not seem able to transfer files this big).
+
 - It may be possible to build an image directly on Unity using the **`--fakeroot`** option to `apptainer build`, I haven’t tried this.
+
+- Due to their large sizes, I find it handy to put all my `.sif` files in one directory on Unity and define an alias that sets the environment variable `SIFS` to the path to this directory:
+  
+  ```
+  # Add this to my ~/.bash_aliases:
+  alias sifs='export SIFS=/work/pi_..../sifs'
+  ```
+  
+  Note if the path has any spaces `"$SIFS"` must be used rather than `$SIFS`  but this is not shown below. Then when a new shell is obtained `SIFS` can be set (and if desired, the list of container images and their sizes seen): 
+  
+  ```
+  $ sifs             # sets SIFS
+  $ du -ah $SIFS
+  1.3G    /work/pi_..../sifs/dem21.sif
+  1.3G    /work/pi_..../sifs/dfs.sif
+  3.3G    /work/pi_..../sifs/gpu.sif
+  1.2G    /work/pi_..../sifs/ompi5.sif
+  29M     /work/pi_..../sifs/os-only.sif
+  1.3G    /work/pi_..../sifs/pack.sif
+  8.3G    /work/pi_..../sifs
+  ```
+  
+  **It is assumed below that `SIFS` is set and the container images `dem21.sf`..`pack.sif` have been built as detailed in [Using Apptainer on a Linux PC](#apptainer-pc)  and transferred to Unity, as shown just above.**
 
 #### Running a container interactively or in a batch job<a id="unity-run-container"></a>
 
@@ -2685,15 +2760,16 @@ To run on Unity, a suitable container image (`.sif` file) must be present in a U
 This section describes how to run a container that **does not use MPI or a GPU** -- the additional steps needed for those things are in separate sections below.
 
 - **Running the container interactively:** Obtain a shell on a compute node, and in this shell load the Apptainer module (in fact, Apptainer typically is already loaded on Unity).  For many purposes it should not be necessary to load other modules, etc.:
-
-- Python and packages typically loaded with Conda like NumPy and SciPy should be pre-loaded in the container, all in the desired versions.
-
-- User packages installed locally should also be pre-loaded in the container.
-
-- It should not be necessary to set a Conda environment before running the container, unless this is required for code running outside the container.
+  
+  - Python and packages typically loaded with Conda like NumPy and SciPy should be pre-loaded in the container, all in the desired versions.
+  
+  - User packages installed locally should also be pre-loaded in the container.
+  
+  - It should not be necessary to set a Conda environment before running the container, unless this is required for code running outside the container.
   
   ```
   $ salloc -c 6 -p cpu    # Get 6 cores on a compute node in the cpu partition
+  $ sifs                  # set SIFS to point to directory where .sif files are kept
   $ module load apptainer/latest
   ```
 
