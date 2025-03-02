@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   3/1/25
+mgah.md  D. Candela   3/2/25
 
 - [Introduction](#intro)  
   
@@ -69,8 +69,9 @@ mgah.md  D. Candela   3/1/25
     - [Running a container that uses MPI](#unity-mpi-container)
     - [Running a container the uses a GPU](#unity-gpu-container)
 
-- [Random notes on parallel speedup](#speedup-notes)
+- [Random notes on parallel computing in Python](#random-notes)
   
+  - [A long journey](#journey)
   - [Wall time and CPU time](#wall-cpu-time)
   - [Factors other than parallelism affecting execution speed](#other-speed-factors)
   - [Strong and weak scaling](#strong-weak-scaling)
@@ -616,6 +617,8 @@ Note, however, that parallelism across all the cores of any single node of an HP
   It can be seen that the inter-rank communication speed is about 9 GB/s for messages size 65 kB - 4 MB, and slower for messages outside this range.
 
 #### A more elaborate MPI program: `boxpct.py` with the `dem21` package<a id="boxpct-dem21"></a>
+
+**TODO** Run bigger sim on candela-21 for speed comparison with Unity
 
 Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (not publically available) as an example of a much more elaborate MPI program.  It is assumed that OpenMPI has been installed on the PC as [described above](#install-openmpi).
 
@@ -1425,7 +1428,9 @@ Next we make a container with the local package **`dcfuncs`** installed inside i
 
 #### A container to run the more elaborate MPI package `dem21`<a id="dem21-container"></a>
 
-- Make a definition file **`dem21.def`** with the following contents. This is like `ompi5.def` in the previous section, but with the following additions to install the `dem21` package in the container (see [A container with a local Python package installed](#local-package-container) above):
+- **TODO** Run bigger sim with container to see what difference it makes.
+  
+  Make a definition file **`dem21.def`** with the following contents. This is like `ompi5.def` in the previous section, but with the following additions to install the `dem21` package in the container (see [A container with a local Python package installed](#local-package-container) above):
   
   - There is a `%files` section that copies the `dem21` package (assumed to be in the directory from which the `apptainer build` is run) into the container.
   - The `%post` section includes commands that install additional remote packages needed by `dem21` and install `dem21`  as a local package, as is done without a container in [A more elaborate MPI program...](#boxpct-dem21) above.
@@ -2531,7 +2536,7 @@ Notes:
 
 #### Use `sbatch` to run `boxpct.py + dem21` with MPI<a id="sbatch-dem21"></a>
 
-See [A more elaborate MPI program](#boxpct-dem21) above for the corresponding steps on a PC.
+See [A more elaborate MPI program](#boxpct-dem21) above for the corresponding steps on a PC. **TODO** run bigger sim.
 
 - As in that section, the **`dem21`** package is cloned into a directory `try-dem21` on Unity:
   
@@ -2828,7 +2833,7 @@ This section describes how to run a container that **does not use MPI or a GPU**
   
   It is interesting to see what outside files can be accessed from inside a container  -- this depends on how the system admins have set things up.  Poking around a container on Unity after doing `apptainer shell..` from a directory under `/work` , it seemed that from inside the container I could access all files under `/work` , but under `/home` I could only see the files under my own subdirectory of `/home` (as of 3/25).
 
-- **Running a  (non-MPI, non-GPU) container with a batch job.**   For this purpose we have copied the python script `gputest.py` to  a Unity directory `/work/.../try-gputest` (this was also done in earlier sections showing how to run batch jobs without Apptainer). For now we will run `gputest.py` from a container that that does not contain CuPy, which will cause it not to use a GPU.  The container **`dfs.sif`** used just above would work, but here we use the even simpler container **`pack.sif`** defined in [A container including chosen Python packages](#packages-container) .  An sbatch script **`app-simple.sh`** with the following contents is put in the directory `try-gputest`:
+- **Running a  (non-MPI, non-GPU) container with a batch job.**<a id="app-sbatch"></a> For this purpose we have copied the python script `gputest.py` to  a Unity directory `/work/.../try-gputest` (this was also done in earlier sections showing how to run batch jobs without Apptainer). For now we will run `gputest.py` from a container that that does not contain CuPy, which will cause it not to use a GPU.  The container **`dfs.sif`** used just above would work, but here we use the even simpler container **`pack.sif`** defined in [A container including chosen Python packages](#packages-container) .  An sbatch script **`app-simple.sh`** with the following contents is put in the directory `try-gputest`:
   
   ```
   #!/bin/bash
@@ -2872,97 +2877,276 @@ This section describes how to run a container that **does not use MPI or a GPU**
 
 #### Running a container that uses MPI<a id="unity-mpi-container"></a>
 
-TODO haven't tried this yet
+Here this is shown only as a batch job, although this could be done interactively.  We combine things from the sections above on [running a non-MPI container on Unity](#unity-run-container), [running a container with MPI on a PC](#mpi-container), and [running a non-containerized MPI job on Unity](#unity-mpi).
+
+For the examples here it assumed that the needed image file (**`ompi.def`** or **`dem21.def`**) has been built on a PC as shown in the sections referenced above and transferred to a directory under `/work/pi...` on Unity -- also that `sifs` has been aliased to a command that sets the environment variable `SIFS` to point to this directory, as [discussed here](#images-to-unity).
+
+- **Running the messaging test program `osu_bw.py`.** 
+  
+  - (As was done earlier) `osu_bw.py` is copied to a directory `try-mpi`. Now we also put in this directory an sbatch script **`app-osubw.sh`** with these contents:
+    
+    ```
+    #!/bin/bash
+    # app-osubw.sh 3/2/25 D.C.
+    # Two-task sbatch script uses an Apptainer container ompi5.sif that
+    # has OpenMPI to run osu_bw.py, which measures the commnunication
+    # speed between two MPI ranks.
+    # Activates the Conda environment ompi5 to make OpenMPI available
+    # outside the container.
+    # Must set SIFS to directory containing ompi5.sif before running this
+    # script in a directory containing osu_bw.py
+    #SBATCH -n 2                       # allocate for two MPI ranks
+    #SBATCH -p cpu                     # submit to partition cpu
+    #SBATCH -C ib                      # require inifiniband connectivity
+    echo nodelist=$SLURM_JOB_NODELIST  # print list of nodes used
+    module purge                       # unload all modules
+    module load apptainer/latest
+    module load conda/latest
+    conda activate ompi5
+    # mpirun will run container ompi5.sif in two ranks; in each rank
+    # python in container will run osu_bw.py in CWD.
+    mpirun --display bindings \
+        apptainer exec $SIFS/ompi5.sif python osu_bw.py
+    ```
+    
+    Note the following differences from the non-MPI Apptainer script **`app-simple.sh`** in the previous section:
+    
+    - `#SBATCH -n ..` is used to tell Slurm to allocated for `n` tasks -- `mpirun` without an `-n ..` option will automatically start this number of ranks.
+    
+    - `SBATCH -C ib` is used to constrain to nodes with Infiniband connectivity; without this setting `osu_bw.py` sometimes reported extremely slow messaging speeds.
+    
+    - `mpirun` is used to run `n` separate copies of the container `ompi5.sif`.  It is handy to include the option`--display bindings` to see which cores on which nodes each MPI rank is bound to.
+    
+    - OpenMPI must be available *outside* the container, otherwise the `mpirun` command is not recognized.  In the script above this is accomplished by activating the Conda environment `ompi5`, which was created [in this section](conda-mpi-unity). Alternatively, it seemed to work to load the module `openmpi/5.0.3` but with neither of these things the job will fail.  As found in [this section](#mpi-interactive) the code seemed to run about the same or better when the environment was used as shown above (rather than the module), but I have no idea why this is or if it is true in general.
+  
+  - We run the script (from a login shell, if desired) , and look at the output:
+    
+    ```
+    $ cd try-mpi; ls
+    app-osubw.sh osu_by.py ...
+    try-mpi$ sifs                    # set SIFS
+    try-mpi$ sbatch app-osubw.sh
+    Submitted batch job 29328427
+    (wait until 'squeue --me' shows that job has completed)
+    try-mpi$ cat slurm-29328427.out
+    nodelist=cpu045
+    Loading apptainer version latest
+    Loading conda
+    [cpu045:824253] Rank 0 bound to package[0][core:25]
+    [cpu045:824253] Rank 1 bound to package[1][core:53]
+    2
+    # MPI Bandwidth Test
+    # Size [B]    Bandwidth [MB/s]
+    2
+             1                1.70
+             2                2.89
+             4                6.93
+             8               13.98
+            16               22.59
+            32               45.21
+            64               83.65
+           128              134.33
+           256              249.42
+           512              517.26
+         1,024              900.21
+         2,048            1,421.11
+         4,096            2,285.36
+         8,192            4,026.22
+        16,384            6,426.33
+        32,768            9,516.64
+        65,536           12,547.40
+       131,072           13,066.41
+       262,144            8,901.97
+       524,288            9,658.30
+     1,048,576            9,970.96
+     2,097,152           10,067.05
+     4,194,304           10,192.10
+     8,388,608           10,037.58
+    16,777,216            7,602.58
+    ```
+    
+    Following  [this section](#mpi-interactive) a modified sbatch script **`app-osubwmod.sh`** was written that used `#SBATCH -N 2` and the option `--map-by node` to `mpirun` to force the two MPI ranks to be on different nodes. **TODO** seemed to be about 3 times slower than when on one node (2-3 GB/s max) - also one-node apptainer results below (13 GB/s max) are slower than unity non-apptainer results (19 GB/s one node, 12 GB/s two nodes). On PC (only has one node, no slurm) found 10 GB/s without apptainer, 44 GB/s with apptainer.
+
+- **Running the `dem21` test program `boxpct.py`.** 
+  
+  - **TODO** run bigger sim
+    
+    (As was done earlier) `boxpct.py` is copied do a directory `try-dem21`. Now we also put in this directory an sbatch script **`app-boxpct.sh`** with these contents:
+    
+    ```
+    x
+    ```
+    
+    note
+  
+  - We run the script (from a login shell, if desired) and look at the output:
+    
+    ```
+    $ cd try-dem21; ls
+    app-dem21.sh boxpct.py ...
+    try-dem21$ sifs                    # set SIFS
+    try-dem2$ sbatch app-boxpct.sh
+    Submitted batch job 29323951
+    (wait until 'squeue --me' shows that job has completed)
+    try-dem21$ cat slurm-29323951.out
+    ```
+    
+    note
+  
+  - x
+
+- **Running a larger DEM simulation with `dem21`.** 
+  
+  - x
 
 #### Running a container the uses a GPU<a id="unity-gpu-container"></a>
 
 - This is very similar to running a non-GPU container as described above, with these differences:
-
-- Obviously this must be done on a node with GPU(s), with a GPU allocated to the job by SLURM.
-
-- Both CUDA and Apptainer modules should be loaded (although both packages seem to be pre-loaded on GPU nodes).
-
-- The container (`.sif file`) must have been built with CUDA libraries. Installing CuPy in the container build definition seems to accomplish this.
-
-- Apptainer commands running the container must have the --nv flag to make the external CUDA libraries available.
-
-- Here is an example of these things in action for **interactive use of a GPU with a container**:
-
-- An interactive shell is allocated on a compute node with 6 cores and one GPU, then CUDA and Apptainer modules are loaded (`nvidia-smi` checks that the GPU is available but is not necessary here):
   
-  ```
-  $ salloc -c 6 -G 1 -p gpu
-  $ module load cuda/12.6
-  $ module load apptainer/latest
-  $ nvidia-smi
-  Tue Jan 14 16:57:25 2025
-  +-----------------------------------------------------------------------------------------+
-  | NVIDIA-SMI 550.127.05             Driver Version: 550.127.05     CUDA Version: 12.4
+  - Obviously this must be done on a node with GPU(s), with a GPU allocated to the job by SLURM.
+  - Both CUDA and Apptainer modules should be loaded (although both packages seem to be pre-loaded on GPU nodes).
+  - The container (`.sif file`) must have been built with CUDA libraries. Installing CuPy in the container build definition seems to accomplish this.
+  - Apptainer commands running the container must have the --nv flag to make the external CUDA libraries available.
+
+- Here is an example of these things in action for **interactive use of a GPU with a container**:  
+  
+  - As [described earlier](#images-to-unity) the container **`gpu.sif`** (built on a PC as in [A container that can use a GPU](#gpu-container)) was copied to a Unity directory under `/work/pi..` and the alias `sifs` was set up to set the environment variable `SIFS` to point to this directory.
+  
+  - `gputest.py` was copied to the directory `try-gputest` (this was already done for other sections above).
+  
+  - An interactive shell is allocated on a compute node with 6 cores and one GPU, then CUDA and Apptainer modules are loaded (`nvidia-smi` checks that the GPU is available but is not necessary here):
+    
+    ```
+    $ salloc -c 6 -G 1 -p gpu
+    (wait for the compute-node shell to come up)
+    $ module load apptainer/latest
+    $ module load cuda/12.6
+    $ nvidia-smi
+    Tue Jan 14 16:57:25 2025
+    +-----------------------------------------------------------------------------------------+
+    | NVIDIA-SMI 550.127.05             Driver Version: 550.127.05     CUDA Version: 12.4
                                ...
-  ```
-
-- The container **`gpu.sif`** (built as described in [A container that can use a GPU](#gpu-container) above and the Python script `gputest.py` are put in a directory on Unity.  Then `apptainer exec` with the flag `--nv` is able to use the GPU:
+    ```
   
-  ```
-  $ ls
-  gpu.sif gputest.py
-  $ apptainer exec --nv gpu.sif python gputest.py
-  Running: gputest.py 11/22/23 D.C.
-  Local time: Tue Jan 14 17:00:08 2025
-  GPU 0 has compute capacity 6.1, 28 SMs, 11.71 GB RAM, guess model = None
-  CPU timings use last 10 of 11 trials
-  GPU timings use last 25 of 28 trials
-  
-  ***************** Doing test dense_mult ******************
-  Multiply M*M=N element dense matrices
-  
-  *********************************************************
-  
-  ************ Using float64 **************
-         N     flop make mats  CPU test *CPU op/s*  GPU test *GPU op/s*  GPU xfer xfer rate
-    99,856 6.30e+07 5.57e-03s 1.04e-03s 6.04e+10/s 2.76e-04s 2.28e+11/s 9.48e-03s  0.34GB/s
-                                      ...
-  ```
+  - Now `apptainer exec` with the flag `--nv` is able to use the GPU.  Note that it is not necessary to set a Conda environment -- running in the container replaces this:
+    
+    ```
+    $ cd try-gputest; ls
+    gputest.py ...
+    try-gputest$ sifs                  # set SIFS
+    try-gputest$ apptainer exec --nv $SIFS/gpu.sif python gputest.py
+    Running: gputest.py 11/22/23 D.C.
+    Local time: Tue Jan 14 17:00:08 2025
+    GPU 0 has compute capacity 6.1, 28 SMs, 11.71 GB RAM, guess model = None
+    CPU timings use last 10 of 11 trials
+    GPU timings use last 25 of 28 trials
+    
+    ***************** Doing test dense_mult ******************
+    Multiply M*M=N element dense matrices
+    
+    *********************************************************
+    
+    ************ Using float64 **************
+           N     flop make mats  CPU test *CPU op/s*  GPU test *GPU op/s*  GPU xfer xfer rate
+      99,856 6.30e+07 5.57e-03s 1.04e-03s 6.04e+10/s 2.76e-04s 2.28e+11/s 9.48e-03s  0.34GB/s
+                                        ...
+    ```
 
 - **A batch job using a container, with a GPU.**
-
-- This is similar to the non-GPU container job shown earlier, with these differences:
-
-- We request a GPU, and submit to a GPU partition.
-
-- In addition to Apptainer, we need to load the module for CUDA.
-
-- We use the container `gpu.sif` that was built including Cupy.
-
-- We need the `–-nv` flag on apptainer exec.
-
-- Here is an sbatch script **`app-gpu.sh`** that incorporates these changes:
   
-  ```
-  #!/bin/bash
-  # app-gpu.sh 2/5/24 D.C.
-  # One-task sbatch script runs an Apptainer container that
-  # uses a GPU.
+  - This is similar to the [non-GPU batch container job shown earlier](#app-sbatch), with these differences: 
+    
+    - We request a GPU, and submit to a GPU partition.
+    - In addition to Apptainer, we need to load the module for CUDA.
+    - We use the container `gpu.sif` that was built including Cupy.
+    - We need the `–-nv` flag on apptainer exec.
   
-  #SBATCH -c 6                  # use 6 CPU cores
-  #SBATCH -G 1                  # use one GPU
-  #SBATCH -p gpu                # submit to partition gpu
-  
-  module purge                  # unload all modules
-  module load apptainer/latest
-  module load cuda/12.6         # need CUDA to use a GPU
-  
-  # run gputest.py in a container with CuPy, sending its output to a file
-  apptainer exec --nv gpu.sif python gputest.py > app-gpu.out
-  ```
-  
-  To run the job:
-  
-  ```
-  (base) try-gputest$ sbatch app-gpu.sh # run in a directory containing gpu.sif and gputest.py
-  ```
+  - Here is an sbatch script **`app-gputest.sh`** that incorporates these changes, which we put in the same directory `try-gputest` as `gputest.py`:
+    
+    ```
+    #!/bin/bash
+    # app-gputest.sh 3/2/25 D.C.
+    # One-task sbatch script uses an Apptainer container gpu.sif
+    # that has CuPy to run gputest.py, which will use a GPU.
+    # Must set SIFS to directory containing gpu.sif before running this
+    # script in a directory containing gputest.py
+    #SBATCH -c 6                       # use 6 CPU cores
+    #SBATCH -G 1                       # use one GPU
+    #SBATCH -p gpu                     # submit to partition gpu
+    echo nodelist=$SLURM_JOB_NODELIST  # print list of nodes used
+    module purge                       # unload all modules
+    module load apptainer/latest
+    module load cuda/12.6              # need CUDA to use a GPU
+    # Use python in gpu.sif to run gputest.py in CWD; need --nv flag
+    # on apptainer exec to use a GPU.
+    apptainer exec --nv $SIFS/gpu.sif python gputest.py
+    ```
+    
+    As usual for `sbatch` jobs, we can run the job from a login node if desired:
+    
+    ```
+    $ cd try-gputest; ls
+    app-gputest.sh gputest.py ...
+    try-gputest$ sifs                    # set SIFS
+    try-gputest$ sbatch app-gputest.sh
+    Submitted batch job 29323951
+    (wait until 'squeue --me' shows that job has completed)
+    try-gputest$ cat slurm-29323951.out
+    nodelist=gypsum-gpu096
+    Loading apptainer version latest
+    Loading cuda version 12.6
+    Running: gputest.py 11/22/23 D.C.
+    Local time: Sun Mar  2 14:40:17 2025
+    GPU 0 has compute capacity 5.2, 24 SMs, 12.79 GB RAM, guess model = None
+    CPU timings use last 10 of 11 trials
+    GPU timings use last 25 of 28 trials
+    
+    ***************** Doing test dense_mult ******************
+    Multiply M*M=N element dense matrices
+    *********************************************************
+    
+    ************ Using float64 **************
+             N     flop make mats  CPU test *CPU op/s*  GPU test *GPU op/s*  GPU xfer xfer rate
+        99,856 6.30e+07 5.75e-03s 4.16e-04s 1.52e+11/s 5.77e-04s 1.09e+11/s 4.67e-03s  0.68GB/s
+                           ...
+    try-gputest$ seff 29323951
+    Job ID: 29323951
+    Cluster: unity
+    User/Group: candela_umass_edu/candela_umass_edu
+    State: COMPLETED (exit code 0)
+    Nodes: 1
+    Cores per node: 6
+    CPU Utilized: 00:03:15
+    CPU Efficiency: 19.12% of 00:17:00 core-walltime
+    Job Wall-clock time: 00:02:50
+    Memory Utilized: 2.76 GB
+    Memory Efficiency: 46.07% of 6.00 GB
+    ```
 
-## Random notes on parallel speedup<a id="speedup-notes"></a>
+## Random notes on parallel computing with Python<a id="random-notes"></a>
+
+### A long journey<a id="journey"></a>
+
+This "cheat sheet" on MPI, GPUs, Apptainer, and HPC (**MGAH**) has ended up longer than anticipated.  But finally this shows with examples how the elements of  MGAH can be used together in various useful combinations, including:
+
+- Using a Slurm cluster, both [without (**H**)](#unity-cluster) and [with (**AH**)](#unity-apptainer) Apptainer.
+
+- Running an MPI program on a PC, both [without (**M**)](#mpi-pc) and [with (**MA**)](#mpi-container) Apptainer.
+
+- Running an MPI program on a Slurm cluster, both [without (**MH**)](#unity-mpi) and [with (**MAH**)](#unity-mpi-container) Apptainer.
+
+- Running a GPU program on a PC, both [without (**G**)](#gpu-pc) and with [(**GA**) Apptainer](#gpu-container).
+
+- Running a GPU program on a Slurm cluster, both [without (**GH**)](#unity-gpu) and [with (**GAH**)](#unity-gpu-container) Apptainer.
+
+What haven't been shown explicitly here are examples of using MPI and GPUs together with or without Apptainer (**MGH**, **MGAH**)-- but I think the necessary ingredients to do this are in the sections above.
+
+The main advantages that emerged for each of the elements of MGAH were:
+
+- **MPI (M)** enables parallel computation that can use all cores of a PC, and then if needed scale to using all cores on multiple nodes in a cluster -- at the expense of figuring out in detail how to divide your code into multiple tasks that coordinate send messages to coordinate.
+- A **GPU (G)** parallelizes code more easily than MPI, but only if the code can make use of existing GPU-aware packages like CuPy.  While the degree of parallelism is limited by the GPU available, in practice this seems no worse than what can be done using MPI (unless HPC resources beyond those discussed in this document were obtained).
+- Containerization of code with **Apptainer (A)** does seem effective.  For example, all of the containers built and tested on PCs (using MPI, a GPU, or neither) worked without difficulty when simply copied to the Unity cluster.
+- Moving code to an **HPC cluster (H)** like Unity has proved useful to me mainly when the *volume* of work (e.g. number of simulations) increased, to enable completion of a study.  Individual jobs could be made to complete about 10 times faster than on a PC (if many cores were used for MPI, or a high-quality GPU could be used) -- but the big advantage over the PC was the ability to queue up many such jobs all at once.
 
 ### Wall time and CPU time<a id="wall-cpu-time"></a>
 
