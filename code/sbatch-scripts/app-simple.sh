@@ -11,4 +11,4 @@ echo nodelist=$SLURM_JOB_NODELIST  # print list of nodes used
 module purge                       # unload all modules
 module load apptainer/latest
 # Use python in pack.sif to run gputeset.py in CWD.
-apptainer exec "$SIFS"/pack.sif python gputest.py
+apptainer exec $SIFS/pack.sif python gputest.py

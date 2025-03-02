@@ -4223,7 +4223,7 @@ $ unity-slurm-find-nodes a100 | unity-slurm-node-usage    # show idleness of nod
 <ul>
 <li><p>You are not supposed to run interactive jobs on a login node.  Instead, from the login-node shell, issue a command like</p>
 <pre><code class="fenced-code-block">$ salloc -c 6 -p cpu</code></pre>
-<p>to allocate 6 cores on a node in the <code>cpu</code> partition and start an interactive shell on that node -- you will see the node name in the prompt. Similarly to allocate 6 cores and one GPU on a node in the <code>gpu</code> partition do</p>
+<p>to allocate 6 cores on a node in the <code>cpu</code> partition and start an interactive shell on that node -- when the compute node is allocated (which seems to take at least a few seconds, sometimes longer) you will see the node name in the prompt. Similarly to allocate 6 cores and one GPU on a node in the <code>gpu</code> partition do</p>
 <pre><code class="fenced-code-block">$ salloc -c 6 -G 1 -p gpu</code></pre>
 <p>In either case use <code>ctrl-d</code> to exit back to the login-node shell.</p>
 </li>
@@ -4310,7 +4310,7 @@ scipy           1.15.1</code></pre>
 </li>
 <li><p>Following the same example as in that section, the repository for the <strong><code>dcfuncs</code></strong> package is cloned to a directory <code>work/pi_&lt;userc&gt;...clones/dcfuncs</code> on Unity. Then a Conda environment <strong><code>dfs</code></strong> is created and NumPy and  <code>dcfuncs</code> are installed in that environment.</p>
 <pre><code class="fenced-code-block">$ unity-compute                          # get shell on a compute node
-(wait for shell on compute node to come up)
+(wait for the compute-node shell to come up)
 $ module load conda/latest
 $ conda create -n dfs python=3.12
 $ conda activate dfs
@@ -4331,7 +4331,7 @@ wheel      0.45.1</code></pre>
 </li>
 <li><p>Now that the environment <code>dfs</code> has been created, we can log completely out of Unity.  The environment it will persist and with it activated <code>dcfuncs</code> is available for importing in any directory. In a new login:</p>
 <pre><code class="fenced-code-block">$ unity-compute                       # get shell on a compute node
-(wait for compute-node shell to come up)
+(wait for the compute-node shell to come up)
 $ module load conda/latest
 $ conda activate dfs
 (dfs)...$ cd ...clones/dcfuncs/test   # go to test-code directory in cloned repo
@@ -4556,6 +4556,7 @@ Multiply M*M=N element dense matrices
 <p>  In the examples shown below, the latest version (5.0.3) was used, without CUDA  -- this worked, and at least sometimes it seemed that using the version with CUDA caused a problem -- but this was not explored in detail.</p>
 <p>  Next we create a Conda environment <strong><code>ompi5</code></strong> with Python, <code>mpi4py</code>, and other packages likely to be needed by programs running in this environment (here we show <code>numpy</code>, <code>scipy</code>, and <code>matplotlib</code>):</p>
 <pre><code class="fenced-code-block">$ unity-compute                 # get an interactive shell on a compute node
+(wait for the compute-node shell to come up)
 $ module load conda/latest
 $ module load openmpi/5.0.3
 $ conda create -n ompi5 python=3.12
@@ -4564,7 +4565,7 @@ $ conda activate ompi5
 (ompi5)..$ conda install numpy scipy matplotlib
 (ompi5)..$ mpirun --version
 mpirun (Open MPI) 5.0.7</code></pre>
-<pre><code class="indented-code-block">It probably is not necessary follow the steps exactly as shown above:</code></pre>
+<p>It probably is not necessary follow the steps exactly as shown above:</p>
 <ul>
 <li><p>It might be OK to load an OpenMPI module with CUDA, or it might not be necessary to load any OpenMPI module while creating the environment.</p>
 </li>
@@ -4575,6 +4576,7 @@ mpirun (Open MPI) 5.0.7</code></pre>
 <h4 class="atx" id="run-the-mpi-test-programs-mpi_hwpy-and-osu_bwpy-on-unity-interactivelylessa-iddouble-quotempi-interactivedouble-quotegreaterlessagreater">Run the MPI test programs <code>mpi_hw.py</code> and <code>osu_bw.py</code> on Unity interactively<a id="mpi-interactive"></a></h4>
 <p>Here we get an interactive shell with resources for 4 MPI tasks (<code>-n 4</code>) on two nodes (-N 2) and Infiniband connectivity (<code>-C ib</code>) on the <code>cpu</code> partition.  Then, after activating <code>ompi5</code> it is possible to run the MPI hello-world program:</p>
 <pre><code class="fenced-code-block">$ salloc -n 4 -N 2 -C ib -p cpu
+(wait for the compute-node shell to come up)
 $ module load openmpi/5.0.3
 $ module load conda/latest
 $ conda activate ompi5
@@ -4724,7 +4726,7 @@ module purge                         # unload all modules
 module load conda/latest             # need this to use conda commands
 conda activate ompi5                 # environment with OpenMPI, NumPy and SciPy
 mpirun --display bindings python threadcount_mpi.py</code></pre>
-<p>  Run this sbatch script, and examine its output file and efficiency as reported by <code>seff</code>. With the <code>sbatch</code> defaults, NumPy only uses one thread (one core) in each MPI rank:</p>
+<p>Run this sbatch script, and examine its output file and efficiency as reported by <code>seff</code>. With the <code>sbatch</code> defaults, NumPy only uses one thread (one core) in each MPI rank:</p>
 <pre><code class="fenced-code-block">try-mpi$ sbatch threadcount_mpi.sh
 Submitted batch job 29270594
 (wait for job to complete)
@@ -4767,7 +4769,7 @@ CPU Efficiency: 85.28% of 00:09:24 core-walltime
 Job Wall-clock time: 00:02:21
 Memory Utilized: 7.31 GB (estimated maximum)
 Memory Efficiency: 22.84% of 32.00 GB (8.00 GB/core)</code></pre>
-<p>  Here is a modified sbatch script <strong><code>threadcount_mpi2.sh</code></strong> that will enable NumPy to use two threads (two cores) in each MPI rank.  The modifications are (a) setting <code>#SBATCH -c 2</code> to allocate two cores per MPI rank, and (b) supplying the option <code>--cpus-per-rank 2</code> to <code>mpirun</code>.  Experimentally both of these modifications are needed to allow NumPy to multithread; conversely setting <code>OMP_NUM_THREADS</code> as  <a href="#multiple-cores">discussed above</a> for a non-MPI setting seems to have no effect here.</p>
+<p>Here is a modified sbatch script <strong><code>threadcount_mpi2.sh</code></strong> that will enable NumPy to use two threads (two cores) in each MPI rank.  The modifications are (a) setting <code>#SBATCH -c 2</code> to allocate two cores per MPI rank, and (b) supplying the option <code>--cpus-per-rank 2</code> to <code>mpirun</code>.  Experimentally both of these modifications are needed to allow NumPy to multithread; conversely setting <code>OMP_NUM_THREADS</code> as  <a href="#multiple-cores">discussed above</a> for a non-MPI setting seems to have no effect here.</p>
 <pre><code class="fenced-code-block">#!/bin/bash
 # threadcount_mpi2.sh 2/28/25 D.C.
 # sbatch script to run threadcount_mpi.py, which uses MPI to time matrix
@@ -4784,10 +4786,10 @@ module purge                         # unload all modules
 module load conda/latest             # need this to use conda commands
 conda activate ompi5                 # environment with OpenMPI, NumPy and SciPy
 mpirun --display bindings --cpus-per-rank 2 python threadcount_mpi.py</code></pre>
-<p>  Run the modified sbatch script, and examine its output file and efficiency:</p>
+<p>Run the modified sbatch script, and examine its output file and efficiency:</p>
 <pre><code class="fenced-code-block">try-mpi$ sbatch threadcount_mpi2.sh
 Submitted batch job 29273079
-(wait for job to complete)
+(wait until 'squeue --me' shows that job has completed)
 /try-mpi$ cat slurm-29273079.out
 nodelist=cpu[045-046],uri-cpu[009,049]
 Loading conda
@@ -4827,7 +4829,7 @@ CPU Efficiency: 72.64% of 00:09:52 core-walltime
 Job Wall-clock time: 00:01:14
 Memory Utilized: 7.41 GB (estimated maximum)
 Memory Efficiency: 11.57% of 64.00 GB (8.00 GB/core)</code></pre>
-<p>  Notes:</p>
+<p>Notes:</p>
 <ul>
 <li><p>The modified job used twice as many cores (8 rather than 4), and it ran about twice as fast because the time-consuming part of <code>threadcount_mpi.py</code> (a call to <code>np.matmul</code> to do the matrix multiplications) was able to use two threads rather than one.</p>
 </li>
@@ -4884,7 +4886,7 @@ mpirun --display bindings python boxpct.py</code></pre>
 <li><p>Now we can use this script to run <code>boxpct.py</code> in MPI-parallel mode:</p>
 <pre><code class="fenced-code-block">try-dem21$ sbatch boxpct.sh
 Submitted batch job 29279146
-(wait for job to complete)
+(wait until 'squeue --me' shows that job has completed)
 try-dem21$ cat slurm-29279146.out
 nodelist=cpu045
 Loading conda
@@ -4933,6 +4935,7 @@ scipy           1.15.1</code></pre>
 <ul>
 <li><p>Here we get an interactive shell with 6 cores and one GPU on a compute node in the <code>gpu</code> partition, and load a CUDA module (although CUDA typically seems to be loaded already on GPU nodes). Then we run <code>nvidia-smi</code> to check that the GPU and CUDA are available and get info on them (not sure why CUDA version reported by <code>nvidia-smi</code> doesn’t match module loaded):</p>
 <pre><code class="fenced-code-block">$ salloc -c 6 -G 1 -p gpu
+(wait for the compute-node shell to come up)
 $ module load cuda/12.6
 $ nvidia-smi
 Wed Jan 15 16:48:06 2025       
@@ -4985,7 +4988,7 @@ python gputest.py</code></pre>
 <li><p>Here we submit the job, then examine its output. Note this can be run in any (or no) Conda environment, and if desired on a login node, as it is the node allocated by <code>sbatch</code> that will be used to run the job:</p>
 <pre><code class="fenced-code-block">try-gputest$ sbatch gputest.sh
 Submitted batch job 29282756
-(wait for job to complete)
+(wait until 'squeue --me' shows that job has completed)
 $ cat slurm-29282756.out
 nodelist=gypsum-gpu168
 Loading conda
@@ -5012,9 +5015,9 @@ Multiply M*M=N element dense matrices
 <li><p>It may be possible to build an image directly on Unity using the <strong><code>--fakeroot</code></strong> option to <code>apptainer build</code>, I haven’t tried this.</p>
 </li>
 <li><p>Due to their large sizes, I find it handy to put all my <code>.sif</code> files in one directory on Unity and define an alias that sets the environment variable <code>SIFS</code> to the path to this directory:</p>
-<pre><code class="fenced-code-block"># Add this to my ~/.bash_aliases:
+<pre><code class="fenced-code-block"># Add this to ~/.bash_aliases:
 alias sifs='export SIFS=/work/pi_..../sifs'</code></pre>
-<p>Note if the path has any spaces <code>"$SIFS"</code> must be used rather than <code>$SIFS</code>  but this is not shown below. Then when a new shell is obtained <code>SIFS</code> can be set (and if desired, the list of container images and their sizes seen): </p>
+<p>If the <strong>path has any spaces</strong> <code>"$SIFS"</code> must be used rather than <code>$SIFS</code>  but this is not shown below. Then when a new shell is obtained <code>SIFS</code> can easily be set (and if desired, the list of container images and their sizes seen): </p>
 <pre><code class="fenced-code-block">$ sifs             # sets SIFS
 $ du -ah $SIFS
 1.3G&nbsp;&nbsp;&nbsp;&nbsp;/work/pi_..../sifs/dem21.sif
@@ -5024,73 +5027,87 @@ $ du -ah $SIFS
 29M&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/work/pi_..../sifs/os-only.sif
 1.3G    /work/pi_..../sifs/pack.sif
 8.3G    /work/pi_..../sifs</code></pre>
-<p><strong>It is assumed below that <code>SIFS</code> is set and the container images <code>dem21.sf</code>..<code>pack.sif</code> have been built as detailed in <a href="#apptainer-pc">Using Apptainer on a Linux PC</a>  and transferred to Unity, as shown just above.</strong></p>
+<p>It is assumed below that <strong><code>SIFS</code> is set</strong> and the <strong>container images <code>dem21.sf</code>..<code>pack.sif</code> have been built</strong> as detailed in <a href="#apptainer-pc">Using Apptainer on a Linux PC</a>  and transferred to Unity, as shown just above.</p>
 </li>
 </ul>
 <h4 class="atx" id="running-a-container-interactively-or-in-a-batch-joblessa-iddouble-quoteunity-run-containerdouble-quotegreaterlessagreater">Running a container interactively or in a batch job<a id="unity-run-container"></a></h4>
-<p><strong>TODO</strong> see what files can be accessed inside a container in unity - maybe not directories in work above starting directory?</p>
 <p>This section describes how to run a container that <strong>does not use MPI or a GPU</strong> -- the additional steps needed for those things are in separate sections below.</p>
 <ul>
-<li><p><strong>Running the container interactively:</strong> Obtain a shell on a compute node, and in this shell load the Apptainer module (in fact, Apptainer typically is already loaded on Unity).  For many purposes it should not be necessary to load other modules, etc.:</p>
+<li><p><strong>Running a container interactively.</strong>  Obtain a shell on a compute node, and in this shell load the Apptainer module (although it seems that on Unity Apptainer is typically already loaded).  For many purposes it should not be necessary to load other modules, etc.:</p>
 <ul>
-<li><p>Python and packages typically loaded with Conda like NumPy and SciPy should be pre-loaded in the container, all in the desired versions.</p>
+<li><p>Python and packages typically loaded with Conda like NumPy and SciPy should be pre-loaded in the container, all in the desired versions.  </p>
 </li>
 <li><p>User packages installed locally should also be pre-loaded in the container.</p>
 </li>
 <li><p>It should not be necessary to set a Conda environment before running the container, unless this is required for code running outside the container.</p>
-</li>
-</ul>
 <pre><code class="fenced-code-block">$ salloc -c 6 -p cpu    # Get 6 cores on a compute node in the cpu partition
+(wait for the compute-node shell to come up)
 $ sifs                  # set SIFS to point to directory where .sif files are kept
 $ module load apptainer/latest</code></pre>
 </li>
 </ul>
-<p>Here we have made a directory on Unity and copied into it:</p>
+<p>&nbsp;Here we have made a directory <code>try-tprogs</code> on Unity and copied into it:</p>
 <ul>
-<li><p>The container <strong><code>dsf.sif</code></strong> that was built in the section <a href="#local-package-container">A container with a local Python package installed</a> that can run programs that import the <strong><code>dcfuncs</code></strong> package.</p>
-</li>
-<li><p>The short program <code>np-version.py</code> that imports Numpy and prints its version number.</p>
-</li>
-<li><p>The program <code>test-util.py</code> that imports the <code>dcfuncs</code> package and tests that it can be run. First we check the version of Python loaded on the Unity node we are using:</p>
-<pre><code class="fenced-code-block">$ ls
-dsf.sif  np-version.py  test-util.py
-$ python --version
+<li>The short program <code>np-version.py</code> that imports Numpy and prints its version number.</li>
+<li>The program <code>test-util.py</code> that imports the <code>dcfuncs</code> package and tests that it can be run.</li>
+</ul>
+<p>First we check the version of Python loaded on the Unity node we are using:</p>
+<pre><code class="fenced-code-block">$ cd try-tprogs; ls
+np-version.py  test-util.py
+test-tprogs$ python --version
 Python 3.12.3</code></pre>
-<p>Next we run the container, which executes the commands in the <code>%runscript</code> section of the container definition file:</p>
-<pre><code class="fenced-code-block">$ chmod +x dsf.sif    # only needed if transferring container made it non-executable
-$ ./dsf.sif
+<p>Next we run the container <strong><code>dfs.sif</code></strong> that was built in the section <a href="#local-package-container">A container with a local Python package installed</a>, which can run programs that import the <strong><code>dcfuncs</code></strong> package.  Running the container like this  executes the commands in the <code>%runscript</code> section of the container definition file:</p>
+<pre><code class="fenced-code-block">try-tprogs$ $SIFS/dfs.sif
 foo!</code></pre>
 <p>Shelling into the container we see the version of Python installed inside when it was built:</p>
-<pre><code class="fenced-code-block">$ apptainer shell dsf.sif
+<pre><code class="fenced-code-block">try-tprogs$ apptainer shell $SIFS/dfs.sif
 Apptainer&gt; python --version
 Python 3.12.8
-Apptainer&gt;             # ctrl-d to get out of container</code></pre>
-<p>Finally we use Python inside the container to run the scripts <code>np-version.py</code> and <code>test-util.py</code> that are outside the container.  The first script <code>np-version.py</code> uses NumPy installed in the container when it was built, independent of what Numpy if any exists outside the container.  The second script <code>test-util.py</code> imports and uses the package <code>dcfuncs</code>, which was installed locally inside the container when it was built:</p>
-<pre><code class="fenced-code-block">$ apptainer exec dsf.sif python np-version.py
-numpy version = 2.1.3
-$ apptainer exec dsf.sif python test-util.py
+Apptainer&gt;             # hit ctrl-d to get out of container
+exit</code></pre>
+<p>Next we use <code>python</code> inside the container to run the scripts <code>np-version.py</code> and <code>test-util.py</code> that are outside the container.  The first script <code>np-version.py</code> uses NumPy installed in the container when it was built, independent of what Numpy if any exists outside the container.  The second script <code>test-util.py</code> imports and uses the package <code>dcfuncs</code>, which was installed locally inside the container when it was built:</p>
+<pre><code class="fenced-code-block">try-tprogs$ apptainer exec $SIFS/dfs.sif python np-version.py
+numpy version = 2.2.1
+try-tprogs$ apptainer exec $SIFS/dfs.sif python test-util.py
 This is: dutil.py 8/19/24 D.C.
 Using: util.py 8/18/24 D.C.
-    ...</code></pre>
-<ul>
-<li><strong>Running a batch job using the container.</strong></li>
-</ul>
+  ...</code></pre>
+<p>It is interesting to see what outside files can be accessed from inside a container  -- this depends on how the system admins have set things up.  Poking around a container on Unity after doing <code>apptainer shell..</code> from a directory under <code>/work</code> , it seemed that from inside the container I could access all files under <code>/work</code> , but under <code>/home</code> I could only see the files under my own subdirectory of <code>/home</code> (as of 3/25).</p>
 </li>
-<li><p>For this purpose we have copied the python script <code>gputest.py</code> to the Unity directory that holds <strong><code>dsf.sif</code></strong>.  Because this container does not contain CuPy, if we use it to run <code>gputest.py</code> only the CPU will be used.  Here is an sbatch script called <strong><code>app.sh</code></strong>:</p>
+<li><p><strong>Running a  (non-MPI, non-GPU) container with a batch job.</strong>   For this purpose we have copied the python script <code>gputest.py</code> to  a Unity directory <code>/work/.../try-gputest</code> (this was also done in earlier sections showing how to run batch jobs without Apptainer). For now we will run <code>gputest.py</code> from a container that that does not contain CuPy, which will cause it not to use a GPU.  The container <strong><code>dfs.sif</code></strong> used just above would work, but here we use the even simpler container <strong><code>pack.sif</code></strong> defined in <a href="#packages-container">A container including chosen Python packages</a> .  An sbatch script <strong><code>app-simple.sh</code></strong> with the following contents is put in the directory <code>try-gputest</code>:</p>
 <pre><code class="fenced-code-block">#!/bin/bash
-# app.sh 2/5/25 D.C.
-# One-task sbatch script using runs an Apptainer container that
-# doesn't use MPI or a GPU.
-#SBATCH -c 6                  # use 6 CPU cores
-#SBATCH -p cpu                # submit to partition cpu
-
-module purge                  # unload all modules
+# app-simple.sh 3/1/25 D.C.
+# One-task sbatch script uses an Apptainer container pack.sif
+# that doesn't have CuPy or OpenMPI to run gputest.py (which detects
+# CuPy is not present and so doesn't use a GPU).
+# Must set SIFS to directory containing pack.sif before running this
+# script in a directory containing gputest.py.
+#SBATCH -c 6                       # use 6 CPU cores
+#SBATCH -p cpu                     # submit to partition cpu
+echo nodelist=$SLURM_JOB_NODELIST  # print list of nodes used
+module purge                       # unload all modules
 module load apptainer/latest
+# Use python in pack.sif to run gputeset.py in CWD.
+apptainer exec $SIFS/pack.sif python gputest.py</code></pre>
+<p>We can run the job from a login node, and there is no need to load any modules or set an environment as these are taken care of by the sbatch script above. Examining the output file,  it can be seen that <code>gputest.py</code> was unable to import <code>cupy</code> and so did not try to use a GPU:</p>
+<pre><code class="fenced-code-block">try-tprogs$ sifs          # sets SIFS to directory containing pack.sif 
+try-tprogs$ ls
+app-simple.sh  gputest.py
+try-tprogs$ sbatch app-simple.sh
+Submitted batch job 29310376
+(wait until 'squeue --me' shows that job has completed)
+try-gputest$ cat slurm-29310376.out
+nodelist=gypsum-gpu080
+Loading apptainer version latest
+Running: gputest.py 11/22/23 D.C.
+Local time: Sun Mar  2 02:41:10 2025
+Import cupy failed, using CPU only
+CPU timings use last 10 of 11 trials
 
-# run gputest.py in a container without CuPy, sending its output to a file
-apptainer exec dsf.sif python gputest.py &gt; app-nogpu.out</code></pre>
-<p>Notice the only module we need to load is Apptainer, and we do not need to set a Conda environment. To run the job:</p>
-<pre><code class="fenced-code-block">(base) $ sbatch app-gpu.sh    # run in directory containing dsf.sif and gputest.py</code></pre>
+***************** Doing test dense_mult ******************
+Multiply M*M=N element dense matrices
+*********************************************************
+                 ...</code></pre>
 </li>
 </ul>
 <h4 class="atx" id="running-a-container-that-uses-mpilessa-iddouble-quoteunity-mpi-containerdouble-quotegreaterlessagreater">Running a container that uses MPI<a id="unity-mpi-container"></a></h4>
