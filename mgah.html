@@ -3971,7 +3971,7 @@ Multiply M*M=N element dense matrices
 </li>
 </ul>
 <h2 class="atx" id="part-2-moving-code-to-a-slurm-hpc-clusterlessa-iddouble-quotemove-to-hpcdouble-quotegreaterlessagreater">Part 2: Moving code to a Slurm HPC cluster<a id="move-to-hpc"></a></h2>
-<h4 class="atx" id="why-do-itlessa-iddouble-quotewhy-hpcdouble-quotegreaterlessagreater">Why do it<a id="why-hpc"></a></h4>
+<h3 class="atx" id="why-do-itlessa-iddouble-quotewhy-hpcdouble-quotegreaterlessagreater">Why do it<a id="why-hpc"></a></h3>
 <p>In general one uses an HPC cluster to get more computational power (e.g. if doing simulations carry out bigger and/or more simulations) than might be otherwise possible, due to one or more of the following factors:</p>
 <ul>
 <li>For code can only run on one computer but can use multiple cores, an HPC cluster typically will have computers with high core count (up to 128 cores per node on Unity).</li>
@@ -4315,7 +4315,7 @@ $ module load conda/latest
 $ conda create -n dfs python=3.12
 $ conda activate dfs
 (dfs)..$ conda install numpy              # needed by dcfuncs
-(dfs)$ cd ..clones                        # go to directory where will put clone
+(dfs)..$ cd ..clones                      # go to directory where will put clone
 (dfs)..clones$ git clone https://github.com/doncandela/dcfuncs.git
 (dfs)..clones$ cd dcfuncs; ls             # go into the cloned repo
 LICENSE  README.md  pyproject.toml  setup.py  src  test
@@ -4369,13 +4369,13 @@ stoi results = 93801881091158, 6318, 249613385242335
 module purge                  # unload all modules
 module load python/3.12       # load version of Python needed
 python myscript.py &gt; output   # run myscript.py sending its output to a file</code></pre>
-<p>  Notes on script:</p>
+<p>  Notes on this script:</p>
 <ul>
 <li><p>The first line <code>#!/bin/bash</code> indicates Bash should be used to interpret the file (you could use a different shell).</p>
 </li>
 <li><p>The sbatch script is a regular shell file except that lines that <strong>start with <code>#SBATCH</code></strong> (exactly like this, in all caps) are interpreted specially by the <code>sbatch</code> command.  This means <code>#SBATCH</code> lines can be commented out by doubling the initial <code>#</code>, as shown above.</p>
 </li>
-<li><p>Next should come all the <code>#SBATCH</code> lines, which give information to Slurm on how to schedule the job.  Any <code>#SBATCH</code> lines after other shell commands other than comments are ignored.</p>
+<li><p>The <code>#SBATCH</code> lines, which give information to Slurm on how to schedule the job, must come before any regular shell commands.  Any <code>#SBATCH</code> lines after other shell commands other than comments are ignored.</p>
 </li>
 <li><p>The remainder of the sbatch script is ordinary shell commands.  Typically these could load modules as needed, then run the desired program.</p>
 </li>
@@ -4385,21 +4385,21 @@ conda activate myenv</code></pre>
 </li>
 <li><p>Programs can be run directly in the script as shown above, or as arguments to the Slurm command <code>srun</code> on a line in the script like this:</p>
 <pre><code class="fenced-code-block">srun python myscript.py &gt; output</code></pre>
-<p>Using <code>srun</code> establishes a <strong>job step</strong> and can also launch <strong>multiple copies of the program</strong> as separate tasks if <code>#SBATCH -n=..</code> was used to specify more than one task – see <a href="https://groups.oist.jp/scs/advanced-slurm">this page</a> for more info.</p>
+<p>Using <code>srun</code> establishes a <strong>job step</strong> and can also launch <strong>multiple copies of the program</strong> as separate tasks if <code>#SBATCH -n ..</code> was used to specify more than one task – see <a href="https://groups.oist.jp/scs/advanced-slurm">this page</a> for more info.</p>
 </li>
-<li><p>MPI programs can be run using <code>srun</code> or <code>mpirun</code>.  Note <code>srun</code> is a Slurm command that can start multiple copies of any program, whether or note MPI is available.  Conversely <code>mpirun</code> is only available in an environment in which MPI is available, see <a href="#unity-mpi">Using MPI on Unity</a> below.</p>
+<li><p>MPI programs can be run using <code>srun</code> or <code>mpirun</code>.  Note <code>srun</code> is a Slurm command that can start multiple copies of any program, whether or not MPI is available.  Conversely <code>mpirun</code> is only available in an environment in which MPI is available, see <a href="#unity-mpi">Using MPI on Unity</a> below.</p>
 <p>This starts 10 copies of <code>myscript.py</code> as separate tasks:</p>
 <pre><code class="fenced-code-block">mpirun -n 10 python myscript.py &gt; output</code></pre>
 <p>while this sets the number of copies (MPI tasks) according to the <code>#SBATCH -n=...</code> setting:</p>
 <pre><code class="fenced-code-block">mpirun python myscript.py &gt; output</code></pre>
-<p>The second form is probably preferable -- I'm not sure what happens if the <code>#SBATCH -n=...</code> and <code>mpirun -n ..</code> settings disagree (probably nothing good).</p>
+<p>The second form is probably preferable unless there is some reason to have <code>mpirun</code> to create less tasks than were allocated by <code>#SBATCH -n ..</code>.</p>
 </li>
 </ul>
 </li>
 <li><p>Some resources for writing sbatch scripts, especially on choosing and setting #SBATCH parameters:</p>
 <ul>
 <li>In Unity docs: <a href="https://docs.unity.rc.umass.edu/documentation/jobs/sbatch/">Introduction to batch jobs</a>,  <a href="https://docs.unity.rc.umass.edu/documentation/get-started/hpc-theory/threads-cores-processes-sockets/">Overview of threads, cores and sockets</a>, and <a href="https://docs.unity.rc.umass.edu/documentation/jobs/slurm/">Slurm cheat sheet</a>.</li>
-<li>In official Slurm docs: <a href="https://slurm.schedmd.com/sbatch.html">sbatch options</a> (there are many options).</li>
+<li>In official Slurm docs: <a href="https://slurm.schedmd.com/sbatch.html">sbatch options</a> (there are many).</li>
 <li>A <a href="https://hpc.llnl.gov/banks-jobs/running-jobs/slurm-quick-start-guide">quick-start guide</a> from Lawrence Livermore National Lab. Warning: some things here are particular to LLNL, won’t apply to Unity.</li>
 <li><a href="https://docs-research-it.berkeley.edu/services/high-performance-computing/user-guide/running-your-jobs/scheduler-examples/">Examples of sbatch scripts for different kinds</a> of jobs from Berkeley (same warning).</li>
 <li>Some <a href="https://groups.oist.jp/scs/advanced-slurm">more advanced Slurm topics</a> (array jobs, using srun in sbatch scripts to run multiple copies of one or more programs…) from Okinawa Institute of Science and Technology.</li>
@@ -4407,73 +4407,74 @@ conda activate myenv</code></pre>
 </li>
 <li><p>In Slurm, a <strong>task</strong> can use one or more <strong>cores</strong> (which are called cpu’s in #SBATCH settings), but a task always lives on a single <strong>node</strong>, which typically means a single "computer" -- one or two CPU chips on a board with shared RAM and other resources like GPUs.  On the other hand, a single node can run multiple tasks if it has enough cores. </p>
 <ul>
-<li>For an <strong>MPI job</strong> (for which Slurm was originally conceived) there will be <strong>more than one task</strong> and <strong>each task corresponds to an MPI rank, running an independent copy of the code.</strong>  </li>
-<li>For a <strong>non-MPI job</strong> there might be a <strong>single task</strong> (possibly multi-core), which therefore uses part or all of a <strong>single node</strong>.  These match the Slurm defaults: <code>#SBATCH n=1</code> gives one task, <code>#SBATCH N=1</code> gives one node.</li>
+<li>For a <strong>non-MPI job</strong> there might be a <strong>single task</strong> (possibly multi-core), which therefore uses part or all of a <strong>single node</strong>.  These match the Slurm default <code>#SBATCH n=1</code> which will automatically live on one node.</li>
+<li>For an <strong>MPI job</strong> (for which Slurm was originally conceived) there will ordinarily be <strong>more than one task</strong> and <strong>each task corresponds to an MPI rank, running an independent copy of the code.</strong>  I believe these tasks might run on one or more nodes unless <code>#SBATCH -N=...</code> is used to fix the number of nodes.</li>
 <li><a href="https://groups.oist.jp/scs/advanced-slurm">This page</a> shows how <strong><code>srun</code></strong> can be used to run multiple copies of a program that don't communicate using MPI -- thus <strong>more than one task</strong> (I haven't tried this).</li>
 </ul>
 </li>
-<li><p>Here are some #SBATCH settings useful for both single-task (non-MPI) and multi-task (MPI) jobs:   </p>
-<pre><code class="fenced-code-block">#SBATCH -J=&lt;name&gt;           # set a name for job, otherwise will be script filename
+<li><p>Here are some #SBATCH settings useful for both single-task (non-MPI) and multi-task (MPI) jobs.  Note many command have two equivalent forms: a single-dash+single-letter form that does not need an equals sign, and a double-dash+multi-letter form that takes an equal sign before any supplied value.</p>
+<pre><code class="fenced-code-block">#SBATCH -J &lt;name&gt;           # set a name for job, otherwise will be script filename
 #SBATCH --job-name=&lt;name&gt;   # “ “
 
-#SBATCH -o=&lt;ofname&gt;         # set filename for output, otherwise will be slurm-&lt;jobid&gt;.out
+#SBATCH -o &lt;ofname&gt;         # set filename for output, otherwise will be slurm-&lt;jobid&gt;.out
 #SBATCH --output=&lt;ofname&gt;   # “ “
-#SBATCH -e=&lt;efname&gt;         # set filename for error output, otherwise will go to output file
+#SBATCH -e &lt;efname&gt;         # set filename for error output, otherwise will go to output file
 #SBATCH --error=&lt;name&gt;      # “ “
 
-#SBATCH –-mail-type=END     # send email to submitting user when job ends
-#SBATCH –-mail-type=ALL     # send email when job starts, ends, or fails
+#SBATCH --mail-type=END     # send email to submitting user when job ends
+#SBATCH --mail-type=ALL     # send email when job starts, ends, or fails
 
-#SBATCH -p=&lt;pname&gt;          # run the job on the nodes in partition &lt;pname&gt; 
+#SBATCH -p &lt;pname&gt;          # run the job on the nodes in partition &lt;pname&gt; 
 #SBATCH --partition=&lt;pname&gt; # “ “
-#SBATCH -p=&lt;pname1&gt;,&lt;pname2&gt;  # use nodes in either of two partitions
+#SBATCH -p &lt;pname1&gt;,&lt;pname2&gt;  # use nodes in either of two partitions
 
-#SBATCH -t=10               # set wall-time limit for job to complete to 10 minutes
+#SBATCH -t 10               # set wall-time limit for job to complete to 10 minutes
 #SBATCH --time=10           # “ “
-#SBATCH -t=3:30:00          # set wall-time limit to 3.5 hours
-#SBATCH -t=2-3              # set wall-time limit to 2 days + 3 hours
+#SBATCH -t 3:30:00          # set wall-time limit to 3.5 hours
+#SBATCH -t 2-3              # set wall-time limit to 2 days + 3 hours
 
-#SBATCH -c=6                # allocate 6 cores (not cpus!) per task
+#SBATCH -c 6                # allocate 6 cores (not cpus!) per task
 #SBATCH --cpus-per-task=6   # “ “
 
-#SBATCH -G=1                # allocate one GPU for the whole job
+#SBATCH -G 1                # allocate one GPU for the whole job
 #SBATCH --gpus=1            # “ “
 
 #SBATCH --mem-per-cpu=4G   # allocate 4 GB of memory per core (not cpu!)
 
-#SBATCH -q=&lt;qos&gt;            # request quality of service &lt;qos&gt;
-#SBATCH –-qos=&lt;qos&gt;         # “ “
-#SBATCH -q=long             # on unity allow time limit up to 14 days
-#SBATCH -q=short            # on unity get higher priority for a single job per user
+#SBATCH -q &lt;qos&gt;            # request quality of service &lt;qos&gt;
+#SBATCH --qos=&lt;qos&gt;         # “ “
+#SBATCH -q long             # on unity allow time limit up to 14 days
+#SBATCH -q short            # on unity get higher priority for a single job per user
                             # on &lt;=2 nodes with time limit &lt;=4 hours
 
-#SBATCH -C=”&lt;cons&gt;”         # only use nodes that have constraint &lt;cons&gt;, quotes may be unnec.
-#SBATCH –-constraint=”&lt;cons”&gt; # “ “
-#SBATCH -C=”&lt;cons1&gt;&amp;&lt;cons2&gt;”  # only use nodes that match both constraints
-#SBATCH -C=”v100|a100”      # on unity only use nodes that have V100 or A100 GPUs</code></pre>
+#SBATCH -C ”&lt;cons&gt;”         # only use nodes that have constraint &lt;cons&gt;, quotes may be unnec.
+#SBATCH --constraint=”&lt;cons”&gt; # “ “
+#SBATCH -C ”&lt;cons1&gt;&amp;&lt;cons2&gt;”  # only use nodes that match both constraints
+#SBATCH -C ”v100|a100”      # on unity only use nodes that have V100 or A100 GPUs</code></pre>
 <p>Notes on these: </p>
 <ul>
-<li>For all of the Unity general-access partitions: The <strong>default time limit is one hour</strong>, when <code>-t=..</code> is not used. <strong>Jobs submitted to preempt partitions can be killed after two hours</strong>.</li>
-<li>The <strong>maximum time limit</strong> that can be set using <code>-t=..</code> is <strong>two days</strong> unless <code>-q=long</code> is used in which case it is <strong>14 days (336 hours)</strong>.</li>
+<li>For all of the Unity general-access partitions: The <strong>default time limit is one hour</strong>, when <code>-t ..</code> is not used. <strong>Jobs submitted to preempt partitions can be killed after two hours</strong>.</li>
+<li>The <strong>maximum time limit</strong> that can be set using <code>-t ..</code> is <strong>two days</strong> unless <code>-q long</code> is used in which case it is <strong>14 days (336 hours)</strong>.</li>
 <li>By running <code>scontrol config</code> it is seen that on Unity the <strong>default memory per core is 1024 MB</strong>.</li>
 <li><a href="https://docs.unity.rc.umass.edu/documentation/cluster_specs/features/">This page</a> shows the <strong>constraints</strong> available on Unity.</li>
-<li>To set multiple constraints I think a single <code>#SBATCH C=..</code> line using the <code>&amp;</code> or <code>|</code> operators is needed as shown above.</li>
+<li>To set multiple constraints I think a <strong>single <code>#SBATCH C ..</code> line</strong> using the <code>&amp;</code> or <code>|</code> operators must be used as shown above.</li>
 </ul>
 </li>
 <li><p>Here are some #SBATCH settings more useful for <strong>multi-task (e.g. MPI) jobs</strong>:</p>
-<pre><code class="fenced-code-block">#SBATCH -n=100            # allocate resources for 100 tasks (100 MPI ranks)
+<pre><code class="fenced-code-block">#SBATCH -n 100            # allocate resources for 100 tasks (100 MPI ranks)
 #SBATCH --ntasks=100      # “ “
-#SBATCH -C=ib             # only use nodes with InfiniBand networking
+#SBATCH -C ib             # only use nodes with InfiniBand networking
 #SBATCH --gpus-per-task=1 # allocate one GPU per task
-
-# To use following probably need to set node constraints:
-#SBATCH -N=10             # run the job on 10 nodes
-#SBATCH --nodes=10        # “ “
 #SBATCH --nodelist=cpu[049-068] # run on specific nodes
+
+# When using the following probably should be using constraints or nodelist:
+#SBATCH -N 10             # run the job on 10 nodes
+#SBATCH --nodes=10        # “ “
 #SBATCH --exclusive       # use entire nodes (don’t share nodes with other jobs)
+# When using the following probably should be setting the number of nodes with -N
 #SBATCH --mem=5G          # allocate 5 GB of memory per node
-#SBATCH –-mem=0           # allocate all available memory on nodes use</code></pre>
-<p>The nodes on Unity are very heterogeneous, with between 12 and 192 cores per node, so I don’t think it makes sense to use -N,--nodes or --exclusive unless constraints are used to match the type of nodes used to the size of the job (tasks or cores used).  Similarly --mem sets the memory per node and I’m not sure what this means unless full nodes are used.</p>
+#SBATCH --mem=0           # allocate all available memory on nodes use</code></pre>
+<p>The nodes on Unity are very heterogeneous, with between 12 and 192 cores per node, so I don’t think it makes sense to use <code>-N</code>,<code>--nodes</code> or<code> --exclusive</code> unless <code>--nodelist</code> or constraints are used to match the type of nodes used to the size of the job (tasks or cores used).  Similarly <code>--mem</code> sets the memory per node and I’m not sure what this means unless the number of nodes is specified.</p>
 </li>
 <li><p><strong>Example of a  simple batch job</strong><a id="simple-batch"></a> not using MPI, or a GPU, or Apptainer.</p>
 <ul>
@@ -4546,14 +4547,14 @@ Multiply M*M=N element dense matrices
 </li>
 </ul>
 <h3 class="atx" id="using-mpi-on-unity-without-apptainerlessa-iddouble-quoteunity-mpidouble-quotegreaterlessagreater">Using MPI on Unity (without Apptainer)<a id="unity-mpi"></a></h3>
-<ul>
-<li><p><strong>A Conda environment capable of using OpenMPI</strong><a id="conda-mpi-unity"></a> was created as follows.  First we see which OpenMPI modules are available -- from these we will select OpenMPI 5.0.3:</p>
+<h4 class="atx" id="a-conda-environment-capable-of-using-openmpilessa-iddouble-quoteconda-mpi-unitydouble-quotegreaterlessagreater">A Conda environment capable of using OpenMPI<a id="conda-mpi-unity"></a></h4>
+<p>This was created as follows.  First we see which OpenMPI modules are available -- from these we will select OpenMPI 5.0.3:</p>
 <pre><code class="fenced-code-block">$ module av openmpi
 
 ---------------------- /modules/modulefiles/spack/latest/linux-ubuntu24.04-x86_64/Core -----------------------
    openmpi/4.1.6-cuda12.6    openmpi/4.1.6    openmpi/5.0.3-cuda12.6    openmpi/5.0.3</code></pre>
-<p>In the examples shown below, the latest version (5.0.3) was used, without CUDA  -- this worked, and at least sometimes it seemed that using the version with CUDA caused a problem -- but this was not explored in detail.</p>
-<p>Next we create a Conda environment <strong><code>ompi5</code></strong> with Python, <code>mpi4py</code>, and other packages likely to be needed by programs running in this environment (here we show <code>numpy</code>, <code>scipy</code>, and <code>matplotlib</code>):</p>
+<p>  In the examples shown below, the latest version (5.0.3) was used, without CUDA  -- this worked, and at least sometimes it seemed that using the version with CUDA caused a problem -- but this was not explored in detail.</p>
+<p>  Next we create a Conda environment <strong><code>ompi5</code></strong> with Python, <code>mpi4py</code>, and other packages likely to be needed by programs running in this environment (here we show <code>numpy</code>, <code>scipy</code>, and <code>matplotlib</code>):</p>
 <pre><code class="fenced-code-block">$ unity-compute                 # get an interactive shell on a compute node
 $ module load conda/latest
 $ module load openmpi/5.0.3
@@ -4563,16 +4564,15 @@ $ conda activate ompi5
 (ompi5)..$ conda install numpy scipy matplotlib
 (ompi5)..$ mpirun --version
 mpirun (Open MPI) 5.0.7</code></pre>
-<p>  It probably is not necessary follow the steps exactly as shown above:</p>
+<pre><code class="indented-code-block">It probably is not necessary follow the steps exactly as shown above:</code></pre>
 <ul>
 <li><p>It might be OK to load an OpenMPI module with CUDA, or it might not be necessary to load any OpenMPI module while creating the environment.</p>
 </li>
 <li><p>It might be OK to include <code>openmpi</code> in the <code>conda install mpi4py</code> command.</p>
-</li>
-</ul>
 <p>However, under some combinations of doing things a dysfunctional environment was created, which was usually detectable by the output from <code>mpirun --version</code> -- either no version or an Intel MPI version was shown.</p>
 </li>
-<li><p><strong>Run the MPI test programs <code>mpi_hw.py</code> and <code>osu_bw.py</code> on Unity interactively.</strong><a id="mpi-interactive"></a></p>
+</ul>
+<h4 class="atx" id="run-the-mpi-test-programs-mpi_hwpy-and-osu_bwpy-on-unity-interactivelylessa-iddouble-quotempi-interactivedouble-quotegreaterlessagreater">Run the MPI test programs <code>mpi_hw.py</code> and <code>osu_bw.py</code> on Unity interactively<a id="mpi-interactive"></a></h4>
 <p>Here we get an interactive shell with resources for 4 MPI tasks (<code>-n 4</code>) on two nodes (-N 2) and Infiniband connectivity (<code>-C ib</code>) on the <code>cpu</code> partition.  Then, after activating <code>ompi5</code> it is possible to run the MPI hello-world program:</p>
 <pre><code class="fenced-code-block">$ salloc -n 4 -N 2 -C ib -p cpu
 $ module load openmpi/5.0.3
@@ -4584,12 +4584,13 @@ Hello world from rank 3 of 4 on cpu045 running Open MPI v5.0.7
 Hello world from rank 1 of 4 on cpu045 running Open MPI v5.0.7
 Hello world from rank 0 of 4 on cpu045 running Open MPI v5.0.7
 Hello world from rank 2 of 4 on cpu045 running Open MPI v5.0.7</code></pre>
-<p>Notes:</p>
+<p>  Notes:</p>
 <ul>
-<li>If <code>-n</code> is not supplied, the number of MPI ranks started by <code>mpirun</code> will default to the number of tasks allocated in Slurm, here 4 as specified to <code>salloc</code>.  </li>
-<li>Two nodes were specified (<code>-N 2</code>) so intra- and inter-node communication  could be compared, see below.  For other purposes it may not be necessary to specify the number of nodes (<code>-N</code> can be omitted) or it may be wished to force all the ranks to be on one node (<code>-N 1</code>).</li>
-<li>We did not do <code>module load openmpi/5.0.3</code> to load OpenMPI.  This did not seem necessary or helpful -- it seemed that the environment <code>ompi5</code> built as above had the necessary information and linking for efficient running.</li>
-</ul>
+<li><p>If <code>-n</code> is not supplied, the number of MPI ranks started by <code>mpirun</code> will default to the number of tasks allocated in Slurm, here 4 as specified to <code>salloc</code>.  </p>
+</li>
+<li><p>Two nodes were specified (<code>-N 2</code>) so intra- and inter-node communication  could be compared, see below.  For other purposes it may not be necessary to specify the number of nodes (<code>-N</code> can be omitted) or it may be wished to force all the ranks to be on one node (<code>-N 1</code>).</p>
+</li>
+<li><p>We did not do <code>module load openmpi/5.0.3</code> to load OpenMPI.  This did not seem necessary or helpful -- it seemed that the environment <code>ompi5</code> built as above had the necessary information and linking for efficient running.</p>
 <p>Continuing the example above, we run the messaging speed test <code>osu_bw.py</code> supplying <code>-n 2</code> to MPI run because this program requires exactly 2 MPI ranks.  We also supply <code>--display bindings</code> which prints out which node and core each MPI rank is bound to:</p>
 <pre><code class="fenced-code-block">python-scripts$ mpirun -n 2 --display bindings python osu_bw.py
 [cpu045:789158] Rank 0 bound to package[0][core:15]
@@ -4598,30 +4599,30 @@ Hello world from rank 2 of 4 on cpu045 running Open MPI v5.0.7</code></pre>
 2
 # MPI Bandwidth Test
 # Size [B]    Bandwidth [MB/s]
-         1                1.90
-         2                3.35
-         4                6.97
-         8               14.94
-        16               25.92
-        32               60.26
-        64              122.90
-       128              226.53
-       256              445.71
-       512              873.39
-     1,024            1,596.58
-     2,048            2,331.47
-     4,096            3,421.14
-     8,192            4,795.98
-    16,384            7,295.17
-    32,768            5,479.43
-    65,536           16,217.49
-   131,072           19,317.21
-   262,144           16,496.67
-   524,288           11,960.54
- 1,048,576           11,558.17
- 2,097,152           11,555.04
- 4,194,304           11,775.86
- 8,388,608           11,805.32
+       1                1.90
+       2                3.35
+       4                6.97
+       8               14.94
+      16               25.92
+      32               60.26
+      64              122.90
+     128              226.53
+     256              445.71
+     512              873.39
+   1,024            1,596.58
+   2,048            2,331.47
+   4,096            3,421.14
+   8,192            4,795.98
+  16,384            7,295.17
+  32,768            5,479.43
+  65,536           16,217.49
+ 131,072           19,317.21
+ 262,144           16,496.67
+ 524,288           11,960.54
+1,048,576           11,558.17
+2,097,152           11,555.04
+4,194,304           11,775.86
+8,388,608           11,805.32
 16,777,216           11,503.32</code></pre>
 <p>The speeds reported by <code>osu_bw.py</code> (up to 19 GB/s) are vaguely similar to those seen on a PC in Part 1 of this document. But without the <code>-C ib</code> option on <code>salloc</code>, speeds about 100 times slower were sometimes (but not always) seen.</p>
 <p>Note that with the <a href="https://docs.open-mpi.org/en/v5.0.x/launching-apps/scheduling.html">default binding strategy</a> "by slot", both MPI ranks were placed on the same node.  To measure the communication speed between nodes, we can supply <code>--map-by node</code> to <code>mpirun</code>. The speeds were about the same for intra- and inter-node messaging, in this case:</p>
@@ -4632,34 +4633,35 @@ Hello world from rank 2 of 4 on cpu045 running Open MPI v5.0.7</code></pre>
 # MPI Bandwidth Test
 # Size [B]    Bandwidth [MB/s]
 2
-         1                1.33
-         2                2.60
-         4                5.17
-         8               10.30
-        16               21.38
-        32               42.57
-        64               83.94
-       128              164.05
-       256              314.37
-       512              610.84
-     1,024            1,139.45
-     2,048            2,250.33
-     4,096            3,559.67
-     8,192            6,206.17
-    16,384            8,967.27
-    32,768           10,108.80
-    65,536           11,330.24
-   131,072           11,816.48
-   262,144           12,068.09
-   524,288           12,171.13
- 1,048,576           12,257.80
- 2,097,152           12,289.23
- 4,194,304           12,285.12
- 8,388,608           12,297.28
+       1                1.33
+       2                2.60
+       4                5.17
+       8               10.30
+      16               21.38
+      32               42.57
+      64               83.94
+     128              164.05
+     256              314.37
+     512              610.84
+   1,024            1,139.45
+   2,048            2,250.33
+   4,096            3,559.67
+   8,192            6,206.17
+  16,384            8,967.27
+  32,768           10,108.80
+  65,536           11,330.24
+ 131,072           11,816.48
+ 262,144           12,068.09
+ 524,288           12,171.13
+1,048,576           12,257.80
+2,097,152           12,289.23
+4,194,304           12,285.12
+8,388,608           12,297.28
 16,777,216           12,312.21</code></pre>
 <p>The OpenMPI version of <code>mpirun</code> has <a href="https://docs.open-mpi.org/en/main/man-openmpi/man1/mpirun.1.html">many other options</a>.  Note that in other MPI packages such as MPICH  <code>mpirun</code> has different, incompatible options.</p>
 </li>
-<li><p><strong>Use <code>sbatch</code> to run <code>osu_bw.py</code></strong> <a id="sbatch-mpi"></a></p>
+</ul>
+<h4 class="atx" id="use-sbatch-to-run-osu_bwpylessa-iddouble-quotesbatch-mpidouble-quotegreaterlessagreater">Use <code>sbatch</code> to run <code>osu_bw.py</code><a id="sbatch-mpi"></a></h4>
 <p>Make an sbatch script <strong><code>osu_bw.sh</code></strong> with the following contents, and put it in a directory <code>try_mpi</code> along with the test program <code>osu_bw.py</code>:</p>
 <pre><code class="fenced-code-block">#!/bin/bash
 # osu_bw.sh 2/27/25 D.C.
@@ -4673,7 +4675,7 @@ module purge                         # unload all modules
 module load conda/latest             # need this to use conda commands
 conda activate ompi5                 # environment with OpenMPI, NumPy and SciPy
 mpirun --display bindings python osu_bw.py</code></pre>
-<p>Here is the output file produced by running <code>sbatch osu_bw.sh</code>.  In this case the two ranks happened to be allocated on the same node, but there is nothing in <code>osu_bw.sh</code> that forces that to be the case:</p>
+<p>  Here is the output file produced by running <code>sbatch osu_bw.sh</code>.  In this case the two ranks happened to be allocated on the same node, but there is nothing in <code>osu_bw.sh</code> that forces that to be the case:</p>
 <pre><code class="fenced-code-block">nodelist=uri-cpu008
 Loading conda
 [uri-cpu008:845867] Rank 0 bound to package[1][core:48]
@@ -4707,8 +4709,8 @@ Loading conda
  4,194,304           15,866.15
  8,388,608           15,942.06
 16,777,216           15,207.25</code></pre>
-</li>
-<li><p><strong>Enabling NumPy multithreading in MPI batch jobs.</strong><a id="sbatch-multithread"></a>  For background see <a href="#multiple-cores">Parallel execution on multiple cores</a> and <a href="#multithread-mpi">Hyperthreading and NumPy multithreading with MPI</a> above.  Make an sbatch script <strong><code>threadcount_mpi.sh</code></strong>  with the following contents and put it in the directory <code>try-mpi</code> along with <code>threadcount_mpi.py</code>, which is an MPI-parallel version of <code>threadcount.py</code>  <a href="#multiple-cores">discussed above</a>. </p>
+<h4 class="atx" id="enabling-numpy-multithreading-in-mpi-batch-jobslessa-iddouble-quotesbatch-multithreaddouble-quotegreaterlessagreater">Enabling NumPy multithreading in MPI batch jobs<a id="sbatch-multithread"></a></h4>
+<p>For background see <a href="#multiple-cores">Parallel execution on multiple cores</a> and <a href="#multithread-mpi">Hyperthreading and NumPy multithreading with MPI</a> above.  Make an sbatch script <strong><code>threadcount_mpi.sh</code></strong>  with the following contents and put it in the directory <code>try-mpi</code> along with <code>threadcount_mpi.py</code>, which is an MPI-parallel version of <code>threadcount.py</code>  <a href="#multiple-cores">discussed above</a>. </p>
 <pre><code class="fenced-code-block">#!/bin/bash
 # threadcount_mpi.sh 2/28/25 D.C.
 # sbatch script to run threadcount_mpi.py, which uses MPI to time matrix
@@ -4722,7 +4724,7 @@ module purge                         # unload all modules
 module load conda/latest             # need this to use conda commands
 conda activate ompi5                 # environment with OpenMPI, NumPy and SciPy
 mpirun --display bindings python threadcount_mpi.py</code></pre>
-<p>Run this sbatch script, and examine its output file and efficiency as reported by <code>seff</code>. With the <code>sbatch</code> defaults, NumPy only uses one thread (one core) in each MPI rank:</p>
+<p>  Run this sbatch script, and examine its output file and efficiency as reported by <code>seff</code>. With the <code>sbatch</code> defaults, NumPy only uses one thread (one core) in each MPI rank:</p>
 <pre><code class="fenced-code-block">try-mpi$ sbatch threadcount_mpi.sh
 Submitted batch job 29270594
 (wait for job to complete)
@@ -4765,7 +4767,7 @@ CPU Efficiency: 85.28% of 00:09:24 core-walltime
 Job Wall-clock time: 00:02:21
 Memory Utilized: 7.31 GB (estimated maximum)
 Memory Efficiency: 22.84% of 32.00 GB (8.00 GB/core)</code></pre>
-<p>Here is a modified sbatch script <strong><code>threadcount_mpi2.sh</code></strong> that will enable NumPy to use two threads (two cores) in each MPI rank.  The modifications are (a) setting <code>#SBATCH -c 2</code> to allocate two cores per MPI rank, and (b) supplying the option <code>--cpus-per-rank 2</code> to <code>mpirun</code>.  Experimentally both of these modifications are needed to allow NumPy to multithread; conversely setting <code>OMP_NUM_THREADS</code> as  <a href="#multiple-cores">discussed above</a> for a non-MPI setting seems to have no effect here.</p>
+<p>  Here is a modified sbatch script <strong><code>threadcount_mpi2.sh</code></strong> that will enable NumPy to use two threads (two cores) in each MPI rank.  The modifications are (a) setting <code>#SBATCH -c 2</code> to allocate two cores per MPI rank, and (b) supplying the option <code>--cpus-per-rank 2</code> to <code>mpirun</code>.  Experimentally both of these modifications are needed to allow NumPy to multithread; conversely setting <code>OMP_NUM_THREADS</code> as  <a href="#multiple-cores">discussed above</a> for a non-MPI setting seems to have no effect here.</p>
 <pre><code class="fenced-code-block">#!/bin/bash
 # threadcount_mpi2.sh 2/28/25 D.C.
 # sbatch script to run threadcount_mpi.py, which uses MPI to time matrix
@@ -4782,7 +4784,7 @@ module purge                         # unload all modules
 module load conda/latest             # need this to use conda commands
 conda activate ompi5                 # environment with OpenMPI, NumPy and SciPy
 mpirun --display bindings --cpus-per-rank 2 python threadcount_mpi.py</code></pre>
-<p>Run the modified sbatch script, and examine its output file and efficiency:</p>
+<p>  Run the modified sbatch script, and examine its output file and efficiency:</p>
 <pre><code class="fenced-code-block">try-mpi$ sbatch threadcount_mpi2.sh
 Submitted batch job 29273079
 (wait for job to complete)
@@ -4825,7 +4827,7 @@ CPU Efficiency: 72.64% of 00:09:52 core-walltime
 Job Wall-clock time: 00:01:14
 Memory Utilized: 7.41 GB (estimated maximum)
 Memory Efficiency: 11.57% of 64.00 GB (8.00 GB/core)</code></pre>
-<p>Notes:</p>
+<p>  Notes:</p>
 <ul>
 <li><p>The modified job used twice as many cores (8 rather than 4), and it ran about twice as fast because the time-consuming part of <code>threadcount_mpi.py</code> (a call to <code>np.matmul</code> to do the matrix multiplications) was able to use two threads rather than one.</p>
 </li>
@@ -4833,13 +4835,13 @@ Memory Efficiency: 11.57% of 64.00 GB (8.00 GB/core)</code></pre>
 </li>
 <li><p>The <a href="https://docs.open-mpi.org/en/main/man-openmpi/man1/mpirun.1.html">OpenMPI docs for <code>mpirun</code></a> say <code>--cpus-per-rank</code> is deprecated in favor of something like <code>--map-by &lt;obj&gt;:PE=n</code> but I haven't tried to figure this out.</p>
 </li>
-<li><p>If the settings for <code>#SBATCH -c...</code> and <code>mpirun --cpus-per-rank...</code> do not agree, strange things happen that I do not understand.</p>
+<li><p>If the settings for <code>#SBATCH -c ..</code> and <code>mpirun --cpus-per-rank ..</code> do not agree, strange things happen that I do not understand.</p>
 </li>
 <li><p><strong>This job did not work reliably and probably requires additional <code>#SBATCH</code> settings.</strong>  For example, sometimes one MPI rank took much longer to run, or used less threads than the other ranks.  It may be necessary to constrain the job to certain nodes, but this has not been tried.</p>
 </li>
 </ul>
-</li>
-<li><p><strong>Use <code>sbatch</code> to run <code>boxpct.py + dem21</code> with MPI.</strong><a id="sbatch-dem21"></a> See <a href="#boxpct-dem21">A more elaborate MPI program</a> above for the corresponding steps on a PC.</p>
+<h4 class="atx" id="use-sbatch-to-run-boxpctpy--dem21-with-mpilessa-iddouble-quotesbatch-dem21double-quotegreaterlessagreater">Use <code>sbatch</code> to run <code>boxpct.py + dem21</code> with MPI<a id="sbatch-dem21"></a></h4>
+<p>See <a href="#boxpct-dem21">A more elaborate MPI program</a> above for the corresponding steps on a PC.</p>
 <ul>
 <li><p>As in that section, the <strong><code>dem21</code></strong> package is cloned into a directory <code>try-dem21</code> on Unity:</p>
 <pre><code class="fenced-code-block">try-dem21$ git clone git@github.com:doncandela/dem21.git</code></pre>
@@ -4910,31 +4912,24 @@ Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
 <p>The <a href="https://slurm.schedmd.com/sbatch.html">docs for <code>sbatch</code></a> seem to imply that <em>all</em> of the nodes listed in <code>--nodelist=..</code> will be allocated to the job, but experimentally only the number of nodes specified by <code>-N...</code> will be allocated.  With the <code>#SBATCH</code> settings shown above all MPI ranks were on a single node, which proved to be more efficient than some other ways of running.</p>
 </li>
 </ul>
-</li>
-</ul>
 <h3 class="atx" id="using-a-gpu-on-unity-without-apptainerlessa-iddouble-quoteunity-gpudouble-quotegreaterlessagreater">Using a GPU on Unity (without Apptainer)<a id="unity-gpu"></a></h3>
-<ul>
-<li><p><strong>A Conda environment capable of using a GPU</strong><a id="conda-gpu-unity"></a> called <strong><code>gpu</code></strong> was created on Unity as follows (as of 1/25 it seemed the current version of Python, 3.13, was incompatible with CuPy - hence the specification here python=3.12):</p>
+<h4 class="atx" id="a-conda-environment-capable-of-using-a-gpulessa-iddouble-quoteconda-gpu-unitydouble-quotegreaterlessagreater">A Conda environment capable of using a GPU<a id="conda-gpu-unity"></a></h4>
+<p>This was called <strong><code>gpu</code></strong> was created on Unity as follows (as of 1/25 it seemed the current version of Python, 3.13, was incompatible with CuPy - hence the specification here python=3.12):</p>
 <pre><code class="fenced-code-block">$ module load conda/latest
 $ conda create -n gpu python=3.12
 $ conda activate gpu
-(gpu)$ python –version
+(gpu)$ python --version
 Python 3.12.8
 (gpu)$ conda install numpy scipy matplotlib cupy
 (gpu)$ pip list
 Package         Version
-
 --------------- -----------
-
 cupy            13.3.0
 matplotlib      3.10.0
 numpy           2.2.1
 scipy           1.15.1</code></pre>
-</li>
-</ul>
 <p>Unlike on my PCs, on Unity it was not necessary to explicitly specify <code>-c conda-forge</code> to get an up-to-date version of CuPy (see <a href="#pytorch-cupy">Installing CUDA-aware Python packages</a> above).  This may be because <a href="https://docs.unity.rc.umass.edu/documentation/software/conda/">on Unity, Conda uses Minforge</a> rather than Anaconda.</p>
-<ul>
-<li><p><strong>Run <code>gputest.py</code> on Unity interactively.</strong><a id="gputest-interactive"></a></p>
+<h4 class="atx" id="run-gputestpy-on-unity-interactivelylessa-iddouble-quotegputest-interactivedouble-quotegreaterlessagreater">Run <code>gputest.py</code> on Unity interactively<a id="gputest-interactive"></a></h4>
 <ul>
 <li><p>Here we get an interactive shell with 6 cores and one GPU on a compute node in the <code>gpu</code> partition, and load a CUDA module (although CUDA typically seems to be loaded already on GPU nodes). Then we run <code>nvidia-smi</code> to check that the GPU and CUDA are available and get info on them (not sure why CUDA version reported by <code>nvidia-smi</code> doesn’t match module loaded):</p>
 <pre><code class="fenced-code-block">$ salloc -c 6 -G 1 -p gpu
@@ -4970,8 +4965,7 @@ Multiply M*M=N element dense matrices
                                 ...</code></pre>
 </li>
 </ul>
-</li>
-<li><p><strong>A batch job using a GPU.</strong><a id="gpu-sbatch"></a></p>
+<h4 class="atx" id="a-batch-job-using-a-gpulessa-iddouble-quotegpu-sbatchdouble-quotegreaterlessagreater">A batch job using a GPU<a id="gpu-sbatch"></a></h4>
 <ul>
 <li><p>As in the non-GPU background job example above, here we again run <code>gputest.py</code> in the directory <code>/work/...test_gpu</code> but now we activate the Conda environment <code>gpu</code> which does include CuPy, so <code>gputest.py</code> will try to use a GPU.  We will also need to ensure the CUDA module is loaded, request a GPU, and run the job in a GPU partition.  So we will use an sbatch script <strong><code>gputest.sh</code></strong> with these contents:</p>
 <pre><code class="fenced-code-block">#!/bin/bash
@@ -4986,7 +4980,7 @@ module load conda/latest
 module load cuda/12.6         # need CUDA to use a GPU
 conda activate gpu            # environment with NumPy, SciPy, and CuPy
 python gputest.py</code></pre>
-<p>As written, this script puts no constraints on the type of GPU that will be allocated or how much memory it will have. Here is an <a href="https://docs.unity.rc.umass.edu/documentation/tools/gpus/">article in the Unity docs</a> with extensive information on the GPUs available on Unity and how to select them.</p>
+<p>  As written, this script puts no constraints on the type of GPU that will be allocated or how much memory it will have. Here is an <a href="https://docs.unity.rc.umass.edu/documentation/tools/gpus/">article in the Unity docs</a> with extensive information on the GPUs available on Unity and how to select them.</p>
 </li>
 <li><p>Here we submit the job, then examine its output. Note this can be run in any (or no) Conda environment, and if desired on a login node, as it is the node allocated by <code>sbatch</code> that will be used to run the job:</p>
 <pre><code class="fenced-code-block">try-gputest$ sbatch gputest.sh
@@ -5006,9 +5000,7 @@ GPU timings use last 25 of 28 trials
 Multiply M*M=N element dense matrices
 *********************************************************
                            ...</code></pre>
-<p>Looking at the <a href="https://docs.unity.rc.umass.edu/documentation/cluster_specs/nodes/">Unity node list</a> we see that node <code>gypsum-gpu168</code> has NVIDIA RTX 2080ti GPUs, which according to the <a href="https://docs.unity.rc.umass.edu/documentation/tools/gpus/">Unity GPU info</a> has compute capability 7.5 in agreement with the output of <code>gputest.py</code>.</p>
-</li>
-</ul>
+<p>  Looking at the <a href="https://docs.unity.rc.umass.edu/documentation/cluster_specs/nodes/">Unity node list</a> we see that node <code>gypsum-gpu168</code> has NVIDIA RTX 2080ti GPUs, which according to the <a href="https://docs.unity.rc.umass.edu/documentation/tools/gpus/">Unity GPU info</a> has compute capability 7.5 in agreement with the output of <code>gputest.py</code>.</p>
 </li>
 </ul>
 <h3 class="atx" id="using-apptainer-on-unitylessa-iddouble-quoteunity-apptainerdouble-quotegreaterlessagreater">Using Apptainer on Unity<a id="unity-apptainer"></a></h3>
@@ -5099,9 +5091,9 @@ module load apptainer/latest
 apptainer exec dsf.sif python gputest.py &gt; app-nogpu.out</code></pre>
 <p>Notice the only module we need to load is Apptainer, and we do not need to set a Conda environment. To run the job:</p>
 <pre><code class="fenced-code-block">(base) $ sbatch app-gpu.sh    # run in directory containing dsf.sif and gputest.py</code></pre>
-<h4 class="atx" id="running-a-container-that-uses-mpilessa-iddouble-quoteunity-mpi-containerdouble-quotegreaterlessagreater">Running a container that uses MPI<a id="unity-mpi-container"></a></h4>
 </li>
 </ul>
+<h4 class="atx" id="running-a-container-that-uses-mpilessa-iddouble-quoteunity-mpi-containerdouble-quotegreaterlessagreater">Running a container that uses MPI<a id="unity-mpi-container"></a></h4>
 <p>TODO haven't tried this yet</p>
 <h4 class="atx" id="running-a-container-the-uses-a-gpulessa-iddouble-quoteunity-gpu-containerdouble-quotegreaterlessagreater">Running a container the uses a GPU<a id="unity-gpu-container"></a></h4>
 <ul>
@@ -5177,17 +5169,15 @@ module load cuda/12.6         # need CUDA to use a GPU
 apptainer exec --nv gpu.sif python gputest.py &gt; app-gpu.out</code></pre>
 <p>To run the job:</p>
 <pre><code class="fenced-code-block">(base) try-gputest$ sbatch app-gpu.sh # run in a directory containing gpu.sif and gputest.py</code></pre>
-<h2 class="atx" id="random-notes-on-parallel-speeduplessa-iddouble-quotespeedup-notesdouble-quotegreaterlessagreater">Random notes on parallel speedup<a id="speedup-notes"></a></h2>
 </li>
 </ul>
+<h2 class="atx" id="random-notes-on-parallel-speeduplessa-iddouble-quotespeedup-notesdouble-quotegreaterlessagreater">Random notes on parallel speedup<a id="speedup-notes"></a></h2>
 <h3 class="atx" id="wall-time-and-cpu-timelessa-iddouble-quotewall-cpu-timedouble-quotegreaterlessagreater">Wall time and CPU time<a id="wall-cpu-time"></a></h3>
 <p><strong>TODO</strong></p>
 <h3 class="atx" id="factors-other-than-parallelism-affecting-execution-speedlessa-iddouble-quoteother-speed-factorsdouble-quotegreaterlessagreater">Factors other than parallelism affecting execution speed<a id="other-speed-factors"></a></h3>
 <p><strong>TODO</strong> already have this info near intro?</p>
 <h3 class="atx" id="strong-and-weak-scalinglessa-iddouble-quotestrong-weak-scalingdouble-quotegreaterlessagreater">Strong and weak scaling<a id="strong-weak-scaling"></a></h3>
 <p>Estimating MPI communication overhead<a id="estimate-mpi-overhead"></a></p>
-<pre><code class="fenced-code-block"></code></pre>
-<pre><code class="fenced-code-block"></code></pre>
 </article>
 </body>
 </html>
