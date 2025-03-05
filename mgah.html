@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   3/2/25</p>
+<p>mgah.md  D. Candela   3/5/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -2342,7 +2342,7 @@ body {
 <li><a href="#unity-intro">Unity HPC cluster</a></li>
 </ul>
 </li>
-<li><a href="#pip-conda">Pip and Conda</a></li>
+<li><a href="#pip-conda-apt">Pip, Conda, and APT</a></li>
 <li><a href="#envs-testcode">Conda environments and test code used in this document</a></li>
 <li><a href="#local-package">Installing a local package</a></li>
 <li><a href="#multiple-cores">Parallel execution on multiple cores</a></li>
@@ -2574,7 +2574,7 @@ In this document these three terms are used interchangeably with apologies to th
 <li>GPUs on about half of the nodes, with individual nodes having between 2 and 8 GPUs giving about 1000 total GPUs.  The GPU models (thus capabilities) varied widely, with the newest/best GPUs on the preempt modes as might be expected.</li>
 </ul>
 <p>Detailed information on using Unity is in the section <a href="#unity-cluster">Unity cluster at UMass, Amherst</a> below.</p>
-<h3 class="atx" id="pip-and-condalessa-iddouble-quotepip-condadouble-quotegreaterlessagreater">Pip and Conda<a id="pip-conda"></a></h3>
+<h3 class="atx" id="pip-conda-and-aptlessa-iddouble-quotepip-conda-aptdouble-quotegreaterlessagreater">Pip, Conda, and APT<a id="pip-conda-apt"></a></h3>
 <ul>
 <li><p><a href="https://pypi.org/project/pip/"><strong>Pip</strong></a> (package installer for Python) installs Python packages by default from <a href="https://pypi.org/"><strong>PyPI</strong></a>, the open-source Python Package Index.</p>
 <ul>
@@ -2595,6 +2595,8 @@ $ pip install -e .           # install from current directory, -e means package
 </li>
 <li><p>You often see <code>python -m pip install package</code> used rather than the simpler commands listed above. I haven’t found this necessary when using pip inside a virtual environment; a discussion is <a href="https://snarky.ca/why-you-should-use-python-m-pip/">here</a>.</p>
 </li>
+<li><p>You will often see <code>pip3</code> rather than <code>pip</code>. If you are in an environment with Python 3 installed (vs. the earlier Python 2) they should point to the same command -- you can check this by comparing the output from <code>pip --version</code> with that from <code>pip3 --version</code>.</p>
+</li>
 </ul>
 </li>
 <li><p><a href="https://anaconda.org/anaconda/conda"><strong>Conda</strong></a> combines and extends the package-management functions of <strong>pip</strong> and the environment-management functions of <strong>venv</strong>. Conda can install packages and libraries for any language, not just Python, which means Conda can install Python itself.</p>
@@ -2603,8 +2605,8 @@ $ pip install -e .           # install from current directory, -e means package
 </li>
 <li><p>It seems preferable to use Conda to install packages when they are available as Conda packages, but many packages (and more recent versions of packages) are not available as Conda packages and can only be installed using pip.</p>
 <ul>
-<li>Frequently more up-to-date Conda packages are available from <a href="https://conda-forge.org/">conda-forge</a> than from the default Conda channel -- see example below on how to use.</li>
-<li>Here is an <a href="https://www.anaconda.com/blog/using-pip-in-a-conda-environment">article on using Conda and pip together</a>; it says <strong>pip should be used <em>after</em> Conda</strong>.    </li>
+<li>Frequently more up-to-date Conda packages are available from <a href="https://conda-forge.org/"><strong>conda-forge</strong></a> than from the default Conda channel -- see example below on how to use.</li>
+<li>Here is an <a href="https://www.anaconda.com/blog/using-pip-in-a-conda-environment">article on using Conda and pip together</a>; it says <strong>pip should be used <em>after</em> Conda</strong>. In other words (I believe) creating a Conda environment automatically creates a venv environment of the same name, and activating the Conda environment switches to that venv.   </li>
 <li>When using pip and Conda together, <strong>the Conda environment should be created including Python</strong> as in all the examples in this document.  Then, if pip is used in this environment it will install things in this environment.  If the Conda environment does not include Python, pip will try to modify the global environment which is usually not what is wanted (and is not allowed on an HPC cluster like Unity).</li>
 </ul>
 </li>
@@ -2633,6 +2635,14 @@ $ conda env remove -n p39           # get rid of environment p39</code></pre>
 </ul>
 </li>
 </ul>
+</li>
+<li><p><a href="https://documentation.ubuntu.com/server/how-to/software/package-management/index.html"><strong>APT</strong></a> (Advanced Packaging Tool) is used to <strong>install software packages system-wide</strong> (for all users, in all environments) and <strong>must be run with root (sudo) privilege</strong> except  when used to find out about installed packages.  The <strong><code>apt</code></strong> command is more modern than and basically replaces the earlier <strong><code>apt-get</code></strong> although you will see references to both, often mixed together.  Some common APT commands:</p>
+<pre><code class="fenced-code-block">$ sudo apt update             # update package index, run this before running other apt cmds
+$ sudu apt install &lt;package&gt;  # install a package
+$ sudo apt upgrade            # upgrade all installed packages
+$ sudo apt remove &lt;package&gt;   # remove a previously installed package
+$ apt list --installed        # list all installed packages
+$ apt list &lt;package&gt; --installed  # list installed packages with this name</code></pre>
 </li>
 </ul>
 <h3 class="atx" id="conda-environments-and-test-code-used-in-this-documentlessa-iddouble-quoteenvs-testcodedouble-quotegreaterlessagreater">Conda environments and test code used in this document<a id="envs-testcode"></a></h3>
@@ -2842,10 +2852,9 @@ Multiplying matrices 3 times...
 <p>Using MPI, multiple copies of a Python program can run in parallel on the cores of a PC, but the same thing can be accomplished with the <a href="https://docs.python.org/3/library/multiprocessing.html">Python <code>multiprocessing</code> package</a>, probably more easily (I haven't tried <code>multiproccesing</code>).</p>
 <p>What MPI can do (and <code>multiprocessing</code> cannot do) is increase the parallelism to copies of Python running on <strong>multiple computers connected by a network</strong> - i.e. multiple nodes of an HPC cluster. Therefore a possible reason for developing MPI-parallel code on a PC is to enable eventual expansion to a higher degree of parallelism on an HPC cluster.</p>
 <p>Note, however, that parallelism across all the cores of any single node of an HPC cluster could be accomplished without MPI by using the <code>multprocessing</code> package -- Unity nodes currently have up to 128 cores.</p>
+<p>The most popular open-source MPI packages seem to be <a href="https://www.open-mpi.org/"><strong>OpenMPI</strong></a> and <a href="https://www.mpich.org/"><strong>MPICH</strong></a>. Also, there are some other versions of MPI that are derived from MPICH: <a href="https://mvapich.cse.ohio-state.edu/"><strong>MVAPICH2</strong></a>, <a href="https://www.intel.com/content/www/us/en/developer/tools/oneapi/mpi-library.html"><strong>Intel MPI</strong></a>... For brevity <strong>only OpenMPI is discussed in this document</strong>.</p>
 <h4 class="atx" id="installing-openmpilessa-iddouble-quoteinstall-openmpidouble-quotegreaterlessagreater">Installing OpenMPI<a id="install-openmpi"></a></h4>
 <ul>
-<li><p>The most popular open-source MPI packages seems to be <strong>OpenMPI</strong> and <strong>MPICH</strong>.  Of these, OpenMPI seems a bit more recommended/supported by the Unity HPC cluster (maybe), so for now <strong>only OpenMPI is discussed in this document</strong>.</p>
-</li>
 <li><p>On Unity as of 1/25 the available OpenMPI modules on Unity HPC were Open MPI  4.1.6 and 5.0.3, so decided to use these same versions of OpenMPI on my PCs.</p>
 </li>
 <li><p>Whichever MPI package is used (OpenMPI, MPICH...), Python bindings can be provided by <a href="https://mpi4py.readthedocs.io/en/stable/"><strong>MPI for Python (<code>mpi4py</code>)</strong></a>.  I think it is necessary to install the desired MPI package (e.g. <code>openmpi</code>) and <code>mpi4py</code> in the same Conda environment, as shown below, for <code>mpi4py</code> to properly connect to the MPI package.</p>

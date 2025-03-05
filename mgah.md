@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   3/2/25
+mgah.md  D. Candela   3/5/25
 
 - [Introduction](#intro)  
   
@@ -10,7 +10,7 @@ mgah.md  D. Candela   3/2/25
     - [PCs](#pcs)
     - [GPUs](#gpus)
     - [Unity HPC cluster](#unity-intro)
-  - [Pip and Conda](#pip-conda)
+  - [Pip, Conda, and APT](#pip-conda-apt)
   - [Conda environments and test code used in this document](#envs-testcode)
   - [Installing a local package](#local-package)
   - [Parallel execution on multiple cores](#multiple-cores)
@@ -203,7 +203,7 @@ The HPC commands shown in this document were tested on the [Unity cluster](https
 
 Detailed information on using Unity is in the section [Unity cluster at UMass, Amherst](#unity-cluster) below.
 
-### Pip and Conda<a id="pip-conda"></a>
+### Pip, Conda, and APT<a id="pip-conda-apt"></a>
 
 - [**Pip**](https://pypi.org/project/pip/) (package installer for Python) installs Python packages by default from [**PyPI**](https://pypi.org/), the open-source Python Package Index.
   
@@ -229,6 +229,8 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
   - If a **virtual environment** has been created and activated by **venv** or by **Conda**, pip will install Python packages “in that environment”, i.e. they will only be visible and importable when that environment is activated.
   
   - You often see `python -m pip install package` used rather than the simpler commands listed above. I haven’t found this necessary when using pip inside a virtual environment; a discussion is [here](https://snarky.ca/why-you-should-use-python-m-pip/).
+  
+  - You will often see `pip3` rather than `pip`. If you are in an environment with Python 3 installed (vs. the earlier Python 2) they should point to the same command -- you can check this by comparing the output from `pip --version` with that from `pip3 --version`.
 
 - [**Conda**](https://anaconda.org/anaconda/conda) combines and extends the package-management functions of **pip** and the environment-management functions of **venv**. Conda can install packages and libraries for any language, not just Python, which means Conda can install Python itself.
   
@@ -236,8 +238,8 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
   
   - It seems preferable to use Conda to install packages when they are available as Conda packages, but many packages (and more recent versions of packages) are not available as Conda packages and can only be installed using pip.
     
-    - Frequently more up-to-date Conda packages are available from [conda-forge](https://conda-forge.org/) than from the default Conda channel -- see example below on how to use.
-    - Here is an [article on using Conda and pip together](https://www.anaconda.com/blog/using-pip-in-a-conda-environment); it says **pip should be used *after* Conda**.    
+    - Frequently more up-to-date Conda packages are available from [**conda-forge**](https://conda-forge.org/) than from the default Conda channel -- see example below on how to use.
+    - Here is an [article on using Conda and pip together](https://www.anaconda.com/blog/using-pip-in-a-conda-environment); it says **pip should be used *after* Conda**. In other words (I believe) creating a Conda environment automatically creates a venv environment of the same name, and activating the Conda environment switches to that venv.   
     - When using pip and Conda together, **the Conda environment should be created including Python** as in all the examples in this document.  Then, if pip is used in this environment it will install things in this environment.  If the Conda environment does not include Python, pip will try to modify the global environment which is usually not what is wanted (and is not allowed on an HPC cluster like Unity).
   
   - Some Conda commands:
@@ -265,6 +267,17 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
     - Get packages from `conda-forge` as shown above.
     - If you do specify a Python version, often an **earlier Python version** will be compatible with the available Conda versions of the other packages you need.
     - An IDE like Spyder has many complex dependencies. But when used only to edit files (as opposed to running them) Spyder can be run from the base or no environment, so there is no need to install it in your environments.
+
+- [**APT**](https://documentation.ubuntu.com/server/how-to/software/package-management/index.html) (Advanced Packaging Tool) is used to **install software packages system-wide** (for all users, in all environments) and **must be run with root (sudo) privilege** except  when used to find out about installed packages.  The **`apt`** command is more modern than and basically replaces the earlier **`apt-get`** although you will see references to both, often mixed together.  Some common APT commands:
+  
+  ```
+  $ sudo apt update             # update package index, run this before running other apt cmds
+  $ sudu apt install <package>  # install a package
+  $ sudo apt upgrade            # upgrade all installed packages
+  $ sudo apt remove <package>   # remove a previously installed package
+  $ apt list --installed        # list all installed packages
+  $ apt list <package> --installed  # list installed packages with this name
+  ```
 
 ### Conda environments and test code used in this document<a id="envs-testcode"></a>
 
@@ -516,9 +529,9 @@ What MPI can do (and `multiprocessing` cannot do) is increase the parallelism to
 
 Note, however, that parallelism across all the cores of any single node of an HPC cluster could be accomplished without MPI by using the `multprocessing` package -- Unity nodes currently have up to 128 cores.
 
-#### Installing OpenMPI<a id="install-openmpi"></a>
+The most popular open-source MPI packages seem to be [**OpenMPI**](https://www.open-mpi.org/) and [**MPICH**](https://www.mpich.org/). Also, there are some other versions of MPI that are derived from MPICH: [**MVAPICH2**](https://mvapich.cse.ohio-state.edu/), [**Intel MPI**](https://www.intel.com/content/www/us/en/developer/tools/oneapi/mpi-library.html)... For brevity **only OpenMPI is discussed in this document**.
 
-- The most popular open-source MPI packages seems to be **OpenMPI** and **MPICH**.  Of these, OpenMPI seems a bit more recommended/supported by the Unity HPC cluster (maybe), so for now **only OpenMPI is discussed in this document**.
+#### Installing OpenMPI<a id="install-openmpi"></a>
 
 - On Unity as of 1/25 the available OpenMPI modules on Unity HPC were Open MPI  4.1.6 and 5.0.3, so decided to use these same versions of OpenMPI on my PCs.
 
