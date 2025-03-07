@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   3/5/25
+mgah.md  D. Candela   3/7/25
 
 - [Introduction](#intro)  
   
@@ -19,7 +19,7 @@ mgah.md  D. Candela   3/5/25
   
   - [MPI on a Linux PC](#mpi-pc)
     - [Why do it](#why-mpi-pc)    
-    - [Installing OpenMPI and MPI for Python](#install-openmpi)
+    - [Installing OpenMPI and `mpi4py` on a Linux PC](#install-openmpi-pc)
     - [Simple MPI test programs: `mpi_hw.py`  and `osu_bw.py`](#mpi-testprogs)
     - [A more elaborate MPI program: `boxpct.py` with the `dem21` package](#boxpct-dem21)
     - [Hyperthreading and NumPy multithreading with MPI](#multithread-mpi)
@@ -255,9 +255,9 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
     (p39)$ conda install spyder=5.2.2 # install Spyder IDE to this evironment
     (p39)$ conda install -c conda-forge quaternion            # install a package from the
                                                               # Conda-Forge repository
-    $ conda env list                    # list all defined environments
-    $ conda create -n enew –clone eold  # create environment enew by cloning existing eold
-    $ conda env remove -n p39           # get rid of environment p39
+    $ conda env list                     # list all defined environments
+    $ conda create -n enew --clone eold  # create environment enew by cloning existing eold
+    $ conda env remove -n p39            # get rid of environment p39
     ```
   
   - Sometimes `conda create` or `conda install` will fail with the message `Solving environment: failed`.  Tips to avoid or fix this situation:
@@ -287,7 +287,7 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
   
   - **`p39`** (defined just above) has Python 3.9, NumPy, SciPy, etc but does not have OpenMPI, PyTorch, or CuPy.
   - **`dfs`** (defined in [Installing a local package](#local-package) below) environment for trying out  the local package `dcfuncs`.
-  - **`ompi5`** (defined in [MPI on a Linux PC](#mpi-pc)) includes OpenMPI 5.0.3 and MPI for Python, so MPI can be used.
+  - **`ompi`** (defined in [MPI on a Linux PC](#mpi-pc)) includes OpenMPI 5 and `mpi4py`, so MPI can be used by a Python program.
   - **`dem21`** (also defined in [MPI on a Linux PC](#mpi-pc)) is like `ompi5` but additionally includes the locally-installed package `dem21` and additional packages that `dem21` imports.
   - **`pyt`** (defined in [Installing CUDA-aware Python packages...](#pytorch-cupy) below) adds PyTorch.
   - **`gpu`** (also defined in [Installing CUDA-aware Python packages...](#pytorch-cupy) below) adds CuPy.
@@ -418,10 +418,10 @@ Modern CPU chips have multiple **cores** (as of 1/25 CPUs in consumer PCs have 4
 
 It might be thought that a PC using *n* cores should get *n* times as much computation done per second, provided the code can be efficiently split up to have *n* different things going on at the same time.  However, there are (at least) three factors that often make the gain in computation speed from using multiple cores less than the number of cores, even with efficiently parallel code: (a) the **clock speeds** of the cores may depend on how many are in use, due to automatic **thermal management** by the CPU chip, (b) the cores may need to **contend for memory access**, and (c) the available cores can be used for **multithreading by NumPy and similar packages**, or for **MPI multiprocessing**, or for **both of these things simultaneously**.
 
-- **Clock speeds and thermal management.**  To  show this effect we run the the program **`count_mpi.py`** on the **16-core PC candela-21** [mentioned above](#pcs). The The AMD Ryzen 9 5950X CPU chip in this PC has a **base clock speed of 3.4 GHz** and a **boost clock speed up to 4.9 GHz**.  `count_mpi.py` uses MPI to run a simple program that times how long it takes to count up to a specified number (1,000,000,000 in the examples shown here) on a chosen number of cores.  First we run on one core (the environment `ompi5` is defined in [MPI on a Linux PC](#mpi-pc) below):
+- **Clock speeds and thermal management.**  To  show this effect we run the the program **`count_mpi.py`** on the **16-core PC candela-21** [mentioned above](#pcs). The The AMD Ryzen 9 5950X CPU chip in this PC has a **base clock speed of 3.4 GHz** and a **boost clock speed up to 4.9 GHz**.  `count_mpi.py` uses MPI to run a simple program that times how long it takes to count up to a specified number (1,000,000,000 in the examples shown here) on a chosen number of cores.  First we run on one core (the environment `ompi` is defined in [MPI on a Linux PC](#mpi-pc) below):
   
   ```
-  (ompi5)$ mpirun -n 1 -use-hwthread-cpus python count_mpi.py 1000000000
+  (ompi)$ mpirun -n 1 -use-hwthread-cpus python count_mpi.py 1000000000
   This is rank 0 of 1 on candela-21 running Open MPI v5.0.3
   (rank 0) Counting up to 1,000,000,000...
   (rank 0)...done, took 1.815e+01s, 5.510e+07counts/s
@@ -444,7 +444,7 @@ It might be thought that a PC using *n* cores should get *n* times as much compu
     Next `count_mpi.py`  is run on all 32 virtual cores (`-use-hwthread-cpus` is used to turn on hyperthreading):
   
   ```
-  (ompi5)$ mpirun -n 32 -use-hwthread-cpus python count_mpi.py 1000000000
+  (ompi)$ mpirun -n 32 -use-hwthread-cpus python count_mpi.py 1000000000
   This is rank 5 of 32 on candela-21 running Open MPI v5.0.3
   This is rank 4 of 32 on candela-21 running Open MPI v5.0.3
   (rank 4) Counting up to 1,000,000,000...
@@ -523,48 +523,35 @@ It might be thought that a PC using *n* cores should get *n* times as much compu
 
 #### Why do it<a id="why-mpi-pc"></a>
 
-Using MPI, multiple copies of a Python program can run in parallel on the cores of a PC, but the same thing can be accomplished with the [Python `multiprocessing` package](https://docs.python.org/3/library/multiprocessing.html), probably more easily (I haven't tried `multiproccesing`).
+Using MPI, multiple copies of a Python program can run in parallel on the cores of a PC.  This can also be accomplished with the [Python `multiprocessing` package](https://docs.python.org/3/library/multiprocessing.html), which I haven't tried.
 
-What MPI can do (and `multiprocessing` cannot do) is increase the parallelism to copies of Python running on **multiple computers connected by a network** - i.e. multiple nodes of an HPC cluster. Therefore a possible reason for developing MPI-parallel code on a PC is to enable eventual expansion to a higher degree of parallelism on an HPC cluster.
-
-Note, however, that parallelism across all the cores of any single node of an HPC cluster could be accomplished without MPI by using the `multprocessing` package -- Unity nodes currently have up to 128 cores.
+What MPI can do (and `multiprocessing` cannot do) is increase the parallelism to copies of Python running on **multiple computers connected by a network** - i.e. multiple nodes of an HPC cluster. Therefore a possible reason for developing MPI-parallel code on a PC is to enable eventual expansion to a higher degree of parallelism on an HPC cluster.  Note, however, that parallelism across all the cores of any single node of an HPC cluster could be accomplished without MPI by using the `multprocessing` package -- Unity nodes currently have up to 128 cores.
 
 The most popular open-source MPI packages seem to be [**OpenMPI**](https://www.open-mpi.org/) and [**MPICH**](https://www.mpich.org/). Also, there are some other versions of MPI that are derived from MPICH: [**MVAPICH2**](https://mvapich.cse.ohio-state.edu/), [**Intel MPI**](https://www.intel.com/content/www/us/en/developer/tools/oneapi/mpi-library.html)... For brevity **only OpenMPI is discussed in this document**.
 
-#### Installing OpenMPI<a id="install-openmpi"></a>
+#### **Installing OpenMPI and MPI for Python (`mpi4py`) on a Linux PC**<a id="install-openmpi-pc"></a>
 
-- On Unity as of 1/25 the available OpenMPI modules on Unity HPC were Open MPI  4.1.6 and 5.0.3, so decided to use these same versions of OpenMPI on my PCs.
+To run MPI-parallel programs written in Python, it is necessary to have available (a) a working MPI installation such as OpenMPI and (b) a Python package such as [**MPI for Python (`mpi4py`)**](https://mpi4py.readthedocs.io/en/stable/) to provide Python versions of the MPI functions. This section describes how to install OpenMPI and `mpi4py` on a PC, when an Apptainer container is not being used. Using OpenMPI + `mpi4py` in other situations is described in separate sections below: with Apptainer on a PC, without Apptainer on the Unity HPC cluster, and with Apptainer on Unity.
 
-- Whichever MPI package is used (OpenMPI, MPICH...), Python bindings can be provided by [**MPI for Python (`mpi4py`)**](https://mpi4py.readthedocs.io/en/stable/).  I think it is necessary to install the desired MPI package (e.g. `openmpi`) and `mpi4py` in the same Conda environment, as shown below, for `mpi4py` to properly connect to the MPI package.
+The docs for OpenMPI and `mpi4py` describe various ways of obtaining and installing these things, including building from source, but for the purpose of running an MPI-parallel Python program on a Linux PC the easiest thing is to use Conda to install both OpenMPI and `mpi4py` in an environment, here called **`ompi`**.  The version of OpenMPI installed can be found using `mpirun --version`, while much more detailed info is returned by `ompi_info`:
 
-- Following commands worked  1/25 to create a Conda environment **`ompi5`** on my PCs with Python 3.11.11, OpenMPI 5.0.3, `mpi4py` 4.0.0, NumPy 1.26.4, SciPy 1.15.1, Matplotlib 3.10.0 (Conda was unable to create this environment with Python 3.12 or above -- it might have helped to use `conda-forge` for all the packages but this wasn't tried).  It also worked to use these same commands but specifying `openmpi=4.1.6` to make an environment **`ompi4`**.
-  
-  ```
-  $ conda update conda
-  $ conda create -n ompi5 python=3.11
-  $ conda activate ompi5
-  (opmi5)..$ python --version
-  3.11.11
-  (ompi5)..$ conda install -c conda-forge openmpi=5.0.3 mpi4py
-  (ompi5)..$ conda install numpy scipy matplotlib
-  ```
-  
-  To make OpenMPI commands like `mpirun` and `opmi_info` usable must do the following command once.  Note that `apt install` installs commands globally, not to the current Conda environment.
-  
-  ```
-  $ sudo apt install openmpi-bin
-  ```
-  
-  Then information on the OpenMPI installation in the current environment can be gotten by doing
-  
-  ```
-  (ompi5)..$ ompi_info
-                   Package: Open MPI conda@b7f39adee97d Distribution
-                  Open MPI: 5.0.3
-    Open MPI repo revision: v5.0.3
-     Open MPI release date: Apr 08, 2024
-                ...
-  ```
+```
+$ conda create -c conda-forge -n ompi openmpi=5 mpi4py python=3.12
+$ conda activate ompi
+(ompi)..$ mpirun --version
+mpirun (Open MPI) 5.0.7
+(ompi)..$  ompi_info | head
+                 Package: Open MPI conda@f424a898794e Distribution
+                Open MPI: 5.0.7
+  Open MPI repo revision: v5.0.7
+   Open MPI release date: Feb 14, 2025
+                 MPI API: 3.1.0
+            Ident string: 5.0.7
+                  Prefix: /home/dc/anaconda3/envs/ompi
+ Configured architecture: x86_64-conda-linux-gnu
+           Configured by: conda
+           Configured on: Mon Feb 17 07:57:35 UTC 2025
+```
 
 #### Simple MPI test programs: `mpi_hw.py`  and `osu_bw.py` <a id="mpi-testprogs"></a>
 
@@ -574,66 +561,66 @@ The most popular open-source MPI packages seem to be [**OpenMPI**](https://www.o
   $ mpirun -n 4 python myprog.py
   ```
 
-- The "Hello world" of MPI programs, **`mpi_hw.py`** simply prints a message including the rank and other information.  Running `mpi_hw.py` in six ranks gives us six such messages, in an indeterminate order:**
+- The "Hello world" of MPI programs, **`mpi_hw.py`** simply prints a message including the rank and other information.  Running `mpi_hw.py` in four ranks gives us four such messages, in an indeterminate order:**
   
   ```
-  (ompi5)..$ mpirun -n 6 python mpi_hw.py
-  Hello world from rank 1 of 6 on candela-21 running Open MPI v5.0.3
-  Hello world from rank 4 of 6 on candela-21 running Open MPI v5.0.3
-  Hello world from rank 2 of 6 on candela-21 running Open MPI v5.0.3
-  Hello world from rank 5 of 6 on candela-21 running Open MPI v5.0.3
-  Hello world from rank 3 of 6 on candela-21 running Open MPI v5.0.3
-  Hello world from rank 0 of 6 on candela-21 running Open MPI v5.0.3
+  (ompi)..$ cd python-scripts; ls    # cd to directory containing test programs
+  mpi_hw.py  osu_bw.py ...
+  (ompi)..python-scripts$ mpirun -n 4 python mpi_hw.py
+  Hello world from rank 0 of 4 on candela-21 running Open MPI v5.0.7
+  Hello world from rank 3 of 4 on candela-21 running Open MPI v5.0.7
+  Hello world from rank 1 of 4 on candela-21 running Open MPI v5.0.7
+  Hello world from rank 2 of 4 on candela-21 running Open MPI v5.0.7
   ```
   
   Some fine points about the number of ranks:
   
-  - Omitting `-n 6` above will set the number of ranks equal to the  number of available cores, while setting the number of ranks to more than the available cores will cause `mpirun` to fail.
+  - Omitting `-n 4` above will set the number of ranks equal to the  number of available cores, while setting the number of ranks to more than the available cores will cause `mpirun` to fail.
   
-  - Including the option  `--use-hwthread-cpus`  will use **hyperthreading**, if available for the CPU used, to double the effective number of cores and thus double the allowed number of ranks.
+  - Including the option  `--use-hwthread-cpus`  on `mpirun` will use **hyperthreading**, if available for the CPU used, to double the effective number of cores and thus double the allowed number of ranks.
 
 - In `mpi_hw.py` the code in each rank runs independently, with no communication between ranks.  The main purpose of MPI is to carry out inter-rank communication, to enable non-trivial parallel algorithms.  **`osu_bw.py`** tests the **speed of communication between two ranks**, for messages of various sizes.  Here this test program was run on the PC candela-21.  As the two ranks are on cores on the same CPU chip (on a PC like this -- not necessarily true on an HPC cluster), the communication speed should be quite fast:
   
   ```
-  (ompi5)..$ mpirun -n 2 python osu_bw.py
+  (ompi)..python-scripts$  mpirun -n 2 python osu_bw.py
   2
   2
   # MPI Bandwidth Test
   # Size [B]    Bandwidth [MB/s]
-           1                2.89
-           2                5.50
-           4               11.31
-           8               23.19
-          16               46.33
-          32               92.53
-          64              171.07
-         128              316.73
-         256              597.47
-         512            1,297.02
-       1,024            2,479.73
-       2,048            4,631.86
-       4,096            2,245.38
-       8,192            3,837.26
-      16,384            5,731.62
-      32,768            7,912.04
-      65,536            9,754.16
-     131,072           10,643.03
-     262,144            9,186.16
-     524,288            8,955.39
-   1,048,576            9,121.18
-   2,097,152            9,196.89
-   4,194,304            9,130.77
-   8,388,608            8,922.07
-  16,777,216            7,397.23
+           1                3.69
+           2                7.34
+           4               14.63
+           8               29.26
+          16               57.95
+          32              115.64
+          64              209.67
+         128              379.26
+         256              707.62
+         512            1,523.25
+       1,024            2,900.98
+       2,048            5,324.45
+       4,096            2,881.93
+       8,192            4,948.91
+      16,384            7,633.05
+      32,768           10,637.36
+      65,536           13,375.59
+     131,072           14,828.03
+     262,144           15,466.52
+     524,288           16,143.36
+   1,048,576           16,809.99
+   2,097,152           17,052.31
+   4,194,304           17,227.80
+   8,388,608           16,646.96
+  16,777,216           11,017.93
   ```
   
-  It can be seen that the inter-rank communication speed is about 9 GB/s for messages size 65 kB - 4 MB, and slower for messages outside this range.
+  It can be seen that the maximum inter-rank communication speed was about 17 GB/s on this PC ([candela-21](#pcs)).
 
 #### A more elaborate MPI program: `boxpct.py` with the `dem21` package<a id="boxpct-dem21"></a>
 
 **TODO** Run bigger sim on candela-21 for speed comparison with Unity
 
-Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (not publically available) as an example of a much more elaborate MPI program.  It is assumed that OpenMPI has been installed on the PC as [described above](#install-openmpi).
+Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (not public ally available) as an example of a much more elaborate MPI program.  It is assumed that OpenMPI has been installed on the PC as [described above](#install-openmpi).
 
 - With access the `dem21` repo is cloned from GitHub to a directory `foo/dem21`.  Then, following the instructions in the documentation `dem21.pdf` (in the repo), a suitable environment **`dem21`** for running the package is created.  This is like the environment `ompi5` for running MPI described above, but includes additional packages needed by `dem21`.  Finally, the `dem21` package is installed in this environment (note it was necessary to get packages from `conda-forge` as shown; Conda was unable to create this environment with packages from the default channel):
   
@@ -2219,9 +2206,16 @@ $ module av openmpi
   Next we create a Conda environment **`ompi5`** with Python, `mpi4py`, and other packages likely to be needed by programs running in this environment (here we show `numpy`, `scipy`, and `matplotlib`):
 
 ```
+SOMETHING LIKE THIS WORKED 3/7/25 (EXTERNAL MPI, DOESN'T NEED TO BE LOADED TO CREAE ENV)
 $ unity-compute                 # get an interactive shell on a compute node
 (wait for the compute-node shell to come up)
 $ module load conda/latest
+$ conda env create -n m4pe -c conda-forge "openmpi=5.0.3=external_*" mpi4py python=3.12
+
+
+
+
+OLD BELOW
 $ module load openmpi/5.0.3
 $ conda create -n ompi5 python=3.12
 $ conda activate ompi5
@@ -2244,13 +2238,18 @@ It probably is not necessary follow the steps exactly as shown above:
 Here we get an interactive shell with resources for 4 MPI tasks (`-n 4`) on two nodes (-N 2) and Infiniband connectivity (`-C ib`) on the `cpu` partition.  Then, after activating `ompi5` it is possible to run the MPI hello-world program:
 
 ```
+SOMETHING LIKE THIS WORKED 3/7/25 (mpi4py USING EXTERNAL MPI) AND HAD REASONABLE
+INTER- (21 GB/S) AND INTRA (12 GB/S) SPEEDS - ONLY THING DUBIOUS IS SHOWS EG
+[cpu049:406928] Rank 0 is not bound (or bound to all available processors)
+[cpu050:3716867] Rank 1 is not bound (or bound to all available processors)
+NOT SURE IF THIS IS A PROBLEM, HAVEN'T FIGURED OUT YET WHEN THIS DOES/DOESN'T HAPPEN
 $ salloc -n 4 -N 2 -C ib -p cpu
 (wait for the compute-node shell to come up)
 $ module load openmpi/5.0.3
 $ module load conda/latest
-$ conda activate ompi5
-(ompi5)$ cd python-scripts         # cd to directory containing mpi_hw.py and osu_bw.py
-(ompi5)python-scripts$ mpirun python mpi_hw.py
+$ conda activate m4pe
+(m4pe)$ cd python-scripts         # cd to directory containing mpi_hw.py and osu_bw.py
+(m4pe)python-scripts$ mpirun python mpi_hw.py
 Hello world from rank 3 of 4 on cpu045 running Open MPI v5.0.7
 Hello world from rank 1 of 4 on cpu045 running Open MPI v5.0.7
 Hello world from rank 0 of 4 on cpu045 running Open MPI v5.0.7
