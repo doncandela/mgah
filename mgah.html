@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   3/7/25</p>
+<p>mgah.md  D. Candela   3/8/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -2396,9 +2396,8 @@ body {
 </ul>
 </li>
 <li><a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a><ul>
-<li><a href="#conda-mpi-unity">A Conda environment capable of using OpenMPI</a></li>
-<li><a href="#mpi-interactive">Run the MPI test programs <code>mpi_hw.py</code> and <code>osu_bw.py</code> interactively</a></li>
-<li><a href="#sbatch-mpi">Use <code>sbatch</code> to run <code>osu_bw.py</code></a></li>
+<li><a href="#ways-mpi-unity">Ways of running Python MPI programs on Unity</a></li>
+<li><a href="#sbatch-mpi">Use <code>sbatch</code> to run a simple MPI job</a></li>
 <li><a href="#sbatch-multithread">Enabling NumPy multithreading in MPI batch jobs</a></li>
 <li><a href="#sbatch-dem21">Use <code>sbatch</code> to run <code>boxpct.py + dem21</code> with MPI</a></li>
 </ul>
@@ -4551,157 +4550,220 @@ Multiply M*M=N element dense matrices
 </li>
 </ul>
 <h3 class="atx" id="using-mpi-on-unity-without-apptainerlessa-iddouble-quoteunity-mpidouble-quotegreaterlessagreater">Using MPI on Unity (without Apptainer)<a id="unity-mpi"></a></h3>
-<h4 class="atx" id="a-conda-environment-capable-of-using-openmpilessa-iddouble-quoteconda-mpi-unitydouble-quotegreaterlessagreater">A Conda environment capable of using OpenMPI<a id="conda-mpi-unity"></a></h4>
-<p>This was created as follows.  First we see which OpenMPI modules are available -- from these we will select OpenMPI 5.0.3:</p>
+<h4 class="atx" id="ways-of-running-python-mpi-programs-on-unitylessa-iddouble-quoteways-mpi-unitydouble-quotegreaterlessagreater">Ways of running Python MPI programs on Unity<a id="ways-mpi-unity"></a></h4>
+<p>Using Python MPI program requires (a) a working MPI installation - as in <a href="#on-linux-pc">Part 1</a> we only consider <a href="https://docs.open-mpi.org/en/v5.0.x/">OpenMPI</a> here, and (b) Python MPI functions - also as in Part 1 we only consider <a href="https://mpi4py.readthedocs.io/en/stable/"><code>mpi4py</code></a> here.  Even with these restrictions there are various choices involving modules and Conda environments that seem to work on Unity (and others that don't).  In this section we use the basic <a href="#mpi-testprogs">MPI test programs described above</a>: <strong><code>mpi_hw.py</code></strong> to check that there is a functional MPI + <code>mpi4py</code> setup, and <strong><code>osu_bw.py</code></strong> to measure the speed of communication between MPI ranks.</p>
+<ul>
+<li><p>First we see which OpenMPI modules are available on Unity (as of 3/25). In the examples shown below when an OpenMPI module is used the latest version without CUDA <code>openmpi/5.0.3</code> is selected.</p>
 <pre><code class="fenced-code-block">$ module av openmpi
 
----------------------- /modules/modulefiles/spack/latest/linux-ubuntu24.04-x86_64/Core -----------------------
+---------------------- /modules/modulefiles/spack/latest/linux-ubuntu24.04-x86_64/Core ------------------
    openmpi/4.1.6-cuda12.6    openmpi/4.1.6    openmpi/5.0.3-cuda12.6    openmpi/5.0.3</code></pre>
-<p>  In the examples shown below, the latest version (5.0.3) was used, without CUDA  -- this worked, and at least sometimes it seemed that using the version with CUDA caused a problem -- but this was not explored in detail.</p>
-<p>  Next we create a Conda environment <strong><code>ompi5</code></strong> with Python, <code>mpi4py</code>, and other packages likely to be needed by programs running in this environment (here we show <code>numpy</code>, <code>scipy</code>, and <code>matplotlib</code>):</p>
-<pre><code class="fenced-code-block">SOMETHING LIKE THIS WORKED 3/7/25 (EXTERNAL MPI, DOESN'T NEED TO BE LOADED TO CREAE ENV)
-$ unity-compute                 # get an interactive shell on a compute node
-(wait for the compute-node shell to come up)
-$ module load conda/latest
-$ conda env create -n m4pe -c conda-forge "openmpi=5.0.3=external_*" mpi4py python=3.12
-
-
-
-
-OLD BELOW
-$ module load openmpi/5.0.3
-$ conda create -n ompi5 python=3.12
-$ conda activate ompi5
-(ompi5)..$ conda install mpi4py
-(ompi5)..$ conda install numpy scipy matplotlib
-(ompi5)..$ mpirun --version
-mpirun (Open MPI) 5.0.7</code></pre>
-<p>It probably is not necessary follow the steps exactly as shown above:</p>
-<ul>
-<li><p>It might be OK to load an OpenMPI module with CUDA, or it might not be necessary to load any OpenMPI module while creating the environment.</p>
 </li>
-<li><p>It might be OK to include <code>openmpi</code> in the <code>conda install mpi4py</code> command.</p>
-<p>However, under some combinations of doing things a dysfunctional environment was created, which was usually detectable by the output from <code>mpirun --version</code> -- either no version or an Intel MPI version was shown.</p>
+<li><p>Next we create two Conda environments <strong><code>m4p</code></strong> and <strong><code>m4pe</code></strong> with OpenMPI, <code>mpi4py</code>, Python, and other packages likely to be needed by programs running in this environment (here we show <code>numpy</code>, <code>scipy</code>, and <code>matplotlib</code>).  Things to note:</p>
+<ul>
+<li><p>It seems necessary to load a Unity OpenMPI module before creating these environments, as shown here, for everything shown later to work.</p>
+</li>
+<li><p>We use <code>conda-forge</code>, which seems to have relatively up-to-date packages, and for <strong><code>m4pe</code></strong> (but not <strong><code>m4p</code></strong>) we follow the prescription on <a href="https://conda-forge.org/docs/user/tipsandtricks/#using-external-message-passing-interface-mpi-libraries">this conda-forge page</a> to specify that an external MPI implementation will be used. </p>
 </li>
 </ul>
-<h4 class="atx" id="run-the-mpi-test-programs-mpi_hwpy-and-osu_bwpy-on-unity-interactivelylessa-iddouble-quotempi-interactivedouble-quotegreaterlessagreater">Run the MPI test programs <code>mpi_hw.py</code> and <code>osu_bw.py</code> on Unity interactively<a id="mpi-interactive"></a></h4>
-<p>Here we get an interactive shell with resources for 4 MPI tasks (<code>-n 4</code>) on two nodes (-N 2) and Infiniband connectivity (<code>-C ib</code>) on the <code>cpu</code> partition.  Then, after activating <code>ompi5</code> it is possible to run the MPI hello-world program:</p>
-<pre><code class="fenced-code-block">SOMETHING LIKE THIS WORKED 3/7/25 (mpi4py USING EXTERNAL MPI) AND HAD REASONABLE
-INTER- (21 GB/S) AND INTRA (12 GB/S) SPEEDS - ONLY THING DUBIOUS IS SHOWS EG
-[cpu049:406928] Rank 0 is not bound (or bound to all available processors)
-[cpu050:3716867] Rank 1 is not bound (or bound to all available processors)
-NOT SURE IF THIS IS A PROBLEM, HAVEN'T FIGURED OUT YET WHEN THIS DOES/DOESN'T HAPPEN
-$ salloc -n 4 -N 2 -C ib -p cpu
+<pre><code class="fenced-code-block">$ unity-compute
 (wait for the compute-node shell to come up)
-$ module load openmpi/5.0.3
 $ module load conda/latest
+$ module load openmpi/5.0.3
+
+# Create environment m4p and check that OpenMPI is available in it.
+$ conda create -n m4p -c conda-forge openmpi=5 mpi4py python=3.12
+$ conda activate m4p
+(m4p)$ conda install numpy scipy matplotlib
+(m4p)$ mpirun --version
+mpirun (Open MPI) 5.0.7
+(m4p)$ ompi_info | head
+                 Package: Open MPI conda@f424a898794e Distribution
+                Open MPI: 5.0.7
+  Open MPI repo revision: v5.0.7
+   Open MPI release date: Feb 14, 2025
+                 MPI API: 3.1.0
+            Ident string: 5.0.7
+                  Prefix: /work/candela_umass_edu/.conda/envs/m4p
+ Configured architecture: x86_64-conda-linux-gnu
+           Configured by: conda
+           Configured on: Mon Feb 17 07:57:35 UTC 2025
+(m4p)$ conda deactivate
+
+# Create environment m4pe and check that OpenMPI is available in it.
+$ conda create -n m4pe -c conda-forge "openmpi=5.0.3=external_*" mpi4py python=3.12
 $ conda activate m4pe
-(m4pe)$ cd python-scripts         # cd to directory containing mpi_hw.py and osu_bw.py
-(m4pe)python-scripts$ mpirun python mpi_hw.py
-Hello world from rank 3 of 4 on cpu045 running Open MPI v5.0.7
-Hello world from rank 1 of 4 on cpu045 running Open MPI v5.0.7
-Hello world from rank 0 of 4 on cpu045 running Open MPI v5.0.7
-Hello world from rank 2 of 4 on cpu045 running Open MPI v5.0.7</code></pre>
-<p>  Notes:</p>
+(m4pe)$ conda install numpy scipy matplotlib
+(m4pe)$ mpirun --version
+mpirun (Open MPI) 5.0.3
+(m4pe)$ ompi_info | head
+                 Package: Open MPI package-maintainer@gpu005 Distribution
+                Open MPI: 5.0.3
+  Open MPI repo revision: v5.0.3
+   Open MPI release date: Apr 08, 2024
+                 MPI API: 3.1.0
+            Ident string: 5.0.3
+                  Prefix: /modules/spack/packages/linux-ubuntu24.04-x86_64/gcc-13.2.0/openmpi-5.0.3-bj572zbkduba5ueea4uwnhhgbi422h55
+ Configured architecture: x86_64-pc-linux-gnu
+           Configured by: package-maintainer
+           Configured on: Sat Aug 24 21:50:27 UTC 2024</code></pre>
+</li>
+<li><p>Next we run <strong><code>mpi_hw.py</code></strong> interactively to check that MPI is functional.  Here and below we supply <strong><code>--display bindings</code></strong> to <code>mpirun</code> which should show which core(s) on which node each MPI rank is bound to, before running the supplied code (<code>python</code> here).</p>
+<pre><code class="fenced-code-block"># Get an interactive compute node with four cores.
+$ salloc -n 4 
+(wait for the compute-node shell to come up)
+$ cd python-scripts; ls    # cd to directory with mpi_hw.py
+mpi_hw.py  ...
+python-scripts$ module load conda/latest
+python-scripts$ conda activate m4p
+(m4p)..python-scripts$ mpirun --display bindings python mpi_hw.py
+[gypsum-gpu001:4010527] Rank 0 bound to package[0][core:4]
+[gypsum-gpu001:4010527] Rank 1 bound to package[0][core:5]
+[gypsum-gpu001:4010527] Rank 2 bound to package[1][core:8]
+[gypsum-gpu019:3278150] Rank 3 bound to package[0][core:3]
+Hello world from rank 2 of 4 on gypsum-gpu001 running Open MPI v5.0.7
+Hello world from rank 1 of 4 on gypsum-gpu001 running Open MPI v5.0.7
+Hello world from rank 0 of 4 on gypsum-gpu001 running Open MPI v5.0.7
+Hello world from rank 3 of 4 on gypsum-gpu019 running Open MPI v5.0.7
+
+# To run in environmenet m4pe, need to load OpenMPI module.
+(m4p)..python-scripts$ conda deactivate
+..python-scripts$ conda activate m4pe
+(m4pe)..python-scripts$ mpirun --display bindings python mpi_hw.py
+bash: mpirun: command not found
+(m4pe)..python-scripts$ module load openmpi/5.0.3
+(m4pe)..python-scripts$ mpirun --display bindings python mpi_hw.py
+[gypsum-gpu001:4014610] Rank 0 is not bound (or bound to all available processors)
+[gypsum-gpu001:4014610] Rank 1 is not bound (or bound to all available processors)
+[gypsum-gpu001:4014610] Rank 2 is not bound (or bound to all available processors)
+[gypsum-gpu019:3281256] Rank 3 is not bound (or bound to all available processors)
+Hello world from rank 1 of 4 on gypsum-gpu001 running Open MPI v5.0.3
+Hello world from rank 2 of 4 on gypsum-gpu001 running Open MPI v5.0.3
+Hello world from rank 0 of 4 on gypsum-gpu001 running Open MPI v5.0.3
+Hello world from rank 3 of 4 on gypsum-gpu019 running Open MPI v5.0.3</code></pre>
+<p>We see:</p>
 <ul>
-<li><p>If <code>-n</code> is not supplied, the number of MPI ranks started by <code>mpirun</code> will default to the number of tasks allocated in Slurm, here 4 as specified to <code>salloc</code>.  </p>
+<li><p>We can run <code>mpirun</code> in environment <code>m4p</code> without first loading an OpenMPI module, but not in environment <code>m4pe</code> which requires the OpenMPI module to be loaded.</p>
 </li>
-<li><p>Two nodes were specified (<code>-N 2</code>) so intra- and inter-node communication  could be compared, see below.  For other purposes it may not be necessary to specify the number of nodes (<code>-N</code> can be omitted) or it may be wished to force all the ranks to be on one node (<code>-N 1</code>).</p>
+<li><p><code>--display bindings</code> shows both node and core for each rank when an OpenMPI module is <em>not</em> loaded (top example above), but only shows node and <code>Rank n is not bound...</code> when an OpenMPI module <em>is</em> loaded (bottom example above).  Although not shown above, this holds true even if environment <code>m4p</code> is used.  Even when <code>Rank n is not bound...</code> is displayed, the program still functions -- so this may be a problem of communicating information rather than an actual problem.</p>
 </li>
-<li><p>We did not do <code>module load openmpi/5.0.3</code> to load OpenMPI.  This did not seem necessary or helpful -- it seemed that the environment <code>ompi5</code> built as above had the necessary information and linking for efficient running.</p>
-<p>Continuing the example above, we run the messaging speed test <code>osu_bw.py</code> supplying <code>-n 2</code> to MPI run because this program requires exactly 2 MPI ranks.  We also supply <code>--display bindings</code> which prints out which node and core each MPI rank is bound to:</p>
-<pre><code class="fenced-code-block">python-scripts$ mpirun -n 2 --display bindings python osu_bw.py
-[cpu045:789158] Rank 0 bound to package[0][core:15]
-[cpu045:789158] Rank 1 bound to package[0][core:16]
+</ul>
+</li>
+<li><p>Finally we run <strong><code>osu_bw.py</code></strong> to check inter-rank communication speed.</p>
+<ul>
+<li><p>We get an interactive node with four cores (<code>-n 4</code>) on two nodes (<code>-N 2</code>) so intra- and inter-node communication could be compared, see below. For other purposes it may not be necessary to specify the number of nodes (<code>-N</code> can be omitted) or it may be wished to force all the ranks to be on one node (<code>-N 1</code>).  We also specify <strong><code>-C ib</code> to constrain the job to nodes with InfiniBand connectivity*</strong>; if this was not done the reported communication speeds were sometimes about 100 times slower.</p>
+<p>To start with we activate <code>m4p</code> and do not load the OpenMPI module, then use <code>mpirun -n 2...</code> to run <code>osu_bw.py</code> on two ranks -- it is necessary to supply <code>-n 2</code> to <code>mpirun</code> here as otherwise it would default to the four ranks allocated by the <code>salloc</code> command, and <code>osu_bw.py</code> insists on exactly two ranks.</p>
+<pre><code class="fenced-code-block">$ salloc -n 4 -N 2 -C ib
+(wait for the compute-node shell to come up)
+$ cd python-scripts; ls    # cd to directory with osu_bw.py
+osu_bw.py  ...
+python-scripts$ module load conda/latest
+python-scripts$ conda activate m4p
+(m4p)..python-scripts$ mpirun -n 2 --display bindings python osu_bw.py
+[cpu045:1260236] Rank 1 bound to package[1][core:47]
+[cpu045:1260236] Rank 0 bound to package[1][core:42]
 2
 2
 # MPI Bandwidth Test
 # Size [B]    Bandwidth [MB/s]
-       1                1.90
-       2                3.35
-       4                6.97
-       8               14.94
-      16               25.92
-      32               60.26
-      64              122.90
-     128              226.53
-     256              445.71
-     512              873.39
-   1,024            1,596.58
-   2,048            2,331.47
-   4,096            3,421.14
-   8,192            4,795.98
-  16,384            7,295.17
-  32,768            5,479.43
-  65,536           16,217.49
- 131,072           19,317.21
- 262,144           16,496.67
- 524,288           11,960.54
-1,048,576           11,558.17
-2,097,152           11,555.04
-4,194,304           11,775.86
-8,388,608           11,805.32
-16,777,216           11,503.32</code></pre>
-<p>The speeds reported by <code>osu_bw.py</code> (up to 19 GB/s) are vaguely similar to those seen on a PC in Part 1 of this document. But without the <code>-C ib</code> option on <code>salloc</code>, speeds about 100 times slower were sometimes (but not always) seen.</p>
-<p>Note that with the <a href="https://docs.open-mpi.org/en/v5.0.x/launching-apps/scheduling.html">default binding strategy</a> "by slot", both MPI ranks were placed on the same node.  To measure the communication speed between nodes, we can supply <code>--map-by node</code> to <code>mpirun</code>. The speeds were about the same for intra- and inter-node messaging, in this case:</p>
-<pre><code class="fenced-code-block">python-scripts$ mpirun -n 2 --display bindings --map-by node python osu_bw.py
-[cpu045:789178] Rank 0 bound to package[0][core:15]
-[cpu046:1170654] Rank 1 bound to package[1][core:41]
+         1                1.95
+         2                3.81
+         4                7.51
+         8               15.48
+        16               31.47
+        32               61.05
+        64              123.70
+       128              220.22
+       256              439.24
+       512              815.56
+     1,024            1,498.98
+     2,048            2,401.25
+     4,096            3,096.10
+     8,192            4,489.08
+    16,384            6,877.37
+    32,768            8,597.59
+    65,536           14,706.91
+   131,072           17,796.39
+   262,144           12,374.38
+   524,288            7,485.89
+ 1,048,576            8,596.79
+ 2,097,152            8,909.45
+ 4,194,304            9,040.91
+ 8,388,608            9,107.42
+16,777,216            6,882.39</code></pre>
+<p>The maximum speed seen here, 18 GB/s, varied by about +/-2 GB/s on repeated runnings.</p>
+</li>
+<li><p>The example above used OpenMPI's <a href="https://docs.open-mpi.org/en/v5.0.x/launching-apps/scheduling.html">default binding strategy</a> "by slot", which placed both MPI ranks on the same node. To measure the communication speed between nodes, we can supply <code>--map-by node</code> to <code>mpirun</code>:</p>
+<pre><code class="fenced-code-block">(m4p)..python-scripts$ mpirun -n 2 --map-by node --display bindings python osu_bw.py
+[cpu045:1260382] Rank 0 bound to package[1][core:42]
+[cpu047:2425563] Rank 1 bound to package[1][core:53]
 2
 # MPI Bandwidth Test
 # Size [B]    Bandwidth [MB/s]
 2
-       1                1.33
-       2                2.60
-       4                5.17
-       8               10.30
-      16               21.38
-      32               42.57
-      64               83.94
-     128              164.05
-     256              314.37
-     512              610.84
-   1,024            1,139.45
-   2,048            2,250.33
-   4,096            3,559.67
-   8,192            6,206.17
-  16,384            8,967.27
-  32,768           10,108.80
-  65,536           11,330.24
- 131,072           11,816.48
- 262,144           12,068.09
- 524,288           12,171.13
-1,048,576           12,257.80
-2,097,152           12,289.23
-4,194,304           12,285.12
-8,388,608           12,297.28
-16,777,216           12,312.21</code></pre>
+         1                1.15
+         2                2.31
+         4                4.58
+         8                8.94
+        16               18.27
+        32               36.85
+        64               73.54
+       128              145.92
+       256              280.03
+       512              549.85
+     1,024            1,058.59
+     2,048            2,222.78
+     4,096            4,392.00
+     8,192            6,205.18
+    16,384            9,066.75
+    32,768           10,469.50
+    65,536           11,322.56
+   131,072           11,803.02
+   262,144           12,076.67
+   524,288           12,209.42
+ 1,048,576           12,275.90
+ 2,097,152           12,205.76
+ 4,194,304           12,288.37
+ 8,388,608           12,310.17
+16,777,216           12,282.66</code></pre>
+<p>Now the maximum speed is 12 GB/s, i.e.  35% slower than the speed between ranks on the same node - but for some reason the largest message sizes are actually faster between nodes than between ranks on the same node.</p>
 <p>The OpenMPI version of <code>mpirun</code> has <a href="https://docs.open-mpi.org/en/main/man-openmpi/man1/mpirun.1.html">many other options</a>.  Note that in other MPI packages such as MPICH  <code>mpirun</code> has different, incompatible options.</p>
 </li>
+<li><p>The speed tests were repeated using the environment <strong><code>m4pe</code></strong> (external MPI installation) and gave identical speed results, both between ranks on the same node and on different nodes.  As noted above this required loading the OpenMPI module and then <code>--display bindings</code> no longer showed the core numbers used.</p>
+</li>
 </ul>
-<h4 class="atx" id="use-sbatch-to-run-osu_bwpylessa-iddouble-quotesbatch-mpidouble-quotegreaterlessagreater">Use <code>sbatch</code> to run <code>osu_bw.py</code><a id="sbatch-mpi"></a></h4>
+</li>
+</ul>
+<h4 class="atx" id="using-sbatch-to-run-a-simple-mpi-joblessa-iddouble-quotesbatch-mpidouble-quotegreaterlessagreater">Using <code>sbatch</code> to run a simple MPI job<a id="sbatch-mpi"></a></h4>
 <p>Make an sbatch script <strong><code>osu_bw.sh</code></strong> with the following contents, and put it in a directory <code>try_mpi</code> along with the test program <code>osu_bw.py</code>:</p>
 <pre><code class="fenced-code-block">#!/bin/bash
+
 # osu_bw.sh 2/27/25 D.C.
+
 # sbatch script to run osu_bw.py, which times the speed of MPI messaging
+
 # between two MPI ranks.
+
 #SBATCH -n 2                         # run 2 MPI ranks
 #SBATCH -p cpu                       # submit to partition cpu
 #SBATCH -C ib                        # require inifiniband connectivity
 echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used
 module purge                         # unload all modules
 module load conda/latest             # need this to use conda commands
-conda activate ompi5                 # environment with OpenMPI, NumPy and SciPy
+conda activate mp4                   # environment with OpenMPI, mpi4py, NumPy and SciPy
 mpirun --display bindings python osu_bw.py</code></pre>
-<p>  Here is the output file produced by running <code>sbatch osu_bw.sh</code>.  In this case the two ranks happened to be allocated on the same node, but there is nothing in <code>osu_bw.sh</code> that forces that to be the case:</p>
+<p>  WORKING HERE Here is the output file produced by running <code>sbatch osu_bw.sh</code>.  In this case the two ranks happened to be allocated on the same node, but there is nothing in <code>osu_bw.sh</code> that forces that to be the case:</p>
 <pre><code class="fenced-code-block">nodelist=uri-cpu008
 Loading conda
 [uri-cpu008:845867] Rank 0 bound to package[1][core:48]
 [uri-cpu008:845867] Rank 1 bound to package[1][core:54]
 2
 2
+
 # MPI Bandwidth Test
+
 # Size [B]    Bandwidth [MB/s]
+
          1                1.70
          2                3.34
          4                6.77
@@ -4719,6 +4781,7 @@ Loading conda
     16,384            8,143.36
     32,768            5,812.37
     65,536           16,890.32
+
    131,072           22,452.58
    262,144           25,971.58
    524,288           28,711.98
@@ -4859,7 +4922,7 @@ Memory Efficiency: 11.57% of 64.00 GB (8.00 GB/core)</code></pre>
 </li>
 </ul>
 <h4 class="atx" id="use-sbatch-to-run-boxpctpy--dem21-with-mpilessa-iddouble-quotesbatch-dem21double-quotegreaterlessagreater">Use <code>sbatch</code> to run <code>boxpct.py + dem21</code> with MPI<a id="sbatch-dem21"></a></h4>
-<p>See <a href="#boxpct-dem21">A more elaborate MPI program</a> above for the corresponding steps on a PC. <strong>TODO</strong> run bigger sim.</p>
+<p>See <a href="#boxpct-dem21">A more elaborate MPI program</a> above for the corresponding steps on a PC. </p>
 <ul>
 <li><p>As in that section, the <strong><code>dem21</code></strong> package is cloned into a directory <code>try-dem21</code> on Unity:</p>
 <pre><code class="fenced-code-block">try-dem21$ git clone git@github.com:doncandela/dem21.git</code></pre>
@@ -4878,16 +4941,19 @@ LICENSE.txt  README.md  develop  doc  pyproject.toml  setup.py  src  tests
 (dem21)..try-dem21/dem21$ pip install -e .</code></pre>
 </li>
 <li><p>At this point we can log out and back into Unity, and there is no need to activate the environment <code>dem21</code> interactively as it is activated by sbatch scripts as needed.</p>
+</li>
+</ul>
 <p>We go back to <code>try-dem</code> and copy the test program <code>boxpct.py</code> and its configuration file <code>box.yaml</code> there from the <code>tests</code> subdirectory of the cloned repo:</p>
 <pre><code class="fenced-code-block">try-dem21$ ls dem21/tests/box
 box.yaml  boxmod.yaml  boxpct.py  boxpct.sh  heap3.yaml  output  plots
 try-dem21$ cp dem21/tests/box/boxpct.py .
 tri-dem21$ cp dem21/tests/box/box.yaml .</code></pre>
-</li>
+<ul>
 <li><p>An sbatch script <strong><code>boxpct.sh</code></strong> is created in the directory <code>try-dem21</code> with these contents:</p>
 <pre><code class="fenced-code-block">#!/bin/bash
 # boxpct.sh 2/28/25 D.C.
 # sbatch script to run boxpct.py, using the dem21 package in MPI-parallel mode.
+
 #SBATCH -n 4                         # run 4 MPI ranks
 #SBATCH --mem-per-cpu=8G             # give each core 8 GB of memory
 #SBATCH -p cpu                       # submit to partition cpu
@@ -4910,14 +4976,17 @@ Loading conda
 [cpu045:1344137] Rank 1 bound to package[1][core:39]
 [cpu045:1344137] Rank 2 bound to package[1][core:40]
 [cpu045:1344137] Rank 3 bound to package[1][core:41]
+
 - Started MPI on master + 3 worker ranks.
-THIS IS: boxpct.py 12/3/22 D.C., using dem21 version: v1.2 2/11/25
-Parallel processing: MPI, GHOST_ARRAY=True
+  THIS IS: boxpct.py 12/3/22 D.C., using dem21 version: v1.2 2/11/25
+  Parallel processing: MPI, GHOST_ARRAY=True
+
 - Read 1 config(s) from /work/pi_candela_umass_edu/2025-01-apptainer/try-dem21/box.yaml
 
-SIM 1/1:
-Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
-                     ...</code></pre>
+  SIM 1/1:
+  Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
+
+                   ...</code></pre>
 </li>
 <li><p>Eamon Dwight has run much bigger simulations using the <code>dem21</code> package on Unity.  Here are some lines from a typical sbatch script he uses.  These were for simulations that ran well on 109 MPI ranks (due to the structure of <code>dem21</code>, which split the simulation domain into 216 boxes then allocated one MPI rank per two boxes plus one MPI rank for the control program).</p>
 <pre><code class="fenced-code-block">#SBATCH -q long                     # required for jobs running more than 2 days
@@ -4928,6 +4997,7 @@ Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
 #SBATCH -t 300:00:00                # time limit 300 hrs (max allowed is 14 days = 336 hrs)
 #SBATCH --constraint=ib</code></pre>
 <p>The <a href="https://slurm.schedmd.com/sbatch.html">docs for <code>sbatch</code></a> seem to imply that <em>all</em> of the nodes listed in <code>--nodelist=..</code> will be allocated to the job, but experimentally only the number of nodes specified by <code>-N...</code> will be allocated.  With the <code>#SBATCH</code> settings shown above all MPI ranks were on a single node, which proved to be more efficient than some other ways of running.</p>
+<p>TODO run bigger dem21 job.</p>
 </li>
 </ul>
 <h3 class="atx" id="using-a-gpu-on-unity-without-apptainerlessa-iddouble-quoteunity-gpudouble-quotegreaterlessagreater">Using a GPU on Unity (without Apptainer)<a id="unity-gpu"></a></h3>
