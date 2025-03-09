@@ -1,0 +1,6 @@
+Bootstrap: docker
+From: continuumio/miniconda3
+
+%post
+    conda install -c conda-forge openmpi=5 mpi4py python=3.12
+    conda install -c conda-forge numpy scipy matplotlib

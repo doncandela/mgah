@@ -2652,8 +2652,8 @@ $ apt list &lt;package&gt; --installed  # list installed packages with this name
 <ul>
 <li><strong><code>p39</code></strong> (defined just above) has Python 3.9, NumPy, SciPy, etc but does not have OpenMPI, PyTorch, or CuPy.</li>
 <li><strong><code>dfs</code></strong> (defined in <a href="#local-package">Installing a local package</a> below) environment for trying out  the local package <code>dcfuncs</code>.</li>
-<li><strong><code>ompi</code></strong> (defined in <a href="#mpi-pc">MPI on a Linux PC</a>) includes OpenMPI 5 and <code>mpi4py</code>, so MPI can be used by a Python program.</li>
-<li><strong><code>dem21</code></strong> (also defined in <a href="#mpi-pc">MPI on a Linux PC</a>) is like <code>ompi5</code> but additionally includes the locally-installed package <code>dem21</code> and additional packages that <code>dem21</code> imports.</li>
+<li><strong><code>m4p</code></strong> (defined in <a href="#mpi-pc">MPI on a Linux PC</a>) includes OpenMPI 5 and <code>mpi4py</code>, so MPI can be used by a Python program.</li>
+<li><strong><code>dem21</code></strong> (also defined in <a href="#mpi-pc">MPI on a Linux PC</a>) is like <code>m4p</code> but additionally includes the locally-installed package <code>dem21</code> and additional packages that <code>dem21</code> imports.</li>
 <li><strong><code>pyt</code></strong> (defined in <a href="#pytorch-cupy">Installing CUDA-aware Python packages...</a> below) adds PyTorch.</li>
 <li><strong><code>gpu</code></strong> (also defined in <a href="#pytorch-cupy">Installing CUDA-aware Python packages...</a> below) adds CuPy.</li>
 </ul>
@@ -2662,8 +2662,8 @@ $ apt list &lt;package&gt; --installed  # list installed packages with this name
 <ul>
 <li><strong><code>npsp</code></strong> (defined in <a href="#unity-modules-conda">Using modules and Conda</a>) has NumPy, SciPy, and Matplotlib, but not CuPy.</li>
 <li><strong><code>dfs</code></strong> (also defined in <a href="#unity-modules-conda">Using modules and Conda</a>) has NumPy and the local package <code>dcfuncs</code> installed.</li>
-<li><strong><code>ompi5</code></strong> (defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) includes OpenMPI 5.0.3, and MPI for Python, so MPI can be used.</li>
-<li><strong><code>dem21</code></strong> (also defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) is like <code>ompi5</code> but additionally includes the locally-installed package <code>dem21</code> and additional packages that <code>dem21</code> imports.</li>
+<li><strong><code>m4p</code></strong> (defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) includes OpenMPI 5.0.3, and <code>mpi4py</code>, so MPI can be used.  An alternative <strong><code>m4pe</code></strong> that uses externally-installed MPI is also discussed in that section, but it seems not to work as well on Unity.</li>
+<li><strong><code>dem21</code></strong> (also defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) is like <code>m4p</code> but additionally includes the locally-installed package <code>dem21</code> and additional packages that <code>dem21</code> imports.</li>
 <li><strong><code>gpu</code></strong> (defined in <a href="#unity-gpu">Using a GPU in Unity (without Apptainer)</a>) includes CuPy, so a GPU can be used.</li>
 </ul>
 </li>
@@ -2679,7 +2679,7 @@ $ apt list &lt;package&gt; --installed  # list installed packages with this name
 <li><strong><code>dem21</code></strong> is a complex package for doing DEM simulations of granular media using MPI parallelism. It is stored  in the currently private GitHub repo <a href="https://github.com/doncandela/dem21">doncandela/dem21</a>.  Although not available publicly it is mentioned in this document as an example of how a large, complex MPI code can be run.</li>
 </ul>
 </li>
-<li><p>The following Apptainer definition files are used. They are all discussed in <a href="#apptainer-pc">Using Apptainer on a Linux PC</a> below.  They have been mostly been used to build container images (<code>.sif</code> files) on PCs, which can then be run both on the PCs and on Unity.</p>
+<li><p>The following Apptainer definition files are used. They are all discussed in <a href="#apptainer-pc">Using Apptainer on a Linux PC</a> below.  They have been all been used to build container images (<code>.sif</code> files) on PCs, which can then be run successfully both on the PCs and on Unity.</p>
 <ul>
 <li><p><strong><code>os-only.def</code></strong> makes a container that contains only the <strong>Ubuntu OS</strong>.</p>
 </li>
@@ -2687,7 +2687,7 @@ $ apt list &lt;package&gt; --installed  # list installed packages with this name
 </li>
 <li><p><strong><code>dfs.def</code></strong> makes a container with the local package <strong><code>dcfuncs</code></strong> installed in it.</p>
 </li>
-<li><p><strong><code>ompi5.def</code></strong> makes a container with <strong>OpenMPI</strong> and <strong>MPI for Python</strong> installed in it, so it can be used to run MPI programs.</p>
+<li><p><strong><code>m4p.def</code></strong> makes a container with <strong>OpenMPI</strong> and <strong>MPI for Python</strong> installed in it, so it can be used to run MPI programs.</p>
 </li>
 <li><p><strong><code>dem21.def</code></strong> makes an MPI-enabled container like the one made by <code>ompi5.def</code>, but it also has the more elaborate MPI-using package <code>dem21</code> installed in the container.</p>
 </li>
@@ -2854,7 +2854,11 @@ Multiplying matrices 3 times...
 <h4 class="atx" id="installing-openmpi-and-mpi-for-python-mpi4py-on-a-linux-pclessa-iddouble-quoteinstall-openmpi-pcdouble-quotegreaterlessagreater"><strong>Installing OpenMPI and MPI for Python (<code>mpi4py</code>) on a Linux PC</strong><a id="install-openmpi-pc"></a></h4>
 <p>To run MPI-parallel programs written in Python, it is necessary to have available (a) a working MPI installation such as OpenMPI and (b) a Python package such as <a href="https://mpi4py.readthedocs.io/en/stable/"><strong>MPI for Python (<code>mpi4py</code>)</strong></a> to provide Python versions of the MPI functions. This section describes how to install OpenMPI and <code>mpi4py</code> on a PC, when an Apptainer container is not being used. Using OpenMPI + <code>mpi4py</code> in other situations is described in separate sections below: with Apptainer on a PC, without Apptainer on the Unity HPC cluster, and with Apptainer on Unity.</p>
 <p>The docs for OpenMPI and <code>mpi4py</code> describe various ways of obtaining and installing these things, including building from source, but for the purpose of running an MPI-parallel Python program on a Linux PC the easiest thing is to use Conda to install both OpenMPI and <code>mpi4py</code> in an environment, here called <strong><code>ompi</code></strong>.  The version of OpenMPI installed can be found using <code>mpirun --version</code>, while much more detailed info is returned by <code>ompi_info</code>:</p>
-<pre><code class="fenced-code-block">$ conda create -c conda-forge -n ompi openmpi=5 mpi4py python=3.12
+<pre><code class="fenced-code-block">TODO (TRY FIRST) Call this environment m4p (as do below on Unity).  Make simpler environment
+ompi with only openmpi to use when running apptainer?
+
+
+$ conda create -c conda-forge -n ompi openmpi=5 mpi4py python=3.12
 $ conda activate ompi
 (ompi)..$ mpirun --version
 mpirun (Open MPI) 5.0.7
@@ -3784,154 +3788,145 @@ CPU timings use last 10 of 11 trials
 <li><p><a href="https://apptainer.org/docs/user/latest/mpi.html">Apptainer and MPI applications</a> in the Apptainer docs explains in some detail how MPI works with Apptainer. Here we give some rather simpler examples showing how Python programs using <code>mpi4py</code> for MPI parallelism can be run with Apptainer.  Basically I have found that if Conda is used to install OpenMPI and MPI for Python (<code>mpi4py</code>) in the container, then it will be possible for Python run in multiple containers started by <code>mpirun</code> (from OpenMPI installed outside the containers) to use MPI via <code>mpi4py</code> calls.  This did not require setting any environment variables, unlike the examples in the Apptainer docs referenced above.</p>
 </li>
 <li><p>Make a definition file <strong><code>ompi5.def</code></strong> with the following contents. The <code>%post</code> commands in this file are similar to those shown above to <a href="#install-openmpi">install OpenMPI on a PC</a>, except that there is no need here to create a Conda environment like <code>ompi5</code> -- the container serves as the environment:</p>
-<pre><code class="fenced-code-block">Bootstrap: docker
+<pre><code class="fenced-code-block">TODO new idea mp4.def giving mp4.sif.  Seems apt stuff below is superfluous? But with
+this new mp4.sif on hoffice got warnings about tcp from each rank unless did
+mpirun --mca btl ^tcp....
+
+Bootstrap: docker
 From: continuumio/miniconda3
 
 %post
-    conda install -c conda-forge openmpi=5.0.3 mpi4py
-    conda install -c conda-forge numpy scipy matplotlib
-    apt-get update
-    apt install -y openmpi-bin</code></pre>
-<p>Some fine points about this <code>.def</code> file -- things that were found necessary for <code>apptainer build</code> to succeed:</p>
-<ul>
-<li>&nbsp;As of 2/25 installing <code>numpy...matplotlib</code> from the default Conda channel rather than <code>conda-forge</code> gave some tricky compatibility issues (the Docker image had Python 3.12 which was too recent if these packages were gotten from the default Conda channel).</li>
-<li>Without the <code>apt-get update</code> command to update the package list (in the container, I think), <code>apt install</code> was unable to find <code>openmpi-bin</code>.</li>
-<li>Without the <code>-y</code> option on <code>apt install</code> the build aborted at a <code>[Y/n]</code> question.</li>
-</ul>
-</li>
-<li><p>Build the container, resulting in the 1.2 GB image file <strong><code>ompi5.sif</code></strong>:</p>
-<pre><code class="fenced-code-block">$ sudo apptainer build "$SIFS"/ompi5.sif ompi5.def</code></pre>
-</li>
-<li><p>The following tests were done in a directory containing the <a href="#mpi-testprogs">MPI test programs described above</a>, <code>mpi_hw</code> to test that MPI is functioning and each task can find its MPI rank and <code>osu_bw.py</code> to test and measure the speed of communication between two MPI ranks.</p>
-<ul>
-<li><p>While the container <code>ompi5.sif</code> could be built as above without a Conda environment like <code>ompi5</code> in which MPI is installed, to run the container <strong>MPI must be installed outside the container</strong>.  This is because, as shown in an example below, MPI outside the container will be used to run multiple copies of the container on separate cores and to handle communication between these copies.</p>
-</li>
-<li><p>In the PC on which this was tried, OpenMPI 4.1.6 was installed in the base environment, but the base environment did not include <code>mpi4py</code> which is needed by <code>mpi_hw</code>:</p>
-<pre><code class="fenced-code-block">(base)..$ ompi_info | head -n 2
-                Package: Debian OpenMPI
-               Open MPI: 4.1.6
-(base)..$ mpirun -n 4 python mpi_hw.py
-Traceback (most recent call last):
-  File ".../mpi_hw.py", line 5, in &lt;module&gt;
-    from mpi4py import MPI
-ModuleNotFoundError: No module named 'mpi4py'</code></pre>
-</li>
-<li><p>If we run these same commands in the container <code>ompi5.sif</code>, we see that OpenMPI 5.0.3 is installed in the container and we can successfully run <code>mpi_hw.py</code> and <code>osu_bw.py</code>:</p>
-<pre><code class="fenced-code-block">(base)..$ apptainer exec "$SIFS"/ompi5.sif ompi_info | head -n 2
-                 Package: Open MPI conda@2a526d73f59c Distribution
-                Open MPI: 5.0.3
-(base)..$ mpirun -n 6 apptainer exec "$SIFS"/ompi5.sif python mpi_hw.py
-Hello world from rank 0 of 6 on candela-21 running Open MPI v5.0.3
-Hello world from rank 4 of 6 on candela-21 running Open MPI v5.0.3
-Hello world from rank 5 of 6 on candela-21 running Open MPI v5.0.3
-Hello world from rank 1 of 6 on candela-21 running Open MPI v5.0.3
-Hello world from rank 2 of 6 on candela-21 running Open MPI v5.0.3
-Hello world from rank 3 of 6 on candela-21 running Open MPI v5.0.3
-(base)..$ mpirun -n 2 apptainer exec "$SIFS"/ompi5.sif python osu_bw.py
-2
-2
-# MPI Bandwidth Test
-# Size [B]    Bandwidth [MB/s]
-         1                3.61
-         2                6.82
-         4               14.27
-         8               28.38
-        16               56.69
-        32              114.47
-        64              205.54
-       128              376.84
-       256              698.43
-       512            1,505.20
-     1,024            2,927.67
-     2,048            5,419.97
-     4,096            7,276.32
-     8,192           13,186.70
-    16,384           21,753.02
-    32,768           28,698.04
-    65,536           36,391.64
-   131,072           39,860.82
-   262,144           43,233.52
-   524,288           44,684.74
- 1,048,576           45,500.82
- 2,097,152           45,624.21
- 4,194,304           46,258.88
- 8,388,608           46,224.02
-16,777,216           45,786.94</code></pre>
-<p>Things to note in this example:</p>
-<ul>
-<li>The command <code>mpirun - n 6 ...</code> is running six separate copies of the container on six cores of the PC.  This <code>mpirun</code> command is running outside the container, so it is running OpenMPI 4.1.6 , but it successfully integrates with the OpenMPI 5.0.3 that each task is running inside its container (as can be seen from the <code>mpi_hw.py</code> print statements). This is an example of the "Hybrid model" for running MPI described in the <a href="https://apptainer.org/docs/user/latest/mpi.html">Apptainer docs</a>.</li>
-<li>For reasons I don't understand, <code>osu_bw.py</code> reports inter-rank communication speeds about four times faster when run using Apptainer, than when run <a href="#mpi-testprogs">directly by MPI without Apptainer</a>.  The results are the same if the Conda environment <code>ompi5</code> is activated to run the same version of MPI outside as inside.</li>
-</ul>
+    conda install -c conda-forge openmpi=5 mpi4py python=3.12
+    conda install -c conda-forge numpy scipy matplotlib</code></pre>
+<p>Bootstrap: docker
+From: continuumio/miniconda3</p>
+<p>%post</p>
+<pre><code class="indented-code-block">conda install -c conda-forge openmpi=5.0.3 mpi4py
+conda install -c conda-forge numpy scipy matplotlib
+apt-get update
+apt install -y openmpi-bin</code></pre>
 </li>
 </ul>
-</li>
-</ul>
-<h4 class="atx" id="a-container-to-run-the-more-elaborate-mpi-package-dem21lessa-iddouble-quotedem21-containerdouble-quotegreaterlessagreater">A container to run the more elaborate MPI package <code>dem21</code><a id="dem21-container"></a></h4>
-<ul>
-<li><p><strong>TODO</strong> Run bigger sim with container to see what difference it makes.</p>
-<p>Make a definition file <strong><code>dem21.def</code></strong> with the following contents. This is like <code>ompi5.def</code> in the previous section, but with the following additions to install the <code>dem21</code> package in the container (see <a href="#local-package-container">A container with a local Python package installed</a> above):</p>
-<ul>
-<li>There is a <code>%files</code> section that copies the <code>dem21</code> package (assumed to be in the directory from which the <code>apptainer build</code> is run) into the container.</li>
-<li>The <code>%post</code> section includes commands that install additional remote packages needed by <code>dem21</code> and install <code>dem21</code>  as a local package, as is done without a container in <a href="#boxpct-dem21">A more elaborate MPI program...</a> above.</li>
-</ul>
-<pre><code class="fenced-code-block">Bootstrap: docker
-From: continuumio/miniconda3
+<pre><code class="fenced-code-block">Some fine points about this `.def` file -- things that were found necessary for `apptainer build` to succeed:
 
-%files
-    dem21 /dem21
+- &nbsp;As of 2/25 installing `numpy...matplotlib` from the default Conda channel rather than `conda-forge` gave some tricky compatibility issues (the Docker image had Python 3.12 which was too recent if these packages were gotten from the default Conda channel).
+- Without the `apt-get update` command to update the package list (in the container, I think), `apt install` was unable to find `openmpi-bin`.
+- Without the `-y` option on `apt install` the build aborted at a `[Y/n]` question.
 
-%post
-    conda install -c conda-forge openmpi=5.0.3 mpi4py
-    conda install -c conda-forge dill matplotlib numba numpy pyaml scipy
-    conda install -c conda-forge quaternion
-    apt-get update
-    apt install -y openmpi-bin
-    cd /dem21
-    pip install .</code></pre>
-</li>
-<li><p>Working in a directory <code>build-dem21</code> that contains <code>dem21.def</code>, the <code>dem21</code> package (not currently public) is cloned into the current directory and the container is built. This made the 1.3 GB image file <strong><code>dem21.sif</code></strong>:</p>
-<pre><code class="fenced-code-block">build-dem21$ git clone git@github.com:doncandela/dem21.git
-build-dem$ ls
-dem21  dem21.def
-build-dem$ sudo apptainer build "$SIFS"/dem21.sif dem21.def</code></pre>
-</li>
-<li><p>To test  that the <code>dem21</code> package can run in the container (see <a href="#boxpct-dem21">A more elaborate MPI program...</a> above for the corresponding steps without a container, and the previous section <a href="#mpi-container">A container that can use MPI</a> for how MPI is run with a container):</p>
+- Build the container, resulting in the 1.2 GB image file **`ompi5.sif`**:</code></pre>
+<p>  <span class="katex"><span class="katex-mathml"></span><span aria-hidden="true" class="katex-html"><span class="base"><span style="height:0.8889em;vertical-align:-0.1944em;" class="strut"></span><span class="mord mathnormal">s</span><span class="mord mathnormal">u</span><span class="mord mathnormal">d</span><span class="mord mathnormal">o</span><span class="mord mathnormal">a</span><span class="mord mathnormal">ppt</span><span class="mord mathnormal">ain</span><span style="margin-right:0.02778em;" class="mord mathnormal">er</span><span class="mord mathnormal">b</span><span class="mord mathnormal">u</span><span class="mord mathnormal">i</span><span style="margin-right:0.01968em;" class="mord mathnormal">l</span><span class="mord mathnormal">d</span><span class="mord">"</span></span></span></span>SIFS"/ompi5.sif ompi5.def</p>
+<pre><code class="fenced-code-block">- The following tests were done in a directory containing the [MPI test programs described above](#mpi-testprogs), `mpi_hw` to test that MPI is functioning and each task can find its MPI rank and `osu_bw.py` to test and measure the speed of communication between two MPI ranks.
+
+- While the container `ompi5.sif` could be built as above without a Conda environment like `ompi5` in which MPI is installed, to run the container **MPI must be installed outside the container**.  This is because, as shown in an example below, MPI outside the container will be used to run multiple copies of the container on separate cores and to handle communication between these copies.
+
+- In the PC on which this was tried, OpenMPI 4.1.6 was installed in the base environment, but the base environment did not include `mpi4py` which is needed by `mpi_hw`:</code></pre>
+<p>  (base)..<span class="katex"><span class="katex-mathml"></span><span aria-hidden="true" class="katex-html"><span class="base"><span style="height:1em;vertical-align:-0.25em;" class="strut"></span><span class="mord mathnormal">o</span><span class="mord mathnormal">m</span><span class="mord mathnormal">p</span><span class="mord"><span class="mord mathnormal">i</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span style="height:0.3117em;" class="vlist"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span style="height:2.7em;" class="pstrut"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span style="height:0.15em;" class="vlist"><span></span></span></span></span></span></span><span class="mord mathnormal">n</span><span style="margin-right:0.10764em;" class="mord mathnormal">f</span><span class="mord mathnormal">o</span><span class="mord">∣</span><span class="mord mathnormal">h</span><span class="mord mathnormal">e</span><span class="mord mathnormal">a</span><span class="mord mathnormal">d</span><span style="margin-right:0.2222em;" class="mspace"></span><span class="mbin">−</span><span style="margin-right:0.2222em;" class="mspace"></span></span><span class="base"><span style="height:0.8889em;vertical-align:-0.1944em;" class="strut"></span><span class="mord mathnormal">n</span><span class="mord">2</span><span style="margin-right:0.13889em;" class="mord mathnormal">P</span><span class="mord mathnormal">a</span><span class="mord mathnormal">c</span><span class="mord mathnormal">ka</span><span style="margin-right:0.03588em;" class="mord mathnormal">g</span><span class="mord mathnormal">e</span><span style="margin-right:0.2778em;" class="mspace"></span><span class="mrel">:</span><span style="margin-right:0.2778em;" class="mspace"></span></span><span class="base"><span style="height:0.8889em;vertical-align:-0.1944em;" class="strut"></span><span class="mord mathnormal">De</span><span class="mord mathnormal">bian</span><span class="mord mathnormal">Op</span><span class="mord mathnormal">e</span><span class="mord mathnormal">n</span><span style="margin-right:0.13889em;" class="mord mathnormal">MP</span><span style="margin-right:0.07847em;" class="mord mathnormal">I</span><span class="mord mathnormal">Op</span><span class="mord mathnormal">e</span><span class="mord mathnormal">n</span><span style="margin-right:0.13889em;" class="mord mathnormal">MP</span><span style="margin-right:0.07847em;" class="mord mathnormal">I</span><span style="margin-right:0.2778em;" class="mspace"></span><span class="mrel">:</span><span style="margin-right:0.2778em;" class="mspace"></span></span><span class="base"><span style="height:1em;vertical-align:-0.25em;" class="strut"></span><span class="mord">4.1.6</span><span class="mopen">(</span><span class="mord mathnormal">ba</span><span class="mord mathnormal">se</span><span class="mclose">)</span><span class="mord">..</span></span></span></span> mpirun -n 4 python mpi_hw.py
+  Traceback (most recent call last):
+    File ".../mpi_hw.py", line 5, in 
+      from mpi4py import MPI
+  ModuleNotFoundError: No module named 'mpi4py'</p>
+<pre><code class="fenced-code-block">- If we run these same commands in the container `ompi5.sif`, we see that OpenMPI 5.0.3 is installed in the container and we can successfully run `mpi_hw.py` and `osu_bw.py`:</code></pre>
+<p>  (base)..<span class="katex"><span class="katex-mathml"></span><span aria-hidden="true" class="katex-html"><span class="base"><span style="height:0.8889em;vertical-align:-0.1944em;" class="strut"></span><span class="mord mathnormal">a</span><span class="mord mathnormal">ppt</span><span class="mord mathnormal">ain</span><span class="mord mathnormal">ere</span><span class="mord mathnormal">x</span><span class="mord mathnormal">ec</span><span class="mord">"</span></span></span></span>SIFS"/ompi5.sif ompi_info | head -n 2
+                   Package: Open MPI conda@2a526d73f59c Distribution
+                  Open MPI: 5.0.3
+  (base)..<span class="katex"><span class="katex-mathml"></span><span aria-hidden="true" class="katex-html"><span class="base"><span style="height:0.854em;vertical-align:-0.1944em;" class="strut"></span><span class="mord mathnormal">m</span><span class="mord mathnormal">p</span><span class="mord mathnormal">i</span><span style="margin-right:0.02778em;" class="mord mathnormal">r</span><span class="mord mathnormal">u</span><span class="mord mathnormal">n</span><span style="margin-right:0.2222em;" class="mspace"></span><span class="mbin">−</span><span style="margin-right:0.2222em;" class="mspace"></span></span><span class="base"><span style="height:0.8889em;vertical-align:-0.1944em;" class="strut"></span><span class="mord mathnormal">n</span><span class="mord">6</span><span class="mord mathnormal">a</span><span class="mord mathnormal">ppt</span><span class="mord mathnormal">ain</span><span class="mord mathnormal">ere</span><span class="mord mathnormal">x</span><span class="mord mathnormal">ec</span><span class="mord">"</span></span></span></span>SIFS"/ompi5.sif python mpi_hw.py
+  Hello world from rank 0 of 6 on candela-21 running Open MPI v5.0.3
+  Hello world from rank 4 of 6 on candela-21 running Open MPI v5.0.3
+  Hello world from rank 5 of 6 on candela-21 running Open MPI v5.0.3
+  Hello world from rank 1 of 6 on candela-21 running Open MPI v5.0.3
+  Hello world from rank 2 of 6 on candela-21 running Open MPI v5.0.3
+  Hello world from rank 3 of 6 on candela-21 running Open MPI v5.0.3
+  (base)..<span class="katex"><span class="katex-mathml"></span><span aria-hidden="true" class="katex-html"><span class="base"><span style="height:0.854em;vertical-align:-0.1944em;" class="strut"></span><span class="mord mathnormal">m</span><span class="mord mathnormal">p</span><span class="mord mathnormal">i</span><span style="margin-right:0.02778em;" class="mord mathnormal">r</span><span class="mord mathnormal">u</span><span class="mord mathnormal">n</span><span style="margin-right:0.2222em;" class="mspace"></span><span class="mbin">−</span><span style="margin-right:0.2222em;" class="mspace"></span></span><span class="base"><span style="height:0.8889em;vertical-align:-0.1944em;" class="strut"></span><span class="mord mathnormal">n</span><span class="mord">2</span><span class="mord mathnormal">a</span><span class="mord mathnormal">ppt</span><span class="mord mathnormal">ain</span><span class="mord mathnormal">ere</span><span class="mord mathnormal">x</span><span class="mord mathnormal">ec</span><span class="mord">"</span></span></span></span>SIFS"/ompi5.sif python osu_bw.py
+  2
+  2</p>
+<h1 class="atx" id="mpi-bandwidth-test">MPI Bandwidth Test</h1>
+<h1 class="atx" id="size-b----bandwidth-mbs">Size [B]    Bandwidth [MB/s]</h1>
+<pre><code class="indented-code-block">       1                3.61
+       2                6.82
+       4               14.27
+       8               28.38
+      16               56.69
+      32              114.47
+      64              205.54
+     128              376.84
+     256              698.43
+     512            1,505.20
+   1,024            2,927.67
+   2,048            5,419.97
+   4,096            7,276.32
+   8,192           13,186.70
+  16,384           21,753.02
+  32,768           28,698.04
+  65,536           36,391.64
+ 131,072           39,860.82
+ 262,144           43,233.52
+ 524,288           44,684.74</code></pre>
+<p>   1,048,576           45,500.82
+   2,097,152           45,624.21
+   4,194,304           46,258.88
+   8,388,608           46,224.02
+  16,777,216           45,786.94</p>
+<pre><code class="fenced-code-block">Things to note in this example:
+
+- The command `mpirun - n 6 ...` is running six separate copies of the container on six cores of the PC.  This `mpirun` command is running outside the container, so it is running OpenMPI 4.1.6 , but it successfully integrates with the OpenMPI 5.0.3 that each task is running inside its container (as can be seen from the `mpi_hw.py` print statements). This is an example of the "Hybrid model" for running MPI described in the [Apptainer docs](https://apptainer.org/docs/user/latest/mpi.html).
+- For reasons I don't understand, `osu_bw.py` reports inter-rank communication speeds about four times faster when run using Apptainer, than when run [directly by MPI without Apptainer](#mpi-testprogs).  The results are the same if the Conda environment `ompi5` is activated to run the same version of MPI outside as inside.
+
+#### A container to run the more elaborate MPI package `dem21`&lt;a id="dem21-container"&gt;&lt;/a&gt;
+
+- **TODO** Run bigger sim with container to see what difference it makes.
+
+Make a definition file **`dem21.def`** with the following contents. This is like `ompi5.def` in the previous section, but with the following additions to install the `dem21` package in the container (see [A container with a local Python package installed](#local-package-container) above):
+
+- There is a `%files` section that copies the `dem21` package (assumed to be in the directory from which the `apptainer build` is run) into the container.
+- The `%post` section includes commands that install additional remote packages needed by `dem21` and install `dem21`  as a local package, as is done without a container in [A more elaborate MPI program...](#boxpct-dem21) above.</code></pre>
+<p>  Bootstrap: docker
+  From: continuumio/miniconda3</p>
+<p>  %files
+      dem21 /dem21</p>
+<p>  %post
+      conda install -c conda-forge openmpi=5.0.3 mpi4py
+      conda install -c conda-forge dill matplotlib numba numpy pyaml scipy
+      conda install -c conda-forge quaternion
+      apt-get update
+      apt install -y openmpi-bin
+      cd /dem21
+      pip install .</p>
+<pre><code class="fenced-code-block">- Working in a directory `build-dem21` that contains `dem21.def`, the `dem21` package (not currently public) is cloned into the current directory and the container is built. This made the 1.3 GB image file **`dem21.sif`**:</code></pre>
+<p>  build-dem21<span class="katex"><span class="katex-mathml"></span><span aria-hidden="true" class="katex-html"><span class="base"><span style="height:0.8889em;vertical-align:-0.1944em;" class="strut"></span><span style="margin-right:0.03588em;" class="mord mathnormal">g</span><span class="mord mathnormal">i</span><span class="mord mathnormal">t</span><span class="mord mathnormal">c</span><span style="margin-right:0.01968em;" class="mord mathnormal">l</span><span class="mord mathnormal">o</span><span class="mord mathnormal">n</span><span class="mord mathnormal">e</span><span style="margin-right:0.03588em;" class="mord mathnormal">g</span><span class="mord mathnormal">i</span><span class="mord mathnormal">t</span><span class="mord">@</span><span style="margin-right:0.03588em;" class="mord mathnormal">g</span><span class="mord mathnormal">i</span><span class="mord mathnormal">t</span><span class="mord mathnormal">h</span><span class="mord mathnormal">u</span><span class="mord mathnormal">b</span><span class="mord">.</span><span class="mord mathnormal">co</span><span class="mord mathnormal">m</span><span style="margin-right:0.2778em;" class="mspace"></span><span class="mrel">:</span><span style="margin-right:0.2778em;" class="mspace"></span></span><span class="base"><span style="height:1em;vertical-align:-0.25em;" class="strut"></span><span class="mord mathnormal">d</span><span class="mord mathnormal">o</span><span class="mord mathnormal">n</span><span class="mord mathnormal">c</span><span class="mord mathnormal">an</span><span class="mord mathnormal">d</span><span class="mord mathnormal">e</span><span style="margin-right:0.01968em;" class="mord mathnormal">l</span><span class="mord mathnormal">a</span><span class="mord">/</span><span class="mord mathnormal">d</span><span class="mord mathnormal">e</span><span class="mord mathnormal">m</span><span class="mord">21.</span><span style="margin-right:0.03588em;" class="mord mathnormal">g</span><span class="mord mathnormal">i</span><span class="mord mathnormal">t</span><span class="mord mathnormal">b</span><span class="mord mathnormal">u</span><span class="mord mathnormal">i</span><span style="margin-right:0.01968em;" class="mord mathnormal">l</span><span class="mord mathnormal">d</span><span style="margin-right:0.2222em;" class="mspace"></span><span class="mbin">−</span><span style="margin-right:0.2222em;" class="mspace"></span></span><span class="base"><span style="height:0.6944em;" class="strut"></span><span class="mord mathnormal">d</span><span class="mord mathnormal">e</span><span class="mord mathnormal">m</span></span></span></span> ls
+  dem21  dem21.def
+  build-dem<span class="katex"><span class="katex-mathml"></span><span aria-hidden="true" class="katex-html"><span class="base"><span style="height:0.8889em;vertical-align:-0.1944em;" class="strut"></span><span class="mord mathnormal">s</span><span class="mord mathnormal">u</span><span class="mord mathnormal">d</span><span class="mord mathnormal">o</span><span class="mord mathnormal">a</span><span class="mord mathnormal">ppt</span><span class="mord mathnormal">ain</span><span style="margin-right:0.02778em;" class="mord mathnormal">er</span><span class="mord mathnormal">b</span><span class="mord mathnormal">u</span><span class="mord mathnormal">i</span><span style="margin-right:0.01968em;" class="mord mathnormal">l</span><span class="mord mathnormal">d</span><span class="mord">"</span></span></span></span>SIFS"/dem21.sif dem21.def</p>
+<pre><code class="fenced-code-block">- To test  that the `dem21` package can run in the container (see [A more elaborate MPI program...](#boxpct-dem21) above for the corresponding steps without a container, and the previous section [A container that can use MPI](#mpi-container) for how MPI is run with a container):
+
+- We check that MPI is installed outside the container -- it will be needed to start multiple copies of the container on different cores and pass messages between them.
+
+- We go to the subdirectory `tests/box` of  the cloned repo `dem21` outside the container, which has the test program `boxpct.py` and its config file `box.yaml`.
+
+- We do `export pproc=mpi`, which tells the `dem21` code to run in MPI-parallel mode:
+
+  - Each separate copy of the code, running inside its own container, will issue MPI calls to find out what its rank is and to send/receive messages from the other ranks.
+
+  - These MPI calls will be passed to the MPI system running outside the containers which will carry out the corresponding functions.
+
+- We run `mpirun -n &lt;n&gt; apptainer exec...` to start `&lt;n&gt;` containers on different cores.</code></pre>
+<p>  ...box<span class="katex"><span class="katex-mathml"></span><span aria-hidden="true" class="katex-html"><span class="base"><span style="height:1em;vertical-align:-0.25em;" class="strut"></span><span class="mord mathnormal">o</span><span class="mord mathnormal">m</span><span class="mord mathnormal">p</span><span class="mord"><span class="mord mathnormal">i</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span style="height:0.3117em;" class="vlist"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span style="height:2.7em;" class="pstrut"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span style="height:0.15em;" class="vlist"><span></span></span></span></span></span></span><span class="mord mathnormal">n</span><span style="margin-right:0.10764em;" class="mord mathnormal">f</span><span class="mord mathnormal">o</span><span class="mord">∣</span><span class="mord mathnormal">h</span><span class="mord mathnormal">e</span><span class="mord mathnormal">a</span><span class="mord mathnormal">d</span><span style="margin-right:0.2222em;" class="mspace"></span><span class="mbin">−</span><span style="margin-right:0.2222em;" class="mspace"></span></span><span class="base"><span style="height:0.8889em;vertical-align:-0.1944em;" class="strut"></span><span class="mord mathnormal">n</span><span class="mord">2</span><span style="margin-right:0.13889em;" class="mord mathnormal">P</span><span class="mord mathnormal">a</span><span class="mord mathnormal">c</span><span class="mord mathnormal">ka</span><span style="margin-right:0.03588em;" class="mord mathnormal">g</span><span class="mord mathnormal">e</span><span style="margin-right:0.2778em;" class="mspace"></span><span class="mrel">:</span><span style="margin-right:0.2778em;" class="mspace"></span></span><span class="base"><span style="height:0.8889em;vertical-align:-0.1944em;" class="strut"></span><span class="mord mathnormal">De</span><span class="mord mathnormal">bian</span><span class="mord mathnormal">Op</span><span class="mord mathnormal">e</span><span class="mord mathnormal">n</span><span style="margin-right:0.13889em;" class="mord mathnormal">MP</span><span style="margin-right:0.07847em;" class="mord mathnormal">I</span><span class="mord mathnormal">Op</span><span class="mord mathnormal">e</span><span class="mord mathnormal">n</span><span style="margin-right:0.13889em;" class="mord mathnormal">MP</span><span style="margin-right:0.07847em;" class="mord mathnormal">I</span><span style="margin-right:0.2778em;" class="mspace"></span><span class="mrel">:</span><span style="margin-right:0.2778em;" class="mspace"></span></span><span class="base"><span style="height:0.7778em;vertical-align:-0.0833em;" class="strut"></span><span class="mord">4.1.6</span><span class="mord mathnormal">b</span><span class="mord mathnormal">u</span><span class="mord mathnormal">i</span><span class="mord mathnormal">d</span><span style="margin-right:0.2222em;" class="mspace"></span><span class="mbin">−</span><span style="margin-right:0.2222em;" class="mspace"></span></span><span class="base"><span style="height:0.6944em;" class="strut"></span><span class="mord mathnormal">d</span><span class="mord mathnormal">e</span><span class="mord mathnormal">m</span></span></span></span> cd dem21/tests/box
+  ...box<span class="katex"><span class="katex-mathml"></span><span aria-hidden="true" class="katex-html"><span class="base"><span style="height:0.8889em;vertical-align:-0.1944em;" class="strut"></span><span style="margin-right:0.01968em;" class="mord mathnormal">l</span><span class="mord mathnormal">s</span><span class="mord mathnormal">b</span><span class="mord mathnormal">o</span><span class="mord mathnormal">x</span><span class="mord mathnormal">m</span><span class="mord mathnormal">o</span><span class="mord mathnormal">d</span><span class="mord">.</span><span style="margin-right:0.03588em;" class="mord mathnormal">y</span><span class="mord mathnormal">am</span><span style="margin-right:0.01968em;" class="mord mathnormal">l</span><span class="mord mathnormal">b</span><span class="mord mathnormal">o</span><span class="mord mathnormal">x</span><span class="mord mathnormal">p</span><span class="mord mathnormal">c</span><span class="mord mathnormal">t</span><span class="mord">.</span><span class="mord mathnormal">p</span><span style="margin-right:0.03588em;" class="mord mathnormal">y</span><span class="mord mathnormal">b</span><span class="mord mathnormal">o</span><span class="mord mathnormal">x</span><span class="mord mathnormal">p</span><span class="mord mathnormal">c</span><span class="mord mathnormal">t</span><span class="mord">.</span><span class="mord mathnormal">s</span><span class="mord mathnormal">hb</span><span class="mord mathnormal">o</span><span class="mord mathnormal">x</span><span class="mord">.</span><span style="margin-right:0.03588em;" class="mord mathnormal">y</span><span class="mord mathnormal">am</span><span style="margin-right:0.01968em;" class="mord mathnormal">l</span><span class="mord mathnormal">h</span><span class="mord mathnormal">e</span><span class="mord mathnormal">a</span><span class="mord mathnormal">p</span><span class="mord">3.</span><span style="margin-right:0.03588em;" class="mord mathnormal">y</span><span class="mord mathnormal">am</span><span style="margin-right:0.01968em;" class="mord mathnormal">l</span><span class="mord mathnormal">o</span><span class="mord mathnormal">u</span><span class="mord mathnormal">tp</span><span class="mord mathnormal">u</span><span style="margin-right:0.01968em;" class="mord mathnormal">tpl</span><span class="mord mathnormal">o</span><span class="mord mathnormal">t</span><span class="mord mathnormal">s</span><span class="mord">...</span><span class="mord mathnormal">b</span><span class="mord mathnormal">o</span><span class="mord mathnormal">x</span></span></span></span> export pproc=mpi
+  ...box<span class="katex"><span class="katex-mathml"></span><span aria-hidden="true" class="katex-html"><span class="base"><span style="height:0.854em;vertical-align:-0.1944em;" class="strut"></span><span class="mord mathnormal">m</span><span class="mord mathnormal">p</span><span class="mord mathnormal">i</span><span style="margin-right:0.02778em;" class="mord mathnormal">r</span><span class="mord mathnormal">u</span><span class="mord mathnormal">n</span><span style="margin-right:0.2222em;" class="mspace"></span><span class="mbin">−</span><span style="margin-right:0.2222em;" class="mspace"></span></span><span class="base"><span style="height:0.8889em;vertical-align:-0.1944em;" class="strut"></span><span class="mord mathnormal">n</span><span class="mord">16</span><span class="mord mathnormal">a</span><span class="mord mathnormal">ppt</span><span class="mord mathnormal">ain</span><span class="mord mathnormal">ere</span><span class="mord mathnormal">x</span><span class="mord mathnormal">ec</span><span class="mord">"</span></span></span></span>SIFS"/dem21.sif python boxpct.py</p>
 <ul>
-<li><p>We check that MPI is installed outside the container -- it will be needed to start multiple copies of the container on different cores and pass messages between them.</p>
-</li>
-<li><p>We go to the subdirectory <code>tests/box</code> of  the cloned repo <code>dem21</code> outside the container, which has the test program <code>boxpct.py</code> and its config file <code>box.yaml</code>.</p>
-</li>
-<li><p>We do <code>export pproc=mpi</code>, which tells the <code>dem21</code> code to run in MPI-parallel mode:</p>
-<ul>
-<li><p>Each separate copy of the code, running inside its own container, will issue MPI calls to find out what its rank is and to send/receive messages from the other ranks.</p>
-</li>
-<li><p>These MPI calls will be passed to the MPI system running outside the containers which will carry out the corresponding functions.</p>
-</li>
-</ul>
-</li>
-<li><p>We run <code>mpirun -n &lt;n&gt; apptainer exec...</code> to start <code>&lt;n&gt;</code> containers on different cores.</p>
-</li>
-</ul>
-<pre><code class="fenced-code-block">...box$ ompi_info | head -n 2
-                 Package: Debian OpenMPI
-                Open MPI: 4.1.6
-buid-dem$ cd dem21/tests/box
-...box$ ls
-boxmod.yaml  boxpct.py  boxpct.sh  box.yaml  heap3.yaml  output  plots
-...box$ export pproc=mpi
-...box$ mpirun -n 16 apptainer exec "$SIFS"/dem21.sif python boxpct.py
-- Started MPI on master + 15 worker ranks.
+<li><p>Started MPI on master + 15 worker ranks.
 THIS IS: boxpct.py 12/3/22 D.C., using dem21 version: v1.2 2/11/25
-Parallel processing: MPI, GHOST_ARRAY=True
-- Read 1 config(s) from ...build-dem21/dem21/tests/box/box.yaml
-
-SIM 1/1:
+Parallel processing: MPI, GHOST_ARRAY=True</p>
+</li>
+<li><p>Read 1 config(s) from ...build-dem21/dem21/tests/box/box.yaml</p>
+<p>SIM 1/1:
 Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
 343 'sphere' grains in (7.66)x(7.66)x(7.66)mm box (phig=0.4), vrms=10.0m/s
-No gravity, 'hertz' normal force law, Coulomb w. Hookean spring friction with GG mu=0.1, GW mu=0
--     Writing grain ICs x,v to /tmp/tmp6tpg_0pg/temp.grains
-- READYING SIM with 343 grains and 6 walls
-                    ...</code></pre>
+No gravity, 'hertz' normal force law, Coulomb w. Hookean spring friction with GG mu=0.1, GW mu=0</p>
+</li>
+<li><p>Writing grain ICs x,v to /tmp/tmp6tpg_0pg/temp.grains</p>
+</li>
+<li><p>READYING SIM with 343 grains and 6 walls</p>
+<pre><code class="indented-code-block">              ...</code></pre>
+<pre><code class="fenced-code-block"></code></pre>
 </li>
 </ul>
 <h4 class="atx" id="a-container-that-can-use-a-gpulessa-iddouble-quotegpu-containerdouble-quotegreaterlessagreater">A container that can use a GPU<a id="gpu-container"></a></h4>
@@ -5197,90 +5192,125 @@ Multiply M*M=N element dense matrices
 </li>
 </ul>
 <h4 class="atx" id="running-a-container-that-uses-mpilessa-iddouble-quoteunity-mpi-containerdouble-quotegreaterlessagreater">Running a container that uses MPI<a id="unity-mpi-container"></a></h4>
-<p>Here this is shown only as a batch job, although this could be done interactively.  We combine things from the sections above on <a href="#unity-run-container">running a non-MPI container on Unity</a>, <a href="#mpi-container">running a container with MPI on a PC</a>, and <a href="#unity-mpi">running a non-containerized MPI job on Unity</a>.</p>
-<p>For the examples here it assumed that the needed image file (<strong><code>ompi.def</code></strong> or <strong><code>dem21.def</code></strong>) has been built on a PC as shown in the sections referenced above and transferred to a directory under <code>/work/pi...</code> on Unity -- also that <code>sifs</code> has been aliased to a command that sets the environment variable <code>SIFS</code> to point to this directory, as <a href="#images-to-unity">discussed here</a>.</p>
+<p>Here we combine things from the sections above on <a href="#unity-run-container">running a non-MPI container on Unity</a>, <a href="#mpi-container">running a container with MPI on a PC</a>, and <a href="#unity-mpi">running a non-containerized MPI job on Unity</a>.</p>
+<p>For the examples here it assumed that the needed image file (<strong><code>m4p.sif</code></strong> or <strong><code>dem21.sif</code></strong>) has been built on a PC as shown in the sections referenced above and transferred to a directory under <code>/work/pi...</code> on Unity -- also that <strong><code>sifs</code></strong> has been aliased to a command that sets the environment variable <code>SIFS</code> to point to this directory, as <a href="#images-to-unity">discussed here</a>.</p>
 <ul>
-<li><p><strong>Running the messaging test program <code>osu_bw.py</code>.</strong> </p>
-<ul>
-<li><p>(As was done earlier) <code>osu_bw.py</code> is copied to a directory <code>try-mpi</code>. Now we also put in this directory an sbatch script <strong><code>app-osubw.sh</code></strong> with these contents:</p>
-<pre><code class="fenced-code-block">#!/bin/bash
-# app-osubw.sh 3/2/25 D.C.
-# Two-task sbatch script uses an Apptainer container ompi5.sif that
-# has OpenMPI to run osu_bw.py, which measures the commnunication
-# speed between two MPI ranks.
-# Activates the Conda environment ompi5 to make OpenMPI available
-# outside the container.
-# Must set SIFS to directory containing ompi5.sif before running this
-# script in a directory containing osu_bw.py
-#SBATCH -n 2                       # allocate for two MPI ranks
-#SBATCH -p cpu                     # submit to partition cpu
-#SBATCH -C ib                      # require inifiniband connectivity
-echo nodelist=$SLURM_JOB_NODELIST  # print list of nodes used
-module purge                       # unload all modules
-module load apptainer/latest
-module load conda/latest
-conda activate ompi5
-# mpirun will run container ompi5.sif in two ranks; in each rank
-# python in container will run osu_bw.py in CWD.
-mpirun --display bindings \
-    apptainer exec $SIFS/ompi5.sif python osu_bw.py</code></pre>
-<p>Note the following differences from the non-MPI Apptainer script <strong><code>app-simple.sh</code></strong> in the previous section:</p>
-<ul>
-<li><p><code>#SBATCH -n ..</code> is used to tell Slurm to allocated for <code>n</code> tasks -- <code>mpirun</code> without an <code>-n ..</code> option will automatically start this number of ranks.</p>
+<li><p>First we make a Conda environment <strong><code>ompi</code></strong> in which to run the container, with OpenMPI but not including <code>mpi4py</code>, <code>numpy</code>... as these things are installed in the container. We do include Python so pip could be used to install things to this environment.  It works equally well to use the environment <strong><code>m4py</code></strong> defined above which does include <code>mpi4py</code>, etc.</p>
+<pre><code class="fenced-code-block">$ unity-compute
+(wait for the compute-node shell to come up)
+$ module load conda/latest
+$ module load openmpi/5.0.3
+$ conda create -n ompi -c conda-forge openmpi=5 python=3.12
+$ conda activate ompi
+(ompi)$ mpirun --version
+mpirun (Open MPI) 5.0.7
+(m4p)$ ompi_info | head
+                 Package: Open MPI conda@f424a898794e Distribution
+                Open MPI: 5.0.7
+  Open MPI repo revision: v5.0.7
+   Open MPI release date: Feb 14, 2025
+                 MPI API: 3.1.0
+            Ident string: 5.0.7
+                  Prefix: /work/candela_umass_edu/.conda/envs/ompi
+ Configured architecture: x86_64-conda-linux-gnu
+           Configured by: conda
+           Configured on: Mon Feb 17 07:57:35 UTC 2025</code></pre>
 </li>
-<li><p><code>SBATCH -C ib</code> is used to constrain to nodes with Infiniband connectivity; without this setting <code>osu_bw.py</code> sometimes reported extremely slow messaging speeds.</p>
+<li><p>Here we use the container <strong><code>m4p.sif</code></strong> to run <strong><code>mpi_hw.py</code></strong> in a manner similar to the <a href="#ways-mpi-unity">non-Apptainer section on MPI</a> above.  The difference is that here we are using <code>mpirun</code> to start multiple copies of <code>apptainer exec</code>, each of which then runs <code>python mpi_hw.py</code>.</p>
+<pre><code class="fenced-code-block">$ salloc -n 4              # get interactive shell on compute node with 4 cores
+(wait for the compute-node shell to come up)
+$ module load conda/latest
+$ conda activate ompi
+(ompi)..$ sifs             # sets SIFS to directory with m4p.sif
+$ cd python-scripts; ls    # cd to directory with mpi_hw.py
+mpi_hw.py  ...
+(ompi)..python-scripts$ mpirun --display bindings apptainer exec $SIFS/m4p.sif python mpi_hw.py
+[cpu005:01143] Rank 0 bound to package[1][core:18]
+[cpu005:01143] Rank 1 bound to package[1][core:19]
+[cpu007:2945042] Rank 2 bound to package[1][core:21]
+[cpu008:4032683] Rank 3 bound to package[0][core:3]
+Hello world from rank 1 of 4 on cpu005 running Open MPI v5.0.7
+Hello world from rank 3 of 4 on cpu008 running Open MPI v5.0.7
+Hello world from rank 2 of 4 on cpu007 running Open MPI v5.0.7
+Hello world from rank 0 of 4 on cpu005 running Open MPI v5.0.7</code></pre>
 </li>
-<li><p><code>mpirun</code> is used to run <code>n</code> separate copies of the container <code>ompi5.sif</code>.  It is handy to include the option<code>--display bindings</code> to see which cores on which nodes each MPI rank is bound to.</p>
-</li>
-<li><p>OpenMPI must be available <em>outside</em> the container, otherwise the <code>mpirun</code> command is not recognized.  In the script above this is accomplished by activating the Conda environment <code>ompi5</code>, which was created <a href="conda-mpi-unity">in this section</a>. Alternatively, it seemed to work to load the module <code>openmpi/5.0.3</code> but with neither of these things the job will fail.  As found in <a href="#mpi-interactive">this section</a> the code seemed to run about the same or better when the environment was used as shown above (rather than the module), but I have no idea why this is or if it is true in general.</p>
-</li>
-</ul>
-</li>
-<li><p>We run the script (from a login shell, if desired) , and look at the output:</p>
-<pre><code class="fenced-code-block">$ cd try-mpi; ls
-app-osubw.sh osu_by.py ...
-try-mpi$ sifs                    # set SIFS
-try-mpi$ sbatch app-osubw.sh
-Submitted batch job 29328427
-(wait until 'squeue --me' shows that job has completed)
-try-mpi$ cat slurm-29328427.out
-nodelist=cpu045
-Loading apptainer version latest
-Loading conda
-[cpu045:824253] Rank 0 bound to package[0][core:25]
-[cpu045:824253] Rank 1 bound to package[1][core:53]
+<li><p>Here we use the container <strong><code>m4p.sif</code></strong> to run <strong><code>osu_bw.py</code></strong>  in two ranks on the same node, then on two ranks on different nodes.  Again we copy the <a href="#ways-mpi-unity">non-Apptainer section on MPI</a> above, but again we are using <code>mpirun</code> to run multiple copies of <code>apptainer exec</code> rather than directly running <code>python</code>.</p>
+<pre><code class="fenced-code-block">$ salloc -n 4 -N 2 -C ib    # get interactive shell with 4 cores on 2 nodes, infiniband
+(wait for the compute-node shell to come up)
+$ module load conda/latest
+$ conda activate ompi
+(ompi)..$ sifs             # sets SIFS to directory with m4p.sif
+$ cd python-scripts; ls    # cd to directory with osu_bw.py
+osu_bw.py  ...
+
+# Run with default binding, puts both ranks on same node.
+(ompi)..python-scripts$ mpirun -n 2 --display bindings apptainer exec $SIFS/m4p.sif python osu_bw.py
+[cpu049:742033] Rank 0 bound to package[1][core:83]
+[cpu049:742033] Rank 1 bound to package[1][core:84]
+2
+2
+# MPI Bandwidth Test
+# Size [B]    Bandwidth [MB/s]
+         1                2.59
+         2                5.47
+         4               11.13
+         8               22.20
+        16               44.19
+        32               86.90
+        64              174.54
+       128              308.25
+       256              603.50
+       512            1,202.67
+     1,024            2,355.65
+     2,048            4,450.55
+     4,096            7,887.71
+     8,192            5,930.39
+    16,384           13,396.33
+    32,768            9,352.70
+    65,536           13,328.49
+   131,072           16,870.32
+   262,144           18,602.76
+   524,288           20,919.15
+ 1,048,576           21,668.60
+ 2,097,152           21,891.10
+ 4,194,304           22,074.93
+ 8,388,608           22,823.64
+16,777,216           21,265.93
+
+# Run with --map-by node, puts ranks on diffent nodes.
+(ompi)..python-scripts$ mpirun -n 2 --map-by node --display bindings apptainer exec $SIFS/m4p.sif python osu_bw.py
+[cpu049:742176] Rank 0 bound to package[1][core:83]
+[cpu050:4179815] Rank 1 bound to package[0][core:2]
 2
 # MPI Bandwidth Test
 # Size [B]    Bandwidth [MB/s]
 2
-         1                1.70
-         2                2.89
-         4                6.93
-         8               13.98
-        16               22.59
-        32               45.21
-        64               83.65
-       128              134.33
-       256              249.42
-       512              517.26
-     1,024              900.21
-     2,048            1,421.11
-     4,096            2,285.36
-     8,192            4,026.22
-    16,384            6,426.33
-    32,768            9,516.64
-    65,536           12,547.40
-   131,072           13,066.41
-   262,144            8,901.97
-   524,288            9,658.30
- 1,048,576            9,970.96
- 2,097,152           10,067.05
- 4,194,304           10,192.10
- 8,388,608           10,037.58
-16,777,216            7,602.58</code></pre>
-<p>Following  <a href="#mpi-interactive">this section</a> a modified sbatch script <strong><code>app-osubwmod.sh</code></strong> was written that used <code>#SBATCH -N 2</code> and the option <code>--map-by node</code> to <code>mpirun</code> to force the two MPI ranks to be on different nodes. <strong>TODO</strong> seemed to be about 3 times slower than when on one node (2-3 GB/s max) - also one-node apptainer results below (13 GB/s max) are slower than unity non-apptainer results (19 GB/s one node, 12 GB/s two nodes). On PC (only has one node, no slurm) found 10 GB/s without apptainer, 44 GB/s with apptainer.</p>
-</li>
-</ul>
+         1                1.76
+         2                3.48
+         4                7.06
+         8               14.21
+        16               28.43
+        32               56.85
+        64              114.17
+       128              224.43
+       256              387.01
+       512              781.21
+     1,024            1,478.60
+     2,048            3,056.77
+     4,096            4,353.85
+     8,192            4,458.93
+    16,384            5,331.77
+    32,768            7,504.09
+    65,536           11,265.97
+   131,072           11,891.43
+   262,144           12,117.05
+   524,288           12,148.33
+ 1,048,576           12,211.63
+ 2,097,152           12,285.85
+ 4,194,304           12,315.35
+ 8,388,608           12,317.98
+16,777,216           12,310.61</code></pre>
+<p>The peak speeds seem about the same as observed in the the <a href="#ways-mpi-unity">non-Apptainer tests</a> above.</p>
 </li>
 <li><p><strong>Running the <code>dem21</code> test program <code>boxpct.py</code>.</strong> </p>
 <ul>
