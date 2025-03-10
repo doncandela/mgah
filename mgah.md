@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   3/8/25
+mgah.md  D. Candela   3/10/25
 
 - [Introduction](#intro)  
   
@@ -21,7 +21,7 @@ mgah.md  D. Candela   3/8/25
     - [Why do it](#why-mpi-pc)    
     - [Installing OpenMPI and `mpi4py` on a Linux PC](#install-openmpi-pc)
     - [Simple MPI test programs: `mpi_hw.py`  and `osu_bw.py`](#mpi-testprogs)
-    - [A more elaborate MPI program: `boxpct.py` with the `dem21` package](#boxpct-dem21)
+    - [More elaborate MPI programs using the `dem21` package](#mpi-dem21)
     - [Hyperthreading and NumPy multithreading with MPI](#multithread-mpi)
   - [Using an NVIDIA GPU on a Linux PC](#gpu-pc)
     - [Why do it](#why-gpu-pc)
@@ -290,6 +290,7 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
   - **`dem21`** (also defined in [MPI on a Linux PC](#mpi-pc)) is like `m4p` but additionally includes the locally-installed package `dem21` and additional packages that `dem21` imports.
   - **`pyt`** (defined in [Installing CUDA-aware Python packages...](#pytorch-cupy) below) adds PyTorch.
   - **`gpu`** (also defined in [Installing CUDA-aware Python packages...](#pytorch-cupy) below) adds CuPy.
+  - **`ompi`** (defined in [A container that can use MPI](#mpi-container)) includes only OpenMPI and Python as an example of a minimal environment for running a container that uses MPI.
 
 - The following Conda environments are created and used on the Unity HPC cluster, when Apptainer is not being used.  They generally do the same things as the corresponding environments defined for PCs listed just above.
   
@@ -298,6 +299,7 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
   - **`m4p`** (defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) includes OpenMPI 5.0.3, and `mpi4py`, so MPI can be used.  An alternative **`m4pe`** that uses externally-installed MPI is also discussed in that section, but it seems not to work as well on Unity.
   - **`dem21`** (also defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) is like `m4p` but additionally includes the locally-installed package `dem21` and additional packages that `dem21` imports.
   - **`gpu`** (defined in [Using a GPU in Unity (without Apptainer)](#unity-gpu)) includes CuPy, so a GPU can be used.
+  - **`ompi`** (defined in  [Running a container that uses MPI](#unity-mpi-container)) includes only OpenMPI and Python as an example of a minimal environment for running a container that uses MPI.
 
 - The following test code is used:
   
@@ -417,10 +419,10 @@ Modern CPU chips have multiple **cores** (as of 1/25 CPUs in consumer PCs have 4
 
 It might be thought that a PC using *n* cores should get *n* times as much computation done per second, provided the code can be efficiently split up to have *n* different things going on at the same time.  However, there are (at least) three factors that often make the gain in computation speed from using multiple cores less than the number of cores, even with efficiently parallel code: (a) the **clock speeds** of the cores may depend on how many are in use, due to automatic **thermal management** by the CPU chip, (b) the cores may need to **contend for memory access**, and (c) the available cores can be used for **multithreading by NumPy and similar packages**, or for **MPI multiprocessing**, or for **both of these things simultaneously**.
 
-- **Clock speeds and thermal management.**  To  show this effect we run the the program **`count_mpi.py`** on the **16-core PC candela-21** [mentioned above](#pcs). The The AMD Ryzen 9 5950X CPU chip in this PC has a **base clock speed of 3.4 GHz** and a **boost clock speed up to 4.9 GHz**.  `count_mpi.py` uses MPI to run a simple program that times how long it takes to count up to a specified number (1,000,000,000 in the examples shown here) on a chosen number of cores.  First we run on one core (the environment `ompi` is defined in [MPI on a Linux PC](#mpi-pc) below):
+- **Clock speeds and thermal management.**  To  show this effect we run the the program **`count_mpi.py`** on the **16-core PC candela-21** [mentioned above](#pcs). The The AMD Ryzen 9 5950X CPU chip in this PC has a **base clock speed of 3.4 GHz** and a **boost clock speed up to 4.9 GHz**.  `count_mpi.py` uses MPI to run a simple program that times how long it takes to count up to a specified number (1,000,000,000 in the examples shown here) on a chosen number of cores.  First we run on one core (the environment `m4p` is defined in [MPI on a Linux PC](#mpi-pc) below):
   
   ```
-  (ompi)$ mpirun -n 1 -use-hwthread-cpus python count_mpi.py 1000000000
+  (m4p)$ mpirun -n 1 -use-hwthread-cpus python count_mpi.py 1000000000
   This is rank 0 of 1 on candela-21 running Open MPI v5.0.3
   (rank 0) Counting up to 1,000,000,000...
   (rank 0)...done, took 1.815e+01s, 5.510e+07counts/s
@@ -443,7 +445,7 @@ It might be thought that a PC using *n* cores should get *n* times as much compu
     Next `count_mpi.py`  is run on all 32 virtual cores (`-use-hwthread-cpus` is used to turn on hyperthreading):
   
   ```
-  (ompi)$ mpirun -n 32 -use-hwthread-cpus python count_mpi.py 1000000000
+  (m4p)$ mpirun -n 32 -use-hwthread-cpus python count_mpi.py 1000000000
   This is rank 5 of 32 on candela-21 running Open MPI v5.0.3
   This is rank 4 of 32 on candela-21 running Open MPI v5.0.3
   (rank 4) Counting up to 1,000,000,000...
@@ -530,35 +532,32 @@ The most popular open-source MPI packages seem to be [**OpenMPI**](https://www.o
 
 #### **Installing OpenMPI and MPI for Python (`mpi4py`) on a Linux PC**<a id="install-openmpi-pc"></a>
 
-To run MPI-parallel programs written in Python, it is necessary to have available (a) a working MPI installation such as OpenMPI and (b) a Python package such as [**MPI for Python (`mpi4py`)**](https://mpi4py.readthedocs.io/en/stable/) to provide Python versions of the MPI functions. This section describes how to install OpenMPI and `mpi4py` on a PC, when an Apptainer container is not being used. Using OpenMPI + `mpi4py` in other situations is described in separate sections below: with Apptainer on a PC, without Apptainer on the Unity HPC cluster, and with Apptainer on Unity.
+To run MPI-parallel programs written in Python, it is necessary to have available (a) a working MPI installation such as [OpenMPI](https://docs.open-mpi.org/en/v5.0.x/) and (b) a Python package such as [MPI for Python (`mpi4py`)](https://mpi4py.readthedocs.io/en/stable/) to provide Python versions of the MPI functions. This section describes how to install OpenMPI and `mpi4py` on a PC, when an Apptainer container is not being used. Using OpenMPI + `mpi4py` in other situations is described in separate sections below: [with Apptainer on a PC](#mpi-container), [without Apptainer on the Unity HPC cluster](#unity-mpi), and [with Apptainer on Unity](#unity-mpi-container).
 
-The docs for OpenMPI and `mpi4py` describe various ways of obtaining and installing these things, including building from source, but for the purpose of running an MPI-parallel Python program on a Linux PC the easiest thing is to use Conda to install both OpenMPI and `mpi4py` in an environment, here called **`ompi`**.  The version of OpenMPI installed can be found using `mpirun --version`, while much more detailed info is returned by `ompi_info`:
+The docs for OpenMPI and `mpi4py` describe various ways of obtaining and installing these things, including building from source, but for the purpose of running an MPI-parallel Python program on a Linux PC the easiest thing is to use Conda to install both OpenMPI and `mpi4py` in an environment, here called **`m4p`**.  We also include some other packages likely  to be needed by programs running in this environment -- here we choose NumPy, SciPy, and Matplotlib. The version of OpenMPI installed can be found using `mpirun --version`, while much more detailed info is returned by `ompi_info`:
 
 ```
-TODO (TRY FIRST) Call this environment m4p (as do below on Unity).  Make simpler environment
-ompi with only openmpi to use when running apptainer?
-
-
-$ conda create -c conda-forge -n ompi openmpi=5 mpi4py python=3.12
-$ conda activate ompi
-(ompi)..$ mpirun --version
+$ conda create -n m4p -c conda-forge openmpi=5 mpi4py python=3.12
+$ conda activate m4p
+(m4p)$ conda install -c conda-forge numpy scipy matplotlib
+(m4p)$ mpirun --version
 mpirun (Open MPI) 5.0.7
-(ompi)..$  ompi_info | head
-                 Package: Open MPI conda@f424a898794e Distribution
-                Open MPI: 5.0.7
-  Open MPI repo revision: v5.0.7
-   Open MPI release date: Feb 14, 2025
-                 MPI API: 3.1.0
-            Ident string: 5.0.7
-                  Prefix: /home/dc/anaconda3/envs/ompi
- Configured architecture: x86_64-conda-linux-gnu
-           Configured by: conda
+(m4p)$ ompi_info | head
+                 Package: Open MPI conda@f424a898794e Distribution    
+                Open MPI: 5.0.7                          
+  Open MPI repo revision: v5.0.7                 
+   Open MPI release date: Feb 14, 2025                 
+                 MPI API: 3.1.0                   
+            Ident string: 5.0.7                
+                  Prefix: /home/dc/anaconda3/envs/m4p    
+ Configured architecture: x86_64-conda-linux-gnu       
+           Configured by: conda                    
            Configured on: Mon Feb 17 07:57:35 UTC 2025
 ```
 
 #### Simple MPI test programs: `mpi_hw.py`  and `osu_bw.py` <a id="mpi-testprogs"></a>
 
-- MPI works by **loading and starting $n$ copies of the same code**, each in its own process running on a separate core.  (In principle each process could use multiple cores, for example for NumPy multithreading, but I don't have an example of that yet.)  Each process has a unique **rank**  in the range $0\dots n-1$, and a process can find its rank via an MPI function call -- and then use the rank to figure out what it should do (this is up to the programmer!).  To simultaneously run four copies (ranks) of  the Python program `myprog.py` we do
+- MPI works by **loading and starting $n$ copies of the same code**, each in its own process running on a separate core (or cores if, for example [NumPy multithreading is enabled](multithread-mpi))  Each process has a unique **rank**  in the range $0\dots n-1$, and a process can find its rank via an MPI function call -- and then use the rank to figure out what it should do (this is up to the programmer!).  To simultaneously run four copies (ranks) of  the Python program `myprog.py` we do
   
   ```
   $ mpirun -n 4 python myprog.py
@@ -567,9 +566,9 @@ mpirun (Open MPI) 5.0.7
 - The "Hello world" of MPI programs, **`mpi_hw.py`** simply prints a message including the rank and other information.  Running `mpi_hw.py` in four ranks gives us four such messages, in an indeterminate order:**
   
   ```
-  (ompi)..$ cd python-scripts; ls    # cd to directory containing test programs
+  (m4p)..$ cd python-scripts; ls    # cd to directory containing test programs
   mpi_hw.py  osu_bw.py ...
-  (ompi)..python-scripts$ mpirun -n 4 python mpi_hw.py
+  (m4p)..python-scripts$ mpirun -n 4 python mpi_hw.py
   Hello world from rank 0 of 4 on candela-21 running Open MPI v5.0.7
   Hello world from rank 3 of 4 on candela-21 running Open MPI v5.0.7
   Hello world from rank 1 of 4 on candela-21 running Open MPI v5.0.7
@@ -585,7 +584,7 @@ mpirun (Open MPI) 5.0.7
 - In `mpi_hw.py` the code in each rank runs independently, with no communication between ranks.  The main purpose of MPI is to carry out inter-rank communication, to enable non-trivial parallel algorithms.  **`osu_bw.py`** tests the **speed of communication between two ranks**, for messages of various sizes.  Here this test program was run on the PC candela-21.  As the two ranks are on cores on the same CPU chip (on a PC like this -- not necessarily true on an HPC cluster), the communication speed should be quite fast:
   
   ```
-  (ompi)..python-scripts$  mpirun -n 2 python osu_bw.py
+  (m4p)..python-scripts$  mpirun -n 2 python osu_bw.py
   2
   2
   # MPI Bandwidth Test
@@ -619,30 +618,28 @@ mpirun (Open MPI) 5.0.7
   
   It can be seen that the maximum inter-rank communication speed was about 17 GB/s on this PC ([candela-21](#pcs)).
 
-#### A more elaborate MPI program: `boxpct.py` with the `dem21` package<a id="boxpct-dem21"></a>
+#### More elaborate MPI programs using the `dem21` package<a id="mpi-dem21"></a>
 
-**TODO** Run bigger sim on candela-21 for speed comparison with Unity
+Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (not currently publicly available) as an example of a much more elaborate MPI program.  It is assumed that OpenMPI has been installed on the PC as [described above](#install-openmpi).
 
-Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (not public ally available) as an example of a much more elaborate MPI program.  It is assumed that OpenMPI has been installed on the PC as [described above](#install-openmpi).
-
-- With access the `dem21` repo is cloned from GitHub to a directory `foo/dem21`.  Then, following the instructions in the documentation `dem21.pdf` (in the repo), a suitable environment **`dem21`** for running the package is created.  This is like the environment `ompi5` for running MPI described above, but includes additional packages needed by `dem21`.  Finally, the `dem21` package is installed in this environment (note it was necessary to get packages from `conda-forge` as shown; Conda was unable to create this environment with packages from the default channel):
+- **Environment for running `dem21`.** With access the `dem21` repo is cloned from GitHub to a directory `foo/dem21`.  Then a suitable environment **`dem21`** is created similar to  `m4p` defined above but including the additional packages needed according to the instructions in the documentation `dem21.pdf` (in the repo).  Finally, the `dem21` package is installed in this environment (it was helpful to set the Python version to 3.11 and to break up the Conda install commands as shown here, otherwise Conda got stuck trying to solve the environment):
   
   ```
-  ..foo$ git clone git@github.com:doncandela/dem21.git
-  ..foo$ conda create -n dem21 python=3.11
-  ..foo$ conda activate dem21
-  (dem21)..foo$ conda install -c conda-forge openmpi=5.0.3 mpi4py
-  (dem21)..foo$ conda install -c conda-forge dill matplotlib numba numpy pyaml scipy
+  (base)..foo$ git clone git@github.com:doncandela/dem21.git
+  
+  (base)..foo$ conda create -n dem21 -c conda-forge openmpi=5 mpi4py python=3.11
+  (base)..foo$ conda activate dem21
+  (dem21)..foo$ conda install -c conda-forge numpy scipy matplotlib dill numba pyaml
   (dem21)..foo$ conda install -c conda-forge quaternion
   (dem21)..foo$ cd dem21
   (dem21)..foo/dem21$ pip install -e .
   ```
 
-- Now it is possible to run the test program `boxpct.py` (included in the repo) in MPI-parallel mode:
+- **Quick test program `boxpct.py`.**  Now it is possible to run the test program `boxpct.py` (included in the repo) in MPI-parallel mode:
   
   ```
   (dem21)..foo/dem21$ cd tests/box
-  (dem21)..foo/dem21/tests/box$ export pproc=mpi
+  (dem21)..foo/dem21/tests/box$ export pproc=mpi # this tells boxpct.py to use MPI
   (dem21)..foo/dem21/tests/box$ mpirun -n 4 python boxpct.py
   - Started MPI on master + 3 worker ranks.
   THIS IS: boxpct.py 12/3/22 D.C., using dem21 version: v1.2 2/11/25
@@ -657,6 +654,8 @@ Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (n
   - READYING SIM with 343 grains and 6 walls
                          ...
   ```
+
+- **A more resource-intensive run with `ms.py`.** Finally we try a much bigger, longer-running DEM simulation which will be duplicated below using Apptainer and on Unity, to see if there is any performance impact from containerizing the code, and to get an example of the speed-up that can be obtained from the larger core-counts available on Unity.
 
 #### Hyperthreading and NumPy multithreading with MPI<a id="multithread-mpi"></a>
 
@@ -1350,7 +1349,6 @@ Next we make a container with the local package **`dcfuncs`** installed inside i
   %post
       conda install -c conda-forge openmpi=5 mpi4py python=3.12
       conda install -c conda-forge numpy scipy matplotlib
-  ```
   
   Bootstrap: docker
   From: continuumio/miniconda3
@@ -1361,27 +1359,29 @@ Next we make a container with the local package **`dcfuncs`** installed inside i
       conda install -c conda-forge numpy scipy matplotlib
       apt-get update
       apt install -y openmpi-bin
-
-```
-Some fine points about this `.def` file -- things that were found necessary for `apptainer build` to succeed:
+  ```
+  
+  Some fine points about this `.def` file -- things that were found necessary for `apptainer build` to succeed:
 
 -  As of 2/25 installing `numpy...matplotlib` from the default Conda channel rather than `conda-forge` gave some tricky compatibility issues (the Docker image had Python 3.12 which was too recent if these packages were gotten from the default Conda channel).
+
 - Without the `apt-get update` command to update the package list (in the container, I think), `apt install` was unable to find `openmpi-bin`.
+
 - Without the `-y` option on `apt install` the build aborted at a `[Y/n]` question.
 
 - Build the container, resulting in the 1.2 GB image file **`ompi5.sif`**:
-```
-
+  
+  ```
   $ sudo apptainer build "$SIFS"/ompi5.sif ompi5.def
+  ```
 
-```
 - The following tests were done in a directory containing the [MPI test programs described above](#mpi-testprogs), `mpi_hw` to test that MPI is functioning and each task can find its MPI rank and `osu_bw.py` to test and measure the speed of communication between two MPI ranks.
 
 - While the container `ompi5.sif` could be built as above without a Conda environment like `ompi5` in which MPI is installed, to run the container **MPI must be installed outside the container**.  This is because, as shown in an example below, MPI outside the container will be used to run multiple copies of the container on separate cores and to handle communication between these copies.
 
 - In the PC on which this was tried, OpenMPI 4.1.6 was installed in the base environment, but the base environment did not include `mpi4py` which is needed by `mpi_hw`:
-```
-
+  
+  ```
   (base)..$ ompi_info | head -n 2
                   Package: Debian OpenMPI
                  Open MPI: 4.1.6
@@ -1390,11 +1390,11 @@ Some fine points about this `.def` file -- things that were found necessary for 
     File ".../mpi_hw.py", line 5, in <module>
       from mpi4py import MPI
   ModuleNotFoundError: No module named 'mpi4py'
+  ```
 
-```
 - If we run these same commands in the container `ompi5.sif`, we see that OpenMPI 5.0.3 is installed in the container and we can successfully run `mpi_hw.py` and `osu_bw.py`:
-```
-
+  
+  ```
   (base)..$ apptainer exec "$SIFS"/ompi5.sif ompi_info | head -n 2
                    Package: Open MPI conda@2a526d73f59c Distribution
                   Open MPI: 5.0.3
@@ -1408,11 +1408,9 @@ Some fine points about this `.def` file -- things that were found necessary for 
   (base)..$ mpirun -n 2 apptainer exec "$SIFS"/ompi5.sif python osu_bw.py
   2
   2
-
-# MPI Bandwidth Test
-
-# Size [B]    Bandwidth [MB/s]
-
+  # MPI Bandwidth Test
+  # Size [B]    Bandwidth [MB/s]
+  
            1                3.61
            2                6.82
            4               14.27
@@ -1433,17 +1431,18 @@ Some fine points about this `.def` file -- things that were found necessary for 
      131,072           39,860.82
      262,144           43,233.52
      524,288           44,684.74
-
+  
    1,048,576           45,500.82
    2,097,152           45,624.21
    4,194,304           46,258.88
    8,388,608           46,224.02
   16,777,216           45,786.94
-
-```
-Things to note in this example:
+  ```
+  
+  Things to note in this example:
 
 - The command `mpirun - n 6 ...` is running six separate copies of the container on six cores of the PC.  This `mpirun` command is running outside the container, so it is running OpenMPI 4.1.6 , but it successfully integrates with the OpenMPI 5.0.3 that each task is running inside its container (as can be seen from the `mpi_hw.py` print statements). This is an example of the "Hybrid model" for running MPI described in the [Apptainer docs](https://apptainer.org/docs/user/latest/mpi.html).
+
 - For reasons I don't understand, `osu_bw.py` reports inter-rank communication speeds about four times faster when run using Apptainer, than when run [directly by MPI without Apptainer](#mpi-testprogs).  The results are the same if the Conda environment `ompi5` is activated to run the same version of MPI outside as inside.
 
 #### A container to run the more elaborate MPI package `dem21`<a id="dem21-container"></a>
@@ -1453,15 +1452,16 @@ Things to note in this example:
 Make a definition file **`dem21.def`** with the following contents. This is like `ompi5.def` in the previous section, but with the following additions to install the `dem21` package in the container (see [A container with a local Python package installed](#local-package-container) above):
 
 - There is a `%files` section that copies the `dem21` package (assumed to be in the directory from which the `apptainer build` is run) into the container.
-- The `%post` section includes commands that install additional remote packages needed by `dem21` and install `dem21`  as a local package, as is done without a container in [A more elaborate MPI program...](#boxpct-dem21) above.
-```
 
+- The `%post` section includes commands that install additional remote packages needed by `dem21` and install `dem21`  as a local package, as is done without a container in [A more elaborate MPI program...](#boxpct-dem21) above.
+  
+  ```
   Bootstrap: docker
   From: continuumio/miniconda3
-
+  
   %files
       dem21 /dem21
-
+  
   %post
       conda install -c conda-forge openmpi=5.0.3 mpi4py
       conda install -c conda-forge dill matplotlib numba numpy pyaml scipy
@@ -1470,17 +1470,17 @@ Make a definition file **`dem21.def`** with the following contents. This is like
       apt install -y openmpi-bin
       cd /dem21
       pip install .
+  ```
 
-```
 - Working in a directory `build-dem21` that contains `dem21.def`, the `dem21` package (not currently public) is cloned into the current directory and the container is built. This made the 1.3 GB image file **`dem21.sif`**:
-```
-
+  
+  ```
   build-dem21$ git clone git@github.com:doncandela/dem21.git
   build-dem$ ls
   dem21  dem21.def
   build-dem$ sudo apptainer build "$SIFS"/dem21.sif dem21.def
+  ```
 
-```
 - To test  that the `dem21` package can run in the container (see [A more elaborate MPI program...](#boxpct-dem21) above for the corresponding steps without a container, and the previous section [A container that can use MPI](#mpi-container) for how MPI is run with a container):
 
 - We check that MPI is installed outside the container -- it will be needed to start multiple copies of the container on different cores and pass messages between them.
@@ -1488,14 +1488,14 @@ Make a definition file **`dem21.def`** with the following contents. This is like
 - We go to the subdirectory `tests/box` of  the cloned repo `dem21` outside the container, which has the test program `boxpct.py` and its config file `box.yaml`.
 
 - We do `export pproc=mpi`, which tells the `dem21` code to run in MPI-parallel mode:
-
+  
   - Each separate copy of the code, running inside its own container, will issue MPI calls to find out what its rank is and to send/receive messages from the other ranks.
-
+  
   - These MPI calls will be passed to the MPI system running outside the containers which will carry out the corresponding functions.
 
 - We run `mpirun -n <n> apptainer exec...` to start `<n>` containers on different cores.
-```
-
+  
+  ```
   ...box$ ompi_info | head -n 2
                    Package: Debian OpenMPI
                   Open MPI: 4.1.6
@@ -1504,26 +1504,23 @@ Make a definition file **`dem21.def`** with the following contents. This is like
   boxmod.yaml  boxpct.py  boxpct.sh  box.yaml  heap3.yaml  output  plots
   ...box$ export pproc=mpi
   ...box$ mpirun -n 16 apptainer exec "$SIFS"/dem21.sif python boxpct.py
-
-- Started MPI on master + 15 worker ranks.
+  
+  - Started MPI on master + 15 worker ranks.
   THIS IS: boxpct.py 12/3/22 D.C., using dem21 version: v1.2 2/11/25
   Parallel processing: MPI, GHOST_ARRAY=True
-
-- Read 1 config(s) from ...build-dem21/dem21/tests/box/box.yaml
+  
+  - Read 1 config(s) from ...build-dem21/dem21/tests/box/box.yaml
   
   SIM 1/1:
   Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
   343 'sphere' grains in (7.66)x(7.66)x(7.66)mm box (phig=0.4), vrms=10.0m/s
   No gravity, 'hertz' normal force law, Coulomb w. Hookean spring friction with GG mu=0.1, GW mu=0
-
-- Writing grain ICs x,v to /tmp/tmp6tpg_0pg/temp.grains
-
-- READYING SIM with 343 grains and 6 walls
   
-                    ...
+  - Writing grain ICs x,v to /tmp/tmp6tpg_0pg/temp.grains
   
-  ```
+  - READYING SIM with 343 grains and 6 walls
   
+                    ... 
   ```
 
 #### A container that can use a GPU<a id="gpu-container"></a>
@@ -2874,20 +2871,24 @@ To run on Unity, a suitable container image (`.sif` file) must be present in a U
 
 This section describes how to run a container that **does not use MPI or a GPU** -- the additional steps needed for those things are in separate sections below.
 
-- **Running a container interactively.**  Obtain a shell on a compute node, and in this shell load the Apptainer module (although it seems that on Unity Apptainer is typically already loaded).  For many purposes it should not be necessary to load other modules, etc.:
+- **Environment for running Apptainer containers.**  Unless MPI or a GPU is used, for many purposes it should not be necessary to load modules other than the Apptainer module or to set a Conda environment:
   
   - Python and packages typically loaded with Conda like NumPy and SciPy should be pre-loaded in the container, all in the desired versions.  
   
   - User packages installed locally should also be pre-loaded in the container.
   
   - It should not be necessary to set a Conda environment before running the container, unless this is required for code running outside the container.
-    
-    ```
-    $ salloc -c 6 -p cpu    # Get 6 cores on a compute node in the cpu partition
-    (wait for the compute-node shell to come up)
-    $ sifs                  # set SIFS to point to directory where .sif files are kept
-    $ module load apptainer/latest
-    ```
+  
+  - Both MPI and use of a GPU require non-OS code outside the container  (to manage communication between copies of the container, or to run the GPU) so in these cases a suitable Conda environment and/or module must be loaded, as shown in sections below. 
+
+- **Running a container interactively.** Obtain a shell on a compute node, and in this shell load the Apptainer module.  Also set `SIFS` to point to directory where `.sif` (container image) files are kept.
+  
+  ```
+  $ salloc -c 6 -p cpu    # Get 6 cores on a compute node in the cpu partition
+  (wait for the compute-node shell to come up)
+  $ module load apptainer/latest
+  $ sifs
+  ```
   
    Here we have made a directory `try-tprogs` on Unity and copied into it:
   
