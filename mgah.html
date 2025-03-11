@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   3/10/25</p>
+<p>mgah.md  D. Candela   3/11/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -2957,18 +2957,69 @@ No gravity, 'hertz' normal force law, Coulomb w. Hookean spring friction with GG
 - READYING SIM with 343 grains and 6 walls
                        ...</code></pre>
 </li>
-<li><p><strong>A more resource-intensive run with <code>ms.py</code>.</strong> Finally we try a much bigger, longer-running DEM simulation which will be duplicated below using Apptainer and on Unity, to see if there is any performance impact from containerizing the code, and to get an example of the speed-up that can be obtained from the larger core-counts available on Unity.</p>
+<li><p><strong>A more resource-intensive run with <code>mx2.py</code>.</strong> Finally we run a much bigger, longer-running DEM simulation which is duplicated below using Apptainer and on Unity, to see if there is any performance impact from containerizing the code, and to investigate the speed-ups that can be obtained from the larger core counts available on Unity.</p>
+<ul>
+<li><p>The tested code was a simulation of a "granular memory" experiment on a dense pack of 10,240 tetrahedral grains (each composed of four spherical grainlets) with 450,000 time steps.  The simulation was carried out by the program <code>mx2.py</code>, continuing a sample-preparation simulation carried out by <code>ms.py</code> -- these programs called the <code>dem21</code> package and were run in MPI-parallel mode in various configurations.</p>
+</li>
+<li><p>It was necessary to install the input-signals package  <code>msigs</code> which is used by <code>mx2.py</code> into the <code>dem21</code> environment:</p>
+<pre><code class="fenced-code-block">..$ conda activate dem21
+(dem21)..$ cd GMEM/msigs; ls   # cd to where msigs package is kept
+'msigs README'   pyproject.toml   setup.py   src   test
+(dem21)..GMEM/msigs$ pip install -e .</code></pre>
+</li>
+<li><p>The shell script <strong><code>cc-expts../mx2.sh</code></strong>   is used to run <code>mx2.py</code> and must be edited to reflect the run configuration to be used (e.g. use of hyperthreading).  For comparison with scripts shown in later sections to run <code>mx2.py</code> in other situations (with Apptainer, on Unity, both of these...) here are the contents of <code>mx2.sh</code> for this simple (non-Apptainer, PC) case:</p>
+<pre><code class="fenced-code-block">#!/bin/bash
+# cc-samples/mx2.sh 7/29/24 D.C.
+# Runs mx2.py in grandparent directory in 'mpi' parallel-processing mode.
+# Reads default config file mx2.yaml in grandparent directory modified by
+# mx2mod.yaml in current directory
+#
+# To run on N cores 1st activate MPI environment then do
+#
+# ./mx2.sh N
+#
+export pproc=mpi
+mpirun -n $1 python ../../mx2.py mx2mod |&amp; tee output</code></pre>
+<p>After editing <code>cc-expts-../mx2.sh</code> to reflect the configuration being tested the simulation is run:</p>
+<pre><code class="fenced-code-block">(dem21)..$ cd ..cc-expts-...; ls   # cd to where desired version of mx2.sh is kept
+bw6-sigs.yaml  bw6.svg  mx2mod.yaml  mx2.sh signals.sh
+(dem21)...cc-expts-..$ ./mx2.sh 15 # run mx2.py in 15 MPI ranks
+- Started MPI on master + 14 worker ranks.
+This is: mx2.py 7/29/24 D.C.
+Using dem21 version: v1.2 2/11/25
+Imput signals made by: memsigs.py 8/23/24 D.C.
+                ...</code></pre>
+</li>
+<li><p>With the chosen parameters (set by <code>.yaml</code> config files read by <code>ms.py</code> and <code>mx2.py</code>) the simulation spatial domain was divided into 216 "boxes", which were distributed as evenly as possible across the available MPI ranks: rank 0 is used by the overall control program, and each remaining rank holds a "crate" which in turn holds zero or more boxes. Computation by the boxes in each crate is sequential for each time step, thus one might expect the overall execution time to be roughly proportional to the number of boxes per crate.  For the maximum possible parallelism (one box per crate) the number of MPI ranks must be at least one greater than the number of boxes, i.e. at least 217 in the present case.</p>
+</li>
+<li><p>When run in 15 MPI ranks on the  16-core PC <a href="#pcs">candela-21</a> with <a href="#multithread-mpi">hyperthreading disabled</a> as it is by default:</p>
+<ul>
+<li><p>There were 14 crates with 16 boxes and 1 crate with 8 boxes, requiring 16 serial box calculations at each time step.</p>
+</li>
+<li><p>The 450,000 step simulation required 15,937 s = 4.427 hr, or 3.46 microsec/step-grain.</p>
+</li>
+</ul>
+</li>
+<li><p>The simulation was also run in 30 MPI ranks on the same PC with <a href="#multithread-mpi">hyperthreading enabled</a> by supplying  <code>--use-hwthread-cpus</code> to the <code>mpirun</code> command in <code>mx2.sh</code>.</p>
+<ul>
+<li><p>Now there were 27 crates with 8 boxes and 2 crates with 0 boxes, requiring 8 serial box calculations at each time step, i.e. half as many as without hyperthreading.</p>
+</li>
+<li><p>Now the simulation required 16,567 s = 4.602 hr, or 3.60 microsec/step-grain.  So despite the greater degree of parallelism with hyperthreading, in this case there was no overall advantage in in fact the program ran slightly slower.  It seems that whatever speed advantage was provided by hyperthreading (<a href="#multiple-cores">expected to be of order 25%</a>) was negated by the the increased MPI communication required or other unknown factors.</p>
+</li>
+</ul>
+</li>
+</ul>
 </li>
 </ul>
 <h4 class="atx" id="hyperthreading-and-numpy-multithreading-with-mpilessa-iddouble-quotemultithread-mpidouble-quotegreaterlessagreater">Hyperthreading and NumPy multithreading with MPI<a id="multithread-mpi"></a></h4>
 <ul>
 <li>As discussed in <a href="#multiple-cores">Parallel execution on multiple cores</a> above, "hyperthreading" or "simultaneous multithreading" is a feature of many CPU chips which makes each physical core act like two virtual cores.<ul>
 <li>It seems that hyperthreading is often turned off (or disabled?) in HPC clusters, for example some information on this for the Unity cluster is <a href="https://docs.unity.rc.umass.edu/documentation/get-started/hpc-theory/threads-cores-processes-sockets/">here</a> and <a href="https://docs.unity.rc.umass.edu/news/2023/06/june-5-maintenance-concluded/">here</a>.</li>
-<li>In trials running OpenMPI on Linux PCs, hyperthreading was turned off by default but is could be turned on by supplying the option <strong><code>--use-hwthread-cpus</code></strong> to <strong><code>mpirun</code></strong>.  I was unable to achieve significant performance improvements with hyperthreading, so it is not discussed further here.</li>
+<li>In trials running OpenMPI on Linux PCs, hyperthreading was turned off by default but is could be turned on by supplying the option <strong><code>--use-hwthread-cpus</code></strong> to <strong><code>mpirun</code></strong>.  I was unable to achieve significant performance improvements with hyperthreading (see previous section for an example), so it is not discussed further here.</li>
 </ul>
 </li>
 <li>As also discussed in <a href="#multiple-cores">Parallel execution on multiple cores</a>, some NumPy functions (like matrix multiplication) can take advantage of multithreading on multiple cores to speed up.  I believe this is typcially via the use of OpenMP by the underlying BLAS functions employed by NumPy.<ul>
-<li>For non-MPI programs <a href="#multiple-cores">it was found</a> that some Numpy functions will greedily use all available cores unless the environment variable <code>OMP_NUM_THREADS</code> is used to reduce the cores used.</li>
+<li>For non-MPI programs <a href="#multiple-cores">it was found</a> that some NumPy functions will greedily use all available cores unless the environment variable <code>OMP_NUM_THREADS</code> is used to reduce the cores used.</li>
 <li>For MPI programs on PCs, I found that the number of cores used by NumPy is controlled by the <code>mpirun</code> option <code>-cpus-per-proc</code> in concert with <code>OMP_NUM_THREADS</code>.  However, it seemed difficult to get much advantage in this way so detailed trials are not shown here.</li>
 <li>When neither <code>OMP_NUM_THREADS</code> nor <code>-cpus-per-proc</code> is used, it seems  that NumPy functions called in a Python MPI program will be limited to a single core.</li>
 <li>The section <a href="#sbatch-multithread">Enabling NumPy multithreading in MPI batch jobs</a> below shows how NumPy multithreading can be controlled in and MPI program running on the Unity HPC cluster.</li>
