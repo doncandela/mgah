@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   3/11/25</p>
+<p>mgah.md  D. Candela   3/28/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -2648,7 +2648,7 @@ $ apt list &lt;package&gt; --installed  # list installed packages with this name
 <ul>
 <li><p><strong>Conda environments and Apptainer</strong>. Often, and for all the examples in this document, there is no need to create a Conda environment when an Apptainer container is being used - the container serves as an environment.  (One could run an Apptainer container from a Conda environment if additional packages not installed in the container were needed  -- but that is not shown here.)</p>
 </li>
-<li><p>The following Conda environments are created and used on a PC, when Apptainer is not being used: </p>
+<li><p>The following Conda environments are created and used on a PC, when Apptainer is not being used (except for <strong><code>ompi</code></strong> which is used when an Apptainer container is run). </p>
 <ul>
 <li><strong><code>p39</code></strong> (defined just above) has Python 3.9, NumPy, SciPy, etc but does not have OpenMPI, PyTorch, or CuPy.</li>
 <li><strong><code>dfs</code></strong> (defined in <a href="#local-package">Installing a local package</a> below) environment for trying out  the local package <code>dcfuncs</code>.</li>
@@ -2659,11 +2659,11 @@ $ apt list &lt;package&gt; --installed  # list installed packages with this name
 <li><strong><code>ompi</code></strong> (defined in <a href="#mpi-container">A container that can use MPI</a>) includes only OpenMPI and Python as an example of a minimal environment for running a container that uses MPI.</li>
 </ul>
 </li>
-<li><p>The following Conda environments are created and used on the Unity HPC cluster, when Apptainer is not being used.  They generally do the same things as the corresponding environments defined for PCs listed just above.</p>
+<li><p>The following Conda environments are created and used on the Unity HPC cluster, when Apptainer is not being used (except for <strong><code>ompi</code></strong> which is used when an Apptainer container is run).  They generally do the same things as the corresponding environments defined for PCs listed just above.</p>
 <ul>
 <li><strong><code>npsp</code></strong> (defined in <a href="#unity-modules-conda">Using modules and Conda</a>) has NumPy, SciPy, and Matplotlib, but not CuPy.</li>
 <li><strong><code>dfs</code></strong> (also defined in <a href="#unity-modules-conda">Using modules and Conda</a>) has NumPy and the local package <code>dcfuncs</code> installed.</li>
-<li><strong><code>m4p</code></strong> (defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) includes OpenMPI 5.0.3, and <code>mpi4py</code>, so MPI can be used.  An alternative <strong><code>m4pe</code></strong> that uses externally-installed MPI is also discussed in that section, but it seems not to work as well on Unity.</li>
+<li><strong><code>m4p</code></strong> (defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) includes OpenMPI 5.0.3, and <code>mpi4py</code>, so MPI can be used.</li>
 <li><strong><code>dem21</code></strong> (also defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) is like <code>m4p</code> but additionally includes the locally-installed package <code>dem21</code> and additional packages that <code>dem21</code> imports.</li>
 <li><strong><code>gpu</code></strong> (defined in <a href="#unity-gpu">Using a GPU in Unity (without Apptainer)</a>) includes CuPy, so a GPU can be used.</li>
 <li><strong><code>ompi</code></strong> (defined in  <a href="#unity-mpi-container">Running a container that uses MPI</a>) includes only OpenMPI and Python as an example of a minimal environment for running a container that uses MPI.</li>
@@ -2691,7 +2691,7 @@ $ apt list &lt;package&gt; --installed  # list installed packages with this name
 </li>
 <li><p><strong><code>m4p.def</code></strong> makes a container with <strong>OpenMPI</strong> and <strong>MPI for Python</strong> installed in it, so it can be used to run MPI programs.</p>
 </li>
-<li><p><strong><code>dem21.def</code></strong> makes an MPI-enabled container like the one made by <code>ompi5.def</code>, but it also has the more elaborate MPI-using package <code>dem21</code> installed in the container.</p>
+<li><p><strong><code>dem21.def</code></strong> makes an MPI-enabled container like the one made by <code>m4p.def</code>, but it also has the more elaborate MPI-using package <code>dem21</code> installed in the container.</p>
 </li>
 <li><p><strong><code>gpu.def</code></strong> makes a container that imports <strong>CuPy</strong> so it can be used to run Python programs that use CuPy to run a GPU.</p>
 </li>
@@ -3838,111 +3838,77 @@ CPU timings use last 10 of 11 trials
 <ul>
 <li><p><a href="https://apptainer.org/docs/user/latest/mpi.html">Apptainer and MPI applications</a> in the Apptainer docs explains in some detail how MPI works with Apptainer. Here we give some rather simpler examples showing how Python programs using <code>mpi4py</code> for MPI parallelism can be run with Apptainer.  Basically I have found that if Conda is used to install OpenMPI and MPI for Python (<code>mpi4py</code>) in the container, then it will be possible for Python run in multiple containers started by <code>mpirun</code> (from OpenMPI installed outside the containers) to use MPI via <code>mpi4py</code> calls.  This did not require setting any environment variables, unlike the examples in the Apptainer docs referenced above.</p>
 </li>
-<li><p>Make a definition file <strong><code>ompi5.def</code></strong> with the following contents. The <code>%post</code> commands in this file are similar to those shown above to <a href="#install-openmpi">install OpenMPI on a PC</a>, except that there is no need here to create a Conda environment like <code>ompi5</code> -- the container serves as the environment:</p>
-<pre><code class="fenced-code-block">TODO new idea mp4.def giving mp4.sif.  Seems apt stuff below is superfluous? But with
-this new mp4.sif on hoffice got warnings about tcp from each rank unless did
-mpirun --mca btl ^tcp....
-
-Bootstrap: docker
+<li><p>Make a definition file <strong><code>m4p.def</code></strong> with the following contents. The <code>%post</code> commands in this file are similar to those shown above to <a href="#install-openmpi">install OpenMPI on a PC</a>:</p>
+<pre><code class="fenced-code-block">Bootstrap: docker
 From: continuumio/miniconda3
 
 %post
     conda install -c conda-forge openmpi=5 mpi4py python=3.12
-    conda install -c conda-forge numpy scipy matplotlib
-
-Bootstrap: docker
-From: continuumio/miniconda3
-
-%post
-
-    conda install -c conda-forge openmpi=5.0.3 mpi4py
-    conda install -c conda-forge numpy scipy matplotlib
-    apt-get update
-    apt install -y openmpi-bin</code></pre>
-<p>Some fine points about this <code>.def</code> file -- things that were found necessary for <code>apptainer build</code> to succeed:</p>
+    conda install -c conda-forge numpy scipy matplotlib</code></pre>
 </li>
-<li><p>&nbsp;As of 2/25 installing <code>numpy...matplotlib</code> from the default Conda channel rather than <code>conda-forge</code> gave some tricky compatibility issues (the Docker image had Python 3.12 which was too recent if these packages were gotten from the default Conda channel).</p>
+<li><p>Build the container, resulting in the 1.2 GB image file <strong><code>m4p.sif</code></strong>:</p>
+<pre><code class="fenced-code-block">$ sudo apptainer build "$SIFS"/m4p.sif m4p.def</code></pre>
 </li>
-<li><p>Without the <code>apt-get update</code> command to update the package list (in the container, I think), <code>apt install</code> was unable to find <code>openmpi-bin</code>.</p>
+<li><p>While the container <code>m4p.sif</code> can be built as above without a Conda environment in which MPI is installed, to run the container <strong>MPI must be installed outside the container</strong>.  This is because, as shown in examples below, MPI outside the container will be used to run multiple copies of the container on separate cores and to handle communication between these copies. It will work to activate the environment <strong><code>m4p</code></strong> with OpenMPI and other packages <a href="">described above</a> before running the container, but this environment contains things that are not needed outside the container (<code>mpi4py</code>, <code>numpy</code>...).  Here we make a simpler environment <strong><code>ompi</code></strong> that includes only OpenMPI and Python (so pip could be used to install additional things in this enviroment):</p>
+<pre><code class="fenced-code-block">$ conda deactivate
+$ conda create -n ompi -c conda-forge openmpi=5 python=3.12
+$ conda activate ompi
+(ompi)$ mpirun --version
+mpirun (Open MPI) 5.0.7</code></pre>
 </li>
-<li><p>Without the <code>-y</code> option on <code>apt install</code> the build aborted at a <code>[Y/n]</code> question.</p>
-</li>
-<li><p>Build the container, resulting in the 1.2 GB image file <strong><code>ompi5.sif</code></strong>:</p>
-<pre><code class="fenced-code-block">$ sudo apptainer build "$SIFS"/ompi5.sif ompi5.def</code></pre>
-</li>
-<li><p>The following tests were done in a directory containing the <a href="#mpi-testprogs">MPI test programs described above</a>, <code>mpi_hw</code> to test that MPI is functioning and each task can find its MPI rank and <code>osu_bw.py</code> to test and measure the speed of communication between two MPI ranks.</p>
-</li>
-<li><p>While the container <code>ompi5.sif</code> could be built as above without a Conda environment like <code>ompi5</code> in which MPI is installed, to run the container <strong>MPI must be installed outside the container</strong>.  This is because, as shown in an example below, MPI outside the container will be used to run multiple copies of the container on separate cores and to handle communication between these copies.</p>
-</li>
-<li><p>In the PC on which this was tried, OpenMPI 4.1.6 was installed in the base environment, but the base environment did not include <code>mpi4py</code> which is needed by <code>mpi_hw</code>:</p>
-<pre><code class="fenced-code-block">(base)..$ ompi_info | head -n 2
-                Package: Debian OpenMPI
-               Open MPI: 4.1.6
-(base)..$ mpirun -n 4 python mpi_hw.py
-Traceback (most recent call last):
-  File ".../mpi_hw.py", line 5, in &lt;module&gt;
-    from mpi4py import MPI
-ModuleNotFoundError: No module named 'mpi4py'</code></pre>
-</li>
-<li><p>If we run these same commands in the container <code>ompi5.sif</code>, we see that OpenMPI 5.0.3 is installed in the container and we can successfully run <code>mpi_hw.py</code> and <code>osu_bw.py</code>:</p>
-<pre><code class="fenced-code-block">(base)..$ apptainer exec "$SIFS"/ompi5.sif ompi_info | head -n 2
-                 Package: Open MPI conda@2a526d73f59c Distribution
-                Open MPI: 5.0.3
-(base)..$ mpirun -n 6 apptainer exec "$SIFS"/ompi5.sif python mpi_hw.py
-Hello world from rank 0 of 6 on candela-21 running Open MPI v5.0.3
-Hello world from rank 4 of 6 on candela-21 running Open MPI v5.0.3
+<li><p>With <code>ompi</code> activated we can use the the container to run <code>mpi_hw.py</code> and <code>osu_bw.py</code> (after switching to a directory that contains these programs)</p>
+<pre><code class="fenced-code-block">(ompi)..$ cd python-scripts; ls
+mpi_hw.py  osu_by.py ...
+(ompi)..python-scripts$ mpirun -n 6 apptainer exec "$SIFS"/ompi5.sif python mpi_hw.py
 Hello world from rank 5 of 6 on candela-21 running Open MPI v5.0.3
-Hello world from rank 1 of 6 on candela-21 running Open MPI v5.0.3
-Hello world from rank 2 of 6 on candela-21 running Open MPI v5.0.3
 Hello world from rank 3 of 6 on candela-21 running Open MPI v5.0.3
-(base)..$ mpirun -n 2 apptainer exec "$SIFS"/ompi5.sif python osu_bw.py
+Hello world from rank 0 of 6 on candela-21 running Open MPI v5.0.3
+Hello world from rank 2 of 6 on candela-21 running Open MPI v5.0.3
+Hello world from rank 1 of 6 on candela-21 running Open MPI v5.0.3
+Hello world from rank 4 of 6 on candela-21 running Open MPI v5.0.3
+(ompi)..python-scripts$ mpirun -n 2 apptainer exec "$SIFS"/ompi5.sif python osu_bw.py
 2
 2
 # MPI Bandwidth Test
 # Size [B]    Bandwidth [MB/s]
-
-         1                3.61
-         2                6.82
-         4               14.27
-         8               28.38
-        16               56.69
-        32              114.47
-        64              205.54
-       128              376.84
-       256              698.43
-       512            1,505.20
-     1,024            2,927.67
-     2,048            5,419.97
-     4,096            7,276.32
-     8,192           13,186.70
-    16,384           21,753.02
-    32,768           28,698.04
-    65,536           36,391.64
-   131,072           39,860.82
-   262,144           43,233.52
-   524,288           44,684.74
-
- 1,048,576           45,500.82
- 2,097,152           45,624.21
- 4,194,304           46,258.88
- 8,388,608           46,224.02
-16,777,216           45,786.94</code></pre>
+         1                3.67
+         2                6.96
+         4               14.50
+         8               28.80
+        16               57.24
+        32              116.22
+        64              204.11
+       128              370.64
+       256              682.68
+       512            1,498.42
+     1,024            2,953.82
+     2,048            5,447.79
+     4,096            7,338.26
+     8,192           13,322.63
+    16,384           22,000.85
+    32,768           29,568.77
+    65,536           36,236.29
+   131,072           40,920.54
+   262,144           43,463.94
+   524,288           44,645.24
+ 1,048,576           45,671.34
+ 2,097,152           46,116.73
+ 4,194,304           46,428.97
+ 8,388,608           46,267.31
+16,777,216           45,840.22</code></pre>
 <p>Things to note in this example:</p>
 </li>
-<li><p>The command <code>mpirun - n 6 ...</code> is running six separate copies of the container on six cores of the PC.  This <code>mpirun</code> command is running outside the container, so it is running OpenMPI 4.1.6 , but it successfully integrates with the OpenMPI 5.0.3 that each task is running inside its container (as can be seen from the <code>mpi_hw.py</code> print statements). This is an example of the "Hybrid model" for running MPI described in the <a href="https://apptainer.org/docs/user/latest/mpi.html">Apptainer docs</a>.</p>
+<li><p>The command <code>mpirun - n 6 ...</code> is running six separate copies of the container on six cores of the PC.  This <code>mpirun</code> command is running outside the container. This is an example of the "Hybrid model" for running MPI described in the <a href="https://apptainer.org/docs/user/latest/mpi.html">Apptainer docs</a>.</p>
 </li>
-<li><p>For reasons I don't understand, <code>osu_bw.py</code> reports inter-rank communication speeds about four times faster when run using Apptainer, than when run <a href="#mpi-testprogs">directly by MPI without Apptainer</a>.  The results are the same if the Conda environment <code>ompi5</code> is activated to run the same version of MPI outside as inside.</p>
+<li><p>For reasons I don't understand, <code>osu_bw.py</code> reports inter-rank communication speeds about three times faster when run using Apptainer (up to 46 GB/s), than when run <a href="#mpi-testprogs">directly by MPI without Apptainer</a>. </p>
 </li>
 </ul>
 <h4 class="atx" id="a-container-to-run-the-more-elaborate-mpi-package-dem21lessa-iddouble-quotedem21-containerdouble-quotegreaterlessagreater">A container to run the more elaborate MPI package <code>dem21</code><a id="dem21-container"></a></h4>
-<ul>
-<li><strong>TODO</strong> Run bigger sim with container to see what difference it makes.</li>
-</ul>
-<p>Make a definition file <strong><code>dem21.def</code></strong> with the following contents. This is like <code>ompi5.def</code> in the previous section, but with the following additions to install the <code>dem21</code> package in the container (see <a href="#local-package-container">A container with a local Python package installed</a> above):</p>
+<p>Make a definition file <strong><code>dem21.def</code></strong> with the following contents. This is like <code>m4p.def</code> in the previous section, but with the following additions to install the <code>dem21</code> package in the container (see <a href="#local-package-container">A container with a local Python package installed</a> above).</p>
 <ul>
 <li><p>There is a <code>%files</code> section that copies the <code>dem21</code> package (assumed to be in the directory from which the <code>apptainer build</code> is run) into the container.</p>
 </li>
-<li><p>The <code>%post</code> section includes commands that install additional remote packages needed by <code>dem21</code> and install <code>dem21</code>  as a local package, as is done without a container in <a href="#boxpct-dem21">A more elaborate MPI program...</a> above.</p>
+<li><p>The <code>%post</code> section includes commands that install additional remote packages needed by <code>dem21</code> and install <code>dem21</code>  as a local package, as is done without a container in <a href="#mpi-dem21">More elaborate MPI programs using the <code>dem21</code> package</a> above.</p>
 <pre><code class="fenced-code-block">Bootstrap: docker
 From: continuumio/miniconda3
 
@@ -3953,8 +3919,6 @@ From: continuumio/miniconda3
     conda install -c conda-forge openmpi=5.0.3 mpi4py
     conda install -c conda-forge dill matplotlib numba numpy pyaml scipy
     conda install -c conda-forge quaternion
-    apt-get update
-    apt install -y openmpi-bin
     cd /dem21
     pip install .</code></pre>
 </li>
@@ -3964,7 +3928,7 @@ build-dem$ ls
 dem21  dem21.def
 build-dem$ sudo apptainer build "$SIFS"/dem21.sif dem21.def</code></pre>
 </li>
-<li><p>To test  that the <code>dem21</code> package can run in the container (see <a href="#boxpct-dem21">A more elaborate MPI program...</a> above for the corresponding steps without a container, and the previous section <a href="#mpi-container">A container that can use MPI</a> for how MPI is run with a container):</p>
+<li><p>To test  that the <code>dem21</code> package can run in the container (see <a href="#mpi-dem21">More elaborate MPI programs using the <code>dem21</code> package</a> above for the corresponding steps without a container, and the previous section <a href="#mpi-container">A container that can use MPI</a> for how MPI is run with a container): <strong>WORKING HERE</strong></p>
 </li>
 <li><p>We check that MPI is installed outside the container -- it will be needed to start multiple copies of the container on different cores and pass messages between them.</p>
 </li>
