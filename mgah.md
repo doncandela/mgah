@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   3/28/25
+mgah.md  D. Candela   3/31/25
 
 - [Introduction](#intro)  
   
@@ -655,7 +655,7 @@ Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (n
                          ...
   ```
 
-- **A more resource-intensive run with `mx2.py`.** Finally we run a much bigger, longer-running DEM simulation which is duplicated below using Apptainer and on Unity, to see if there is any performance impact from containerizing the code, and to investigate the speed-ups that can be obtained from the larger core counts available on Unity.
+- **A more resource-intensive run with `mx2.py`.**<a id="mx2py"></a> Finally we run a much bigger, longer-running DEM simulation which is duplicated below using Apptainer and on Unity, to see if there is any performance impact from containerizing the code, and to investigate the speed-ups that can be obtained from the larger core counts available on Unity.
   
   - The tested code was a simulation of a "granular memory" experiment on a dense pack of 10,240 tetrahedral grains (each composed of four spherical grainlets) with 450,000 time steps.  The simulation was carried out by the program `mx2.py`, continuing a sample-preparation simulation carried out by `ms.py` -- these programs called the `dem21` package and were run in MPI-parallel mode in various configurations.
   
@@ -1147,7 +1147,12 @@ Probably the best reason for containerizing code is to make it easy to run the c
   ```
   
   If this path includes any spaces it must be quoted as shown here and below, otherwise the quotes can
-  be omitted.
+  be omitted.  Since this `export` command must be done every time a new terminal is opened, it is handy to create an alias `sifs`:
+  
+  ```
+  # Add this to ~/.bash_aliases:
+  alias sifs="export SIFS="/home/..."
+  ```
 
 - Build the container image: In the directory that contains the definition file `os-only.def` do the following command. **Root privilege is necessary to build a container image, but not to use it.** (According to the Apptainer docs it should be possible to build a container without root privilege by using the `--fakeroot` option, but I haven’t tried this.)
   
@@ -1408,7 +1413,7 @@ Next we make a container with the local package **`dcfuncs`** installed inside i
   $ sudo apptainer build "$SIFS"/m4p.sif m4p.def
   ```
 
-- While the container `m4p.sif` can be built as above without a Conda environment in which MPI is installed, to run the container **MPI must be installed outside the container**.  This is because, as shown in examples below, MPI outside the container will be used to run multiple copies of the container on separate cores and to handle communication between these copies. It will work to activate the environment **`m4p`** with OpenMPI and other packages [described above]() before running the container, but this environment contains things that are not needed outside the container (`mpi4py`, `numpy`...).  Here we make a simpler environment **`ompi`** that includes only OpenMPI and Python (so pip could be used to install additional things in this enviroment):
+- While the container `m4p.sif` can be built as above without a Conda environment in which MPI is installed, to run the container **MPI must be installed outside the container**.  This is because, as shown in examples below, MPI outside the container is used to run multiple copies of the container on separate cores and to handle communication between these copies. It will work to activate the environment **`m4p`** with OpenMPI and other packages [described above]() before running the container, but this environment contains things that are not needed outside the container (`mpi4py`, `numpy`...).  Here we make a simpler environment **`ompi`** that includes only OpenMPI and Python (so pip could be used to install additional things in this environment):
   
   ```
   $ conda deactivate
@@ -1418,61 +1423,63 @@ Next we make a container with the local package **`dcfuncs`** installed inside i
   mpirun (Open MPI) 5.0.7
   ```
 
-- With `ompi` activated we can use the the container to run `mpi_hw.py` and `osu_bw.py` (after switching to a directory that contains these programs)
+- With `ompi` activated we can use the the container to run `mpi_hw.py` and `osu_bw.py`, after switching to a directory that contains these programs:
   
   ```
   (ompi)..$ cd python-scripts; ls
   mpi_hw.py  osu_by.py ...
-  (ompi)..python-scripts$ mpirun -n 6 apptainer exec "$SIFS"/ompi5.sif python mpi_hw.py
-  Hello world from rank 5 of 6 on candela-21 running Open MPI v5.0.3
-  Hello world from rank 3 of 6 on candela-21 running Open MPI v5.0.3
-  Hello world from rank 0 of 6 on candela-21 running Open MPI v5.0.3
-  Hello world from rank 2 of 6 on candela-21 running Open MPI v5.0.3
-  Hello world from rank 1 of 6 on candela-21 running Open MPI v5.0.3
-  Hello world from rank 4 of 6 on candela-21 running Open MPI v5.0.3
-  (ompi)..python-scripts$ mpirun -n 2 apptainer exec "$SIFS"/ompi5.sif python osu_bw.py
+  (ompi)..python-scripts$ mpirun -n 6 apptainer exec "$SIFS"/m4p.sif python mpi_hw.py
+  Hello world from rank 0 of 6 on candela-21 running Open MPI v5.0.7
+  Hello world from rank 3 of 6 on candela-21 running Open MPI v5.0.7
+  Hello world from rank 5 of 6 on candela-21 running Open MPI v5.0.7
+  Hello world from rank 4 of 6 on candela-21 running Open MPI v5.0.7
+  Hello world from rank 2 of 6 on candela-21 running Open MPI v5.0.7
+  Hello world from rank 1 of 6 on candela-21 running Open MPI v5.0.7
+  (ompi)..python-scripts$ mpirun -n 2 apptainer exec "$SIFS"/m4p.sif python osu_bw.py
   2
   2
   # MPI Bandwidth Test
   # Size [B]    Bandwidth [MB/s]
-           1                3.67
-           2                6.96
-           4               14.50
-           8               28.80
-          16               57.24
-          32              116.22
-          64              204.11
-         128              370.64
-         256              682.68
-         512            1,498.42
-       1,024            2,953.82
-       2,048            5,447.79
-       4,096            7,338.26
-       8,192           13,322.63
-      16,384           22,000.85
-      32,768           29,568.77
-      65,536           36,236.29
-     131,072           40,920.54
-     262,144           43,463.94
-     524,288           44,645.24
-   1,048,576           45,671.34
-   2,097,152           46,116.73
-   4,194,304           46,428.97
-   8,388,608           46,267.31
-  16,777,216           45,840.22
+           1                3.64
+           2                7.27
+           4               14.58
+           8               29.10
+          16               56.49
+          32              115.74
+          64              204.76
+         128              372.67
+         256              698.36
+         512            1,491.48
+       1,024            2,902.60
+       2,048            5,360.16
+       4,096            7,361.31
+       8,192           13,089.36
+      16,384           21,916.65
+      32,768           29,655.28
+      65,536           36,365.06
+     131,072           40,048.58
+     262,144           42,727.54
+     524,288           44,050.55
+   1,048,576           44,995.58
+   2,097,152           45,577.86
+   4,194,304           45,258.97
+   8,388,608           45,191.11
+  16,777,216           44,483.20
   ```
   
   Things to note in this example:
 
 - The command `mpirun - n 6 ...` is running six separate copies of the container on six cores of the PC.  This `mpirun` command is running outside the container. This is an example of the "Hybrid model" for running MPI described in the [Apptainer docs](https://apptainer.org/docs/user/latest/mpi.html).
 
-- For reasons I don't understand, `osu_bw.py` reports inter-rank communication speeds about three times faster when run using Apptainer (up to 46 GB/s), than when run [directly by MPI without Apptainer](#mpi-testprogs). 
+- For reasons I don't understand, `osu_bw.py` reports inter-rank communication speeds about three times faster when run using Apptainer (up to 45 GB/s), than when run [directly by MPI without Apptainer](#mpi-testprogs). 
+
+- On the [hoffice PC](#pcs), a simple all-in-one PC (but not on the [candela-21 PC](#pcs) , assembled from parts) `mpirun` gives warning messages about the absence of TCP - these can be suppressed by supplying `--mca btl ^tcp` to `mpirun`. I think TCP should be irrelevant when running MPI on a single PC, as it is concerned with communication between nodes.
 
 #### A container to run the more elaborate MPI package `dem21`<a id="dem21-container"></a>
 
-Make a definition file **`dem21.def`** with the following contents. This is like `m4p.def` in the previous section, but with the following additions to install the `dem21` package in the container (see [A container with a local Python package installed](#local-package-container) above).
+Make a definition file **`dem21.def`** with the following contents. This is like `m4p.def` in the previous section, but with the following additions to install the `dem21` package in the container (see [A container with a local Python package installed](#local-package-container) above):
 
-- There is a `%files` section that copies the `dem21` package (assumed to be in the directory from which the `apptainer build` is run) into the container.
+- There is a `%files` section that will copy the `dem21` package (assumed to be in the directory from which the `apptainer build` will be run) into the container.
 
 - The `%post` section includes commands that install additional remote packages needed by `dem21` and install `dem21`  as a local package, as is done without a container in [More elaborate MPI programs using the `dem21` package](#mpi-dem21) above.
   
@@ -1494,53 +1501,36 @@ Make a definition file **`dem21.def`** with the following contents. This is like
 - Working in a directory `build-dem21` that contains `dem21.def`, the `dem21` package (not currently public) is cloned into the current directory and the container is built. This made the 1.3 GB image file **`dem21.sif`**:
   
   ```
-  build-dem21$ git clone git@github.com:doncandela/dem21.git
-  build-dem$ ls
+  ...build-dem21$ git clone git@github.com:doncandela/dem21.git
+  ...build-dem$ ls
   dem21  dem21.def
-  build-dem$ sudo apptainer build "$SIFS"/dem21.sif dem21.def
+  ...build-dem$ sudo apptainer build "$SIFS"/dem21.sif dem21.def
   ```
 
-- To test  that the `dem21` package can run in the container (see [More elaborate MPI programs using the `dem21` package](#mpi-dem21) above for the corresponding steps without a container, and the previous section [A container that can use MPI](#mpi-container) for how MPI is run with a container): **WORKING HERE**
-
-- We check that MPI is installed outside the container -- it will be needed to start multiple copies of the container on different cores and pass messages between them.
-
-- We go to the subdirectory `tests/box` of  the cloned repo `dem21` outside the container, which has the test program `boxpct.py` and its config file `box.yaml`.
-
-- We do `export pproc=mpi`, which tells the `dem21` code to run in MPI-parallel mode:
-  
-  - Each separate copy of the code, running inside its own container, will issue MPI calls to find out what its rank is and to send/receive messages from the other ranks.
-  
-  - These MPI calls will be passed to the MPI system running outside the containers which will carry out the corresponding functions.
-
-- We run `mpirun -n <n> apptainer exec...` to start `<n>` containers on different cores.
+- Next we test  that the `dem21` package can run in the container (see [More elaborate MPI programs using the `dem21` package](#mpi-dem21) above for the corresponding steps without a container, and the previous section [A container that can use MPI](#mpi-container) for how MPI is run with a container). We start by activating **`ompi`** so OpenMPI will be available outside the containers, and cd'ing to the directory containing the test program `boxpct.py` and its config file `box.yaml`:
   
   ```
-  ...box$ ompi_info | head -n 2
-                   Package: Debian OpenMPI
-                  Open MPI: 4.1.6
-  buid-dem$ cd dem21/tests/box
-  ...box$ ls
-  boxmod.yaml  boxpct.py  boxpct.sh  box.yaml  heap3.yaml  output  plots
-  ...box$ export pproc=mpi
-  ...box$ mpirun -n 16 apptainer exec "$SIFS"/dem21.sif python boxpct.py
+  ...buid-dem$ conda activate ompi
+  (ompi)...build-dem$ cd dem21/tests/box; ls
+  boxpct.py box.yaml ...
+  ```
   
+  Then we set `pproc` so `boxpct.py` will run in MPI-parallel mode, and use `mpirun` to run 16 copies of `apptainer exec python` with `boxpct.py` as the argument (as always, `SIFS` has been set to the directory containing the container image `dem21.sif`): 
+  
+  ```
+  (ompi)...tests/box$ export pproc=mpi   # this tells boxpct.py to use MPI
+  (ompi)...tests/box$ mpirun -n 16 apptainer exec "$SIFS"/dem21.sif python boxpct.py
   - Started MPI on master + 15 worker ranks.
   THIS IS: boxpct.py 12/3/22 D.C., using dem21 version: v1.2 2/11/25
   Parallel processing: MPI, GHOST_ARRAY=True
-  
-  - Read 1 config(s) from ...build-dem21/dem21/tests/box/box.yaml
+  - Read 1 config(s) from /home/dc/.../tests/box/box.yaml
   
   SIM 1/1:
   Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
-  343 'sphere' grains in (7.66)x(7.66)x(7.66)mm box (phig=0.4), vrms=10.0m/s
-  No gravity, 'hertz' normal force law, Coulomb w. Hookean spring friction with GG mu=0.1, GW mu=0
-  
-  - Writing grain ICs x,v to /tmp/tmp6tpg_0pg/temp.grains
-  
-  - READYING SIM with 343 grains and 6 walls
-  
-                    ... 
+                                  ....
   ```
+
+- Finally, duplicating the section [A more resource-intensive run...](#mx2py) above, we use the container image `dem21.sif` with `mx2.py` to run a larger simulation. **WORKING HERE**
 
 #### A container that can use a GPU<a id="gpu-container"></a>
 
