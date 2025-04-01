@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   3/31/25
+mgah.md  D. Candela   4/1/25
 
 - [Introduction](#intro)  
   
@@ -310,7 +310,7 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
   - **`gputest.py`** makes dense and sparse matrices of various sizes and floating-point types, and times operations using these matrices on the CPU and (if available) the GPU. If run in an environment without CuPy like **`p39`**, only CPU tests will be run. But if run in **`gpu`** and a GPU can be initialized, will also run GPU tests.
   - **`np-version.py`** is a very short program that imports NumPy and prints out its version.
   - **`dcfuncs`** is small package of utility functions, used in this document as an example of a Python package [installed locally](#local-package).  It is available from the public GitHub repo [doncandela/dcfuncs](https://github.com/doncandela/dcfuncs), which also includes the test programs **`test_util.py`**, etc, mentioned in this document.
-  - **`dem21`** is a complex package for doing DEM simulations of granular media using MPI parallelism. It is stored  in the currently private GitHub repo [doncandela/dem21](https://github.com/doncandela/dem21).  Although not available publicly it is mentioned in this document as an example of how a large, complex MPI code can be run.
+  - **`dem21`** is a complex package for doing DEM simulations of granular media using MPI parallelism. It is stored  in the currently private GitHub repo [doncandela/dem21](https://github.com/doncandela/dem21).  Although not available publicly it is used in this document as a test and example of how a large, complex MPI code can be run.
 
 - The following Apptainer definition files are used. They are all discussed in [Using Apptainer on a Linux PC](#apptainer-pc) below.  They have been all been used to build container images (`.sif` files) on PCs, which can then be run successfully both on the PCs and on Unity.
   
@@ -702,7 +702,7 @@ Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (n
   
   - When run in 15 MPI ranks on the  16-core PC [candela-21](#pcs) with [hyperthreading disabled](#multithread-mpi) as it is by default:
     
-    - There were 14 crates with 16 boxes and 1 crate with 8 boxes, requiring 16 serial box calculations at each time step.
+    - There were 13 crates with 16 boxes and 1 crate with 8 boxes, requiring 16 serial box calculations at each time step.
     
     - The 450,000 step simulation required 15,937 s = 4.427 hr, or 3.46 microsec/step-grain.
   
@@ -1477,18 +1477,24 @@ Next we make a container with the local package **`dcfuncs`** installed inside i
 
 #### A container to run the more elaborate MPI package `dem21`<a id="dem21-container"></a>
 
-Make a definition file **`dem21.def`** with the following contents. This is like `m4p.def` in the previous section, but with the following additions to install the `dem21` package in the container (see [A container with a local Python package installed](#local-package-container) above):
+Here we use containerized code to duplicate the non-containerized tests shown in [More elaborate MPI programs using the `dem21` package](#mpi-dem21) above. Make a definition file **`dem21.def`** with the following contents. This is like `m4p.def` in the previous section, but with the following additions to install the `dem21`  and `msigs` packages in the container (see [A container with a local Python package installed](#local-package-container) above):
 
-- There is a `%files` section that will copy the `dem21` package (assumed to be in the directory from which the `apptainer build` will be run) into the container.
+- There is a `%files` section that will copy the `dem21` and `msigs` packages, assumed to be in the directory from which the `apptainer build` will be run, into the container. 
 
-- The `%post` section includes commands that install additional remote packages needed by `dem21` and install `dem21`  as a local package, as is done without a container in [More elaborate MPI programs using the `dem21` package](#mpi-dem21) above.
+- The `%post` section includes commands that install additional remote packages needed by `dem21` and install `dem21`  and `msigs` as a local packages, as is done without a container in [More elaborate MPI programs using the `dem21` package](#mpi-dem21) above.
   
   ```
+  # dem21.def 4/1/25 D.C.
+  # Apptainer .def file for running dem21 DEM simulation package, also
+  # includes msigs package to creat input signals for granular-memory sims.
   Bootstrap: docker
   From: continuumio/miniconda3
   
+  # Must build this container from a directory containing both dem21
+  # and msigs repos.
   %files
       dem21 /dem21
+      msigs /msigs
   
   %post
       conda install -c conda-forge openmpi=5.0.3 mpi4py
@@ -1496,14 +1502,16 @@ Make a definition file **`dem21.def`** with the following contents. This is like
       conda install -c conda-forge quaternion
       cd /dem21
       pip install .
+      cd /msigs
+      pip install .
   ```
 
-- Working in a directory `build-dem21` that contains `dem21.def`, the `dem21` package (not currently public) is cloned into the current directory and the container is built. This made the 1.3 GB image file **`dem21.sif`**:
+- A directory `buid-dem21` is created and `dem21.def` and the `msigs`  repo (not publicly available) are copied into it. Then the `dem21` package (not publicly available) is cloned into this directory and the container is built. This made the 1.3 GB image file **`dem21.sif`**:
   
   ```
   ...build-dem21$ git clone git@github.com:doncandela/dem21.git
   ...build-dem$ ls
-  dem21  dem21.def
+  dem21  dem21.def msigs
   ...build-dem$ sudo apptainer build "$SIFS"/dem21.sif dem21.def
   ```
 
@@ -1530,7 +1538,45 @@ Make a definition file **`dem21.def`** with the following contents. This is like
                                   ....
   ```
 
-- Finally, duplicating the section [A more resource-intensive run...](#mx2py) above, we use the container image `dem21.sif` with `mx2.py` to run a larger simulation. **WORKING HERE**
+- Finally, as in the section [A more resource-intensive run...](#mx2py) above, we use the container image `dem21.sif` with `mx2.py` to run a larger simulation.   The only change required in the shell file `mx2.sh` that runs the simulation is in the last line, which uses `mpirun` to run multiple copies of `apptainer exec dem21.sif python` rather than multiple copies of `python`:
+  
+  ```
+  #!/bin/bash
+  # cc-samples/mx2.sh 7/29/24 D.C.
+  # modified 4/1/25 to try out using containerized code
+  
+  # Runs mx2.py in grandparent directory in 'mpi' parallel-processing mode.
+  # Reads default config file mx2.yaml in grandparent directory modified by
+  # mx2mod.yaml in current directory
+  #
+  # To run on N cores 1st activate MPI environment then do
+  #
+  # ./mx2.sh N
+  #
+  # (must do 'chmod +x mx2.sh' to make executable)
+  #
+  # note SIFS must be set to directory containing dem21.sif
+  export pproc=mpi
+  mpirun -n $1 apptainer exec "$SIFS"/dem21.sif python ../../mx2.py mx2mod |& tee output
+  ```
+
+- The simulation is run in precisely the same way as when not containerized, except that is is run in the bare-bones OpenMPI environment `ompi` rather than the environment `dem21` which had `dem21`, `msigs`, and other packages installed:
+  
+  ```
+  ...$ conda activate ompi
+  (ompi)...$ cd cc-expts..; ls
+  mx2mod.yaml  mx2.sh ...
+  (ompi)...cd-expts..$ sifs           # alias sets SIFS to directory with dem21.sif
+  (ompi)...cd-expts..$ ./mx2.sh 15    # run containerized code in 15 MPI ranks
+  - Started MPI on master + 14 worker ranks.
+  This is: mx2.py 7/29/24 D.C.
+  Using dem21 version: v1.2 2/11/25
+  Imput signals made by: memsigs.py 8/23/24 D.C.
+  Parallel processing mode: MPI, GHOST_ARRAY=True
+                 ...
+  ```
+  
+  This simulation required 17,054s (3.701e-6s/step-grain), which was 7% slower than the [identical simulation done without Apptainer](#mx2py).  Internal timing reported by `mx2.py` suggested that only 0.9% additional time was used for inter-process communication when Apptainer was used, so it is not clear if the 7% slowdown is actually due to containerization.
 
 #### A container that can use a GPU<a id="gpu-container"></a>
 
@@ -2865,13 +2911,12 @@ To run on Unity, a suitable container image (`.sif` file) must be present in a U
   ```
   $ sifs             # sets SIFS
   $ du -ah $SIFS
-  1.3G    /work/pi_..../sifs/dem21.sif
   1.3G    /work/pi_..../sifs/dfs.sif
-  3.3G    /work/pi_..../sifs/gpu.sif
-  1.2G    /work/pi_..../sifs/ompi5.sif
-  29M     /work/pi_..../sifs/os-only.sif
   1.3G    /work/pi_..../sifs/pack.sif
-  8.3G    /work/pi_..../sifs
+  1.2G    /work/pi_..../sifs/m4p.sif
+  1.3G    /work/pi_..../sifs/dem21.sif
+  3.3G    /work/pi_..../sifs/gpu.sif
+               ...
   ```
   
   It is assumed below that **`SIFS` is set** and the **container images `dem21.sf`..`pack.sif` have been built** as detailed in [Using Apptainer on a Linux PC](#apptainer-pc)  and transferred to Unity, as shown just above.

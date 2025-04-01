@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   3/31/25</p>
+<p>mgah.md  D. Candela   4/1/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -2678,7 +2678,7 @@ $ apt list &lt;package&gt; --installed  # list installed packages with this name
 <li><strong><code>gputest.py</code></strong> makes dense and sparse matrices of various sizes and floating-point types, and times operations using these matrices on the CPU and (if available) the GPU. If run in an environment without CuPy like <strong><code>p39</code></strong>, only CPU tests will be run. But if run in <strong><code>gpu</code></strong> and a GPU can be initialized, will also run GPU tests.</li>
 <li><strong><code>np-version.py</code></strong> is a very short program that imports NumPy and prints out its version.</li>
 <li><strong><code>dcfuncs</code></strong> is small package of utility functions, used in this document as an example of a Python package <a href="#local-package">installed locally</a>.  It is available from the public GitHub repo <a href="https://github.com/doncandela/dcfuncs">doncandela/dcfuncs</a>, which also includes the test programs <strong><code>test_util.py</code></strong>, etc, mentioned in this document.</li>
-<li><strong><code>dem21</code></strong> is a complex package for doing DEM simulations of granular media using MPI parallelism. It is stored  in the currently private GitHub repo <a href="https://github.com/doncandela/dem21">doncandela/dem21</a>.  Although not available publicly it is mentioned in this document as an example of how a large, complex MPI code can be run.</li>
+<li><strong><code>dem21</code></strong> is a complex package for doing DEM simulations of granular media using MPI parallelism. It is stored  in the currently private GitHub repo <a href="https://github.com/doncandela/dem21">doncandela/dem21</a>.  Although not available publicly it is used in this document as a test and example of how a large, complex MPI code can be run.</li>
 </ul>
 </li>
 <li><p>The following Apptainer definition files are used. They are all discussed in <a href="#apptainer-pc">Using Apptainer on a Linux PC</a> below.  They have been all been used to build container images (<code>.sif</code> files) on PCs, which can then be run successfully both on the PCs and on Unity.</p>
@@ -2994,7 +2994,7 @@ Imput signals made by: memsigs.py 8/23/24 D.C.
 </li>
 <li><p>When run in 15 MPI ranks on the  16-core PC <a href="#pcs">candela-21</a> with <a href="#multithread-mpi">hyperthreading disabled</a> as it is by default:</p>
 <ul>
-<li><p>There were 14 crates with 16 boxes and 1 crate with 8 boxes, requiring 16 serial box calculations at each time step.</p>
+<li><p>There were 13 crates with 16 boxes and 1 crate with 8 boxes, requiring 16 serial box calculations at each time step.</p>
 </li>
 <li><p>The 450,000 step simulation required 15,937 s = 4.427 hr, or 3.46 microsec/step-grain.</p>
 </li>
@@ -3908,28 +3908,36 @@ Hello world from rank 1 of 6 on candela-21 running Open MPI v5.0.7
 </li>
 </ul>
 <h4 class="atx" id="a-container-to-run-the-more-elaborate-mpi-package-dem21lessa-iddouble-quotedem21-containerdouble-quotegreaterlessagreater">A container to run the more elaborate MPI package <code>dem21</code><a id="dem21-container"></a></h4>
-<p>Make a definition file <strong><code>dem21.def</code></strong> with the following contents. This is like <code>m4p.def</code> in the previous section, but with the following additions to install the <code>dem21</code> package in the container (see <a href="#local-package-container">A container with a local Python package installed</a> above):</p>
+<p>Here we use containerized code to duplicate the non-containerized tests shown in <a href="#mpi-dem21">More elaborate MPI programs using the <code>dem21</code> package</a> above. Make a definition file <strong><code>dem21.def</code></strong> with the following contents. This is like <code>m4p.def</code> in the previous section, but with the following additions to install the <code>dem21</code>  and <code>msigs</code> packages in the container (see <a href="#local-package-container">A container with a local Python package installed</a> above):</p>
 <ul>
-<li><p>There is a <code>%files</code> section that will copy the <code>dem21</code> package (assumed to be in the directory from which the <code>apptainer build</code> will be run) into the container.</p>
+<li><p>There is a <code>%files</code> section that will copy the <code>dem21</code> and <code>msigs</code> packages, assumed to be in the directory from which the <code>apptainer build</code> will be run, into the container. </p>
 </li>
-<li><p>The <code>%post</code> section includes commands that install additional remote packages needed by <code>dem21</code> and install <code>dem21</code>  as a local package, as is done without a container in <a href="#mpi-dem21">More elaborate MPI programs using the <code>dem21</code> package</a> above.</p>
-<pre><code class="fenced-code-block">Bootstrap: docker
+<li><p>The <code>%post</code> section includes commands that install additional remote packages needed by <code>dem21</code> and install <code>dem21</code>  and <code>msigs</code> as a local packages, as is done without a container in <a href="#mpi-dem21">More elaborate MPI programs using the <code>dem21</code> package</a> above.</p>
+<pre><code class="fenced-code-block"># dem21.def 4/1/25 D.C.
+# Apptainer .def file for running dem21 DEM simulation package, also
+# includes msigs package to creat input signals for granular-memory sims.
+Bootstrap: docker
 From: continuumio/miniconda3
 
+# Must build this container from a directory containing both dem21
+# and msigs repos.
 %files
     dem21 /dem21
+    msigs /msigs
 
 %post
     conda install -c conda-forge openmpi=5.0.3 mpi4py
     conda install -c conda-forge dill matplotlib numba numpy pyaml scipy
     conda install -c conda-forge quaternion
     cd /dem21
+    pip install .
+    cd /msigs
     pip install .</code></pre>
 </li>
-<li><p>Working in a directory <code>build-dem21</code> that contains <code>dem21.def</code>, the <code>dem21</code> package (not currently public) is cloned into the current directory and the container is built. This made the 1.3 GB image file <strong><code>dem21.sif</code></strong>:</p>
+<li><p>A directory <code>buid-dem21</code> is created and <code>dem21.def</code> and the <code>msigs</code>  repo (not publicly available) are copied into it. Then the <code>dem21</code> package (not publicly available) is cloned into this directory and the container is built. This made the 1.3 GB image file <strong><code>dem21.sif</code></strong>:</p>
 <pre><code class="fenced-code-block">...build-dem21$ git clone git@github.com:doncandela/dem21.git
 ...build-dem$ ls
-dem21  dem21.def
+dem21  dem21.def msigs
 ...build-dem$ sudo apptainer build "$SIFS"/dem21.sif dem21.def</code></pre>
 </li>
 <li><p>Next we test  that the <code>dem21</code> package can run in the container (see <a href="#mpi-dem21">More elaborate MPI programs using the <code>dem21</code> package</a> above for the corresponding steps without a container, and the previous section <a href="#mpi-container">A container that can use MPI</a> for how MPI is run with a container). We start by activating <strong><code>ompi</code></strong> so OpenMPI will be available outside the containers, and cd'ing to the directory containing the test program <code>boxpct.py</code> and its config file <code>box.yaml</code>:</p>
@@ -3948,7 +3956,38 @@ SIM 1/1:
 Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
                                 ....</code></pre>
 </li>
-<li><p>Finally, duplicating the section <a href="#mx2py">A more resource-intensive run...</a> above, we use the container image <code>dem21.sif</code> with <code>mx2.py</code> to run a larger simulation. <strong>WORKING HERE</strong></p>
+<li><p>Finally, as in the section <a href="#mx2py">A more resource-intensive run...</a> above, we use the container image <code>dem21.sif</code> with <code>mx2.py</code> to run a larger simulation.   The only change required in the shell file <code>mx2.sh</code> that runs the simulation is in the last line, which uses <code>mpirun</code> to run multiple copies of <code>apptainer exec dem21.sif python</code> rather than multiple copies of <code>python</code>:</p>
+<pre><code class="fenced-code-block">#!/bin/bash
+# cc-samples/mx2.sh 7/29/24 D.C.
+# modified 4/1/25 to try out using containerized code
+
+# Runs mx2.py in grandparent directory in 'mpi' parallel-processing mode.
+# Reads default config file mx2.yaml in grandparent directory modified by
+# mx2mod.yaml in current directory
+#
+# To run on N cores 1st activate MPI environment then do
+#
+# ./mx2.sh N
+#
+# (must do 'chmod +x mx2.sh' to make executable)
+#
+# note SIFS must be set to directory containing dem21.sif
+export pproc=mpi
+mpirun -n $1 apptainer exec "$SIFS"/dem21.sif python ../../mx2.py mx2mod |&amp; tee output</code></pre>
+</li>
+<li><p>The simulation is run in precisely the same way as when not containerized, except that is is run in the bare-bones OpenMPI environment <code>ompi</code> rather than the environment <code>dem21</code> which had <code>dem21</code>, <code>msigs</code>, and other packages installed:</p>
+<pre><code class="fenced-code-block">...$ conda activate ompi
+(ompi)...$ cd cc-expts..; ls
+mx2mod.yaml  mx2.sh ...
+(ompi)...cd-expts..$ sifs           # alias sets SIFS to directory with dem21.sif
+(ompi)...cd-expts..$ ./mx2.sh 15    # run containerized code in 15 MPI ranks
+- Started MPI on master + 14 worker ranks.
+This is: mx2.py 7/29/24 D.C.
+Using dem21 version: v1.2 2/11/25
+Imput signals made by: memsigs.py 8/23/24 D.C.
+Parallel processing mode: MPI, GHOST_ARRAY=True
+               ...</code></pre>
+<p>This simulation required 17,054s (3.701e-6s/step-grain), which was 7% slower than the <a href="#mx2py">identical simulation done without Apptainer</a>.  Internal timing reported by <code>mx2.py</code> suggested that only 0.9% additional time was used for inter-process communication when Apptainer was used, so it is not clear if the 7% slowdown is actually due to containerization.</p>
 </li>
 </ul>
 <h4 class="atx" id="a-container-that-can-use-a-gpulessa-iddouble-quotegpu-containerdouble-quotegreaterlessagreater">A container that can use a GPU<a id="gpu-container"></a></h4>
@@ -5123,13 +5162,12 @@ alias sifs='export SIFS=/work/pi_..../sifs'</code></pre>
 <p>If the <strong>path has any spaces</strong> <code>"$SIFS"</code> must be used rather than <code>$SIFS</code>  but this is not shown below. Then when a new shell is obtained <code>SIFS</code> can easily be set (and if desired, the list of container images and their sizes seen): </p>
 <pre><code class="fenced-code-block">$ sifs             # sets SIFS
 $ du -ah $SIFS
-1.3G&nbsp;&nbsp;&nbsp;&nbsp;/work/pi_..../sifs/dem21.sif
 1.3G&nbsp;&nbsp;&nbsp;&nbsp;/work/pi_..../sifs/dfs.sif
-3.3G&nbsp;&nbsp;&nbsp;&nbsp;/work/pi_..../sifs/gpu.sif
-1.2G&nbsp;&nbsp;&nbsp;&nbsp;/work/pi_..../sifs/ompi5.sif
-29M&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/work/pi_..../sifs/os-only.sif
 1.3G    /work/pi_..../sifs/pack.sif
-8.3G    /work/pi_..../sifs</code></pre>
+1.2G&nbsp;&nbsp;&nbsp;&nbsp;/work/pi_..../sifs/m4p.sif
+1.3G&nbsp;&nbsp;&nbsp;&nbsp;/work/pi_..../sifs/dem21.sif
+3.3G&nbsp;&nbsp;&nbsp;&nbsp;/work/pi_..../sifs/gpu.sif
+             ...</code></pre>
 <p>It is assumed below that <strong><code>SIFS</code> is set</strong> and the <strong>container images <code>dem21.sf</code>..<code>pack.sif</code> have been built</strong> as detailed in <a href="#apptainer-pc">Using Apptainer on a Linux PC</a>  and transferred to Unity, as shown just above.</p>
 </li>
 </ul>

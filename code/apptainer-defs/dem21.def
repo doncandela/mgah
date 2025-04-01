@@ -1,12 +1,20 @@
+# dem21.def 4/1/25 D.C.
+# Apptainer .def file for running dem21 DEM simulation package, also
+# includes msigs package to creat input signals for granular-memory sims.
 Bootstrap: docker
 From: continuumio/miniconda3
 
+# Must build this container from a directory containing both dem21
+# and msigs repos.
 %files
     dem21 /dem21
+    msigs /msigs
 
 %post
     conda install -c conda-forge openmpi=5.0.3 mpi4py
     conda install -c conda-forge dill matplotlib numba numpy pyaml scipy
     conda install -c conda-forge quaternion
     cd /dem21
+    pip install .
+    cd /msigs
     pip install .
