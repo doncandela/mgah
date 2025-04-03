@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   4/1/25</p>
+<p>mgah.md  D. Candela   4/3/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -2997,6 +2997,8 @@ Imput signals made by: memsigs.py 8/23/24 D.C.
 <li><p>There were 13 crates with 16 boxes and 1 crate with 8 boxes, requiring 16 serial box calculations at each time step.</p>
 </li>
 <li><p>The 450,000 step simulation required 15,937 s = 4.427 hr, or 3.46 microsec/step-grain.</p>
+</li>
+<li><p>Running the simulation required about 2.1 GB of memory (beyond what the PC was using before the simulation was run).</p>
 </li>
 </ul>
 </li>
@@ -3840,6 +3842,10 @@ CPU timings use last 10 of 11 trials
 <ul>
 <li><p><a href="https://apptainer.org/docs/user/latest/mpi.html">Apptainer and MPI applications</a> in the Apptainer docs explains in some detail how MPI works with Apptainer. Here we give some rather simpler examples showing how Python programs using <code>mpi4py</code> for MPI parallelism can be run with Apptainer.  Basically I have found that if Conda is used to install OpenMPI and MPI for Python (<code>mpi4py</code>) in the container, then it will be possible for Python run in multiple containers started by <code>mpirun</code> (from OpenMPI installed outside the containers) to use MPI via <code>mpi4py</code> calls.  This did not require setting any environment variables, unlike the examples in the Apptainer docs referenced above.</p>
 </li>
+<li><p><strong>Memory usage.</strong> In the examples below the command</p>
+<pre><code class="fenced-code-block">$ mpirun -n &lt;n&gt; apptainer exec &lt;container&gt;.sif python &lt;pyscricpt&gt;.py...</code></pre>
+<p>is used to run <code>&lt;n&gt;</code> copies of the container image <code>&lt;container&gt;.sif</code>, each of which runs <code>python</code>.  As <code>.sif</code> files are one or more GB in size, it might be thought this would require a lot of memory when the number <code>&lt;n&gt;</code> of MPI ranks is large but this is found not be true, see <a href="#dem21-container">below</a>.  I believe this is because the file systems in Apptainer containers are read-only, which allows multiple containers on the same PC to share one copy of the container image.</p>
+</li>
 <li><p>Make a definition file <strong><code>m4p.def</code></strong> with the following contents. The <code>%post</code> commands in this file are similar to those shown above to <a href="#install-openmpi">install OpenMPI on a PC</a>:</p>
 <pre><code class="fenced-code-block">Bootstrap: docker
 From: continuumio/miniconda3
@@ -3988,6 +3994,7 @@ Imput signals made by: memsigs.py 8/23/24 D.C.
 Parallel processing mode: MPI, GHOST_ARRAY=True
                ...</code></pre>
 <p>This simulation required 17,054s (3.701e-6s/step-grain), which was 7% slower than the <a href="#mx2py">identical simulation done without Apptainer</a>.  Internal timing reported by <code>mx2.py</code> suggested that only 0.9% additional time was used for inter-process communication when Apptainer was used, so it is not clear if the 7% slowdown is actually due to containerization.</p>
+<p>Running the simulation in this containerized mode required 2.2 GB of memory (beyond that used before the simulation was started).  This was only slightly more than the memory required to run the simulation without Apptainer, 2.1 GB.</p>
 </li>
 </ul>
 <h4 class="atx" id="a-container-that-can-use-a-gpulessa-iddouble-quotegpu-containerdouble-quotegreaterlessagreater">A container that can use a GPU<a id="gpu-container"></a></h4>
