@@ -1,7 +1,8 @@
 #!/bin/bash
-# boxpct.sh 2/28/25 D.C.
+# boxpct.sh 4/4/25 D.C.
 # sbatch script to run boxpct.py, using the dem21 package in MPI-parallel mode.
 #SBATCH -n 4                         # run 4 MPI ranks
+#SBATCH -N 1                         # all ranks on one node
 #SBATCH --mem-per-cpu=8G             # give each core 8 GB of memory
 #SBATCH -p cpu                       # submit to partition cpu
 #SBATCH -C ib                        # require inifiniband connectivity

@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   4/3/25
+mgah.md  D. Candela   4/4/25
 
 - [Introduction](#intro)  
   
@@ -655,7 +655,7 @@ Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (n
                          ...
   ```
 
-- **A more resource-intensive run with `mx2.py`.**<a id="mx2py"></a> Finally we run a much bigger, longer-running DEM simulation which is duplicated below using Apptainer and on Unity, to see if there is any performance impact from containerizing the code, and to investigate the speed-ups that can be obtained from the larger core counts available on Unity.
+- **A more resource-intensive run with `mx2.py`.**<a id="mx2py"></a> Finally we run a much bigger, longer-running DEM simulation which is duplicated below using Apptainer and on Unity (and using Apptainer on Unity), to see if there is any performance impact from containerizing the code, and to investigate the speed-ups that can be obtained from the larger core counts available on Unity.
   
   - The tested code was a simulation of a "granular memory" experiment on a dense pack of 10,240 tetrahedral grains (each composed of four spherical grainlets) with 450,000 time steps.  The simulation was carried out by the program `mx2.py`, continuing a sample-preparation simulation carried out by `ms.py` -- these programs called the `dem21` package and were run in MPI-parallel mode in various configurations.
   
@@ -2390,7 +2390,7 @@ Using Python MPI program requires (a) a working MPI installation - as in [Part 1
 
 - Finally we run **`osu_bw.py`** to check inter-rank communication speed.
   
-  - We get an interactive node with four cores (`-n 4`) on two nodes (`-N 2`) so intra- and inter-node communication could be compared, see below. For other purposes it may not be necessary to specify the number of nodes (`-N` can be omitted) or it may be wished to force all the ranks to be on one node (`-N 1`).  We also specify **`-C ib` to constrain the job to nodes with InfiniBand connectivity***; if this was not done the reported communication speeds were sometimes about 100 times slower.
+  - We get an interactive node with four cores (`-n 4`) on two nodes (`-N 2`) so intra- and inter-node communication could be compared, see below. For other purposes it may not be necessary to specify the number of nodes (`-N` can be omitted) or it may be wished to force all the ranks to be on one node (`-N 1`).  We also specify **`-C ib` to constrain the job to nodes with InfiniBand connectivity**; if this was not done the reported communication speeds were sometimes about 100 times slower.
     
     To start with we activate `m4p` and do not load the OpenMPI module, then use `mpirun -n 2...` to run `osu_bw.py` on two ranks -- it is necessary to supply `-n 2` to `mpirun` here as otherwise it would default to the four ranks allocated by the `salloc` command, and `osu_bw.py` insists on exactly two ranks.
     
@@ -2486,72 +2486,72 @@ Make an sbatch script **`osu_bw.sh`** with the following contents, and put it in
 
 ```
 #!/bin/bash
-
-# osu_bw.sh 2/27/25 D.C.
-
+# osu_bw.sh 4/3/25 D.C.
 # sbatch script to run osu_bw.py, which times the speed of MPI messaging
-
 # between two MPI ranks.
-
 #SBATCH -n 2                         # run 2 MPI ranks
 #SBATCH -p cpu                       # submit to partition cpu
 #SBATCH -C ib                        # require inifiniband connectivity
 echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used
 module purge                         # unload all modules
 module load conda/latest             # need this to use conda commands
-conda activate mp4                   # environment with OpenMPI, mpi4py, NumPy and SciPy
+conda activate m4p                   # environment with OpenMPI, mpi4py, NumPy and SciPy
 mpirun --display bindings python osu_bw.py
 ```
 
-  WORKING HERE Here is the output file produced by running `sbatch osu_bw.sh`.  In this case the two ranks happened to be allocated on the same node, but there is nothing in `osu_bw.sh` that forces that to be the case:
+  We go to a directory `try-mpi` into which we have copied both `osu_bw.sh` and `osu_bw.py` and run the script (as usual when running sbatch scripts, this can be done from a login shell and there is no need to set a Conda environment as the script does this):
 
 ```
-nodelist=uri-cpu008
+$ cd try-mpi; ls
+osu_bw.sh  osu_bw.py  ...
+try_mpi$ sbatch osu_bw.sh
+Submitted batch job 31253216
+(wait until 'squeue --me' shows that job has completed)
+try-mpi$ cat slurm-31253216.out
+nodelist=cpu046
 Loading conda
-[uri-cpu008:845867] Rank 0 bound to package[1][core:48]
-[uri-cpu008:845867] Rank 1 bound to package[1][core:54]
+[cpu046:2330110] Rank 0 bound to package[0][core:14]
+[cpu046:2330110] Rank 1 bound to package[1][core:47]
 2
 2
-
 # MPI Bandwidth Test
-
 # Size [B]    Bandwidth [MB/s]
-
-         1                1.70
-         2                3.34
-         4                6.77
-         8               13.60
-        16               17.85
-        32               43.95
-        64               92.51
-       128              210.64
-       256              403.88
-       512              870.67
-     1,024            1,671.19
-     2,048            3,046.24
-     4,096            5,130.12
-     8,192            4,964.96
-    16,384            8,143.36
-    32,768            5,812.37
-    65,536           16,890.32
-
-   131,072           22,452.58
-   262,144           25,971.58
-   524,288           28,711.98
- 1,048,576           21,080.91
- 2,097,152           15,786.18
- 4,194,304           15,866.15
- 8,388,608           15,942.06
-16,777,216           15,207.25
+         1                0.93
+         2                3.11
+         4                6.24
+         8               12.56
+        16               25.16
+        32               47.17
+        64              101.24
+       128              183.91
+       256              365.55
+       512              709.00
+     1,024            1,232.34
+     2,048            1,688.76
+     4,096            2,238.17
+     8,192            4,456.95
+    16,384            6,828.24
+    32,768            8,058.85
+    65,536           14,153.93
+   131,072           15,690.97
+   262,144           11,528.39
+   524,288            8,487.05
+ 1,048,576            8,582.14
+ 2,097,152            8,361.06
+ 4,194,304            8,990.32
+ 8,388,608            8,792.12
+16,777,216            7,536.62
 ```
 
 #### Enabling NumPy multithreading in MPI batch jobs<a id="sbatch-multithread"></a>
+
+**Note:** As explained at the very end of this section, **this has not been fully worked out** and more work would be needed to get this working reliably.
 
 For background see [Parallel execution on multiple cores](#multiple-cores) and [Hyperthreading and NumPy multithreading with MPI](#multithread-mpi) above.  Make an sbatch script **`threadcount_mpi.sh`**  with the following contents and put it in the directory `try-mpi` along with `threadcount_mpi.py`, which is an MPI-parallel version of `threadcount.py`  [discussed above](#multiple-cores). 
 
 ```
 #!/bin/bash
-# threadcount_mpi.sh 2/28/25 D.C.
+# threadcount_mpi.sh 4/4/25 D.C.
 # sbatch script to run threadcount_mpi.py, which uses MPI to time matrix
 # multiplications in parallel in several MPI tasks.
 #SBATCH -n 4                         # run 4 MPI ranks
@@ -2561,7 +2561,7 @@ For background see [Parallel execution on multiple cores](#multiple-cores) and [
 echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used
 module purge                         # unload all modules
 module load conda/latest             # need this to use conda commands
-conda activate ompi5                 # environment with OpenMPI, NumPy and SciPy
+conda activate m4p                   # environment with OpenMPI, mpi4py, NumPy and SciPy
 mpirun --display bindings python threadcount_mpi.py
 ```
 
@@ -2570,8 +2570,8 @@ Run this sbatch script, and examine its output file and efficiency as reported b
 ```
 try-mpi$ sbatch threadcount_mpi.sh
 Submitted batch job 29270594
-(wait for job to complete)
-/try-mpi$ cat slurm-29270594.out
+(wait until 'squeue --me' shows that job has completed)
+try-mpi$ cat slurm-29270594.out
 nodelist=cpu[046-048],uri-cpu006
 Loading conda
 [cpu046:3233583] Rank 0 bound to package[1][core:44]
@@ -2616,7 +2616,7 @@ Here is a modified sbatch script **`threadcount_mpi2.sh`** that will enable NumP
 
 ```
 #!/bin/bash
-# threadcount_mpi2.sh 2/28/25 D.C.
+# threadcount_mpi2.sh 4/4/25 D.C.
 # sbatch script to run threadcount_mpi.py, which uses MPI to time matrix
 # multiplications in parallel in several MPI tasks.
 # threadcount_mpi2.sh has been modified from threadcount_mpi.sh so NumPy can
@@ -2629,7 +2629,7 @@ Here is a modified sbatch script **`threadcount_mpi2.sh`** that will enable NumP
 echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used
 module purge                         # unload all modules
 module load conda/latest             # need this to use conda commands
-conda activate ompi5                 # environment with OpenMPI, NumPy and SciPy
+conda activate m4p                   # environment with OpenMPI, mpi4py, NumPy and SciPy
 mpirun --display bindings --cpus-per-rank 2 python threadcount_mpi.py
 ```
 
@@ -2692,35 +2692,38 @@ Notes:
 
 - **This job did not work reliably and probably requires additional `#SBATCH` settings.**  For example, sometimes one MPI rank took much longer to run, or used less threads than the other ranks.  It may be necessary to constrain the job to certain nodes, but this has not been tried.
 
-#### Use `sbatch` to run `boxpct.py + dem21` with MPI<a id="sbatch-dem21"></a>
+#### Using `sbatch` to run `boxpct.py + dem21` with MPI<a id="sbatch-dem21"></a>
 
-See [A more elaborate MPI program](#boxpct-dem21) above for the corresponding steps on a PC. 
+See [More elaborate MPI programs...](#mpi-dem21) above for the corresponding steps on a PC.
 
-- As in that section, the **`dem21`** package is cloned into a directory `try-dem21` on Unity:
+- As in that section, the **`dem21`** package (not public) is cloned into a directory `try-dem21` on Unity. Also the **`msigs`** package (also not public), which is used by `mx2.py` to carry out larger simulations, has been copied into the same directory:
   
   ```
   try-dem21$ git clone git@github.com:doncandela/dem21.git
+  try-dem21$ ls
+  dem  msigs ...
   ```
 
-- As in [A Conda environment capable of using OpenMPI](#conda-mpi-unity) above a conda environment **`dem21`** is defined on Unity, but now the `dem21` package is installed in the environment, along with additional the additional packages that `dem21` requires:
+- As in [Ways of running Python MPI programs on Unity](#ways-mpi-unity) above a Conda environment **`dem21`** is defined on Unity, similar to the **`m4p`**  environment defined in that section but now including additional packages required by `dem21` and with the `dem21` and `msigs` packages installed:
   
   ```
   try-dem21$ unity-compute             # get an interactive shell on a compute node
+  (wait for the compute-node shell to come up)
   try-dem21$ module load conda/latest
   try-dem21$ module load openmpi/5.0.3
-  try-dem21$ conda create -n dem21 python=3.12
+  try-dem21$ conda create -n dem21 -c conda-forge openmpi=5 mpi4py python=3.12
   try-dem21$ conda activate dem21 
-  (dem21)..try-dem21$ conda install mpi4py
-  (dem21)..try-dem21$ conda install dill matplotlib numba numpy pyaml scipy
-  (dem21)..try-dem21$ conda install quaternion
-  (dem21)..try-dem21$ cd dem21; ls      # cd into the dem21 repo and list its contents
-  LICENSE.txt  README.md  develop  doc  pyproject.toml  setup.py  src  tests
+  (dem21)..try-dem21$ conda install -c conda-forge numpy scipy matplotlib dill numba pyaml
+  (dem21)..try-dem21$ conda install -c conda-forge quaternion
+  (dem21)..try-dem21$ cd dem21
   (dem21)..try-dem21/dem21$ pip install -e .
+  (dem21)..try-dem21/dem21$ cd ../msigs
+  (dem21)..try-dem21/msigs$ pip install -e .
   ```
 
-- At this point we can log out and back into Unity, and there is no need to activate the environment `dem21` interactively as it is activated by sbatch scripts as needed.
+- At this point we can log out and back into Unity, and there will be no need to activate the environment `dem21` interactively as it will be activated by sbatch scripts as needed.
 
-We go back to `try-dem` and copy the test program `boxpct.py` and its configuration file `box.yaml` there from the `tests` subdirectory of the cloned repo:
+We go back to `try-dem21` and copy the test program `boxpct.py` and its configuration file `box.yaml` there from the `tests` subdirectory of the cloned repo:
 
 ```
 try-dem21$ ls dem21/tests/box
@@ -2733,10 +2736,10 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
   
   ```
   #!/bin/bash
-  # boxpct.sh 2/28/25 D.C.
+  # boxpct.sh 4/4/25 D.C.
   # sbatch script to run boxpct.py, using the dem21 package in MPI-parallel mode.
-  
   #SBATCH -n 4                         # run 4 MPI ranks
+  #SBATCH -N 1                         # all ranks on one node
   #SBATCH --mem-per-cpu=8G             # give each core 8 GB of memory
   #SBATCH -p cpu                       # submit to partition cpu
   #SBATCH -C ib                        # require inifiniband connectivity
@@ -2752,42 +2755,45 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
   
   ```
   try-dem21$ sbatch boxpct.sh
-  Submitted batch job 29279146
+  Submitted batch job 31259043
   (wait until 'squeue --me' shows that job has completed)
-  try-dem21$ cat slurm-29279146.out
-  nodelist=cpu045
+  try-dem21$ cat slurm-31259043.out
+  nodelist=cpu053
   Loading conda
-  [cpu045:1344137] Rank 0 bound to package[0][core:3]
-  [cpu045:1344137] Rank 1 bound to package[1][core:39]
-  [cpu045:1344137] Rank 2 bound to package[1][core:40]
-  [cpu045:1344137] Rank 3 bound to package[1][core:41]
-  
+  Warning: program compiled against libxml 213 using older 209
+  [cpu053:3598488] Rank 0 bound to package[1][core:79]
+  [cpu053:3598488] Rank 2 bound to package[1][core:81]
+  [cpu053:3598488] Rank 1 bound to package[1][core:80]
+  [cpu053:3598488] Rank 3 bound to package[1][core:82]
+  Warning: program compiled against libxml 213 using older 209
+  Warning: program compiled against libxml 213 using older 209
+  Warning: program compiled against libxml 213 using older 209
+  Warning: program compiled against libxml 213 using older 209
   - Started MPI on master + 3 worker ranks.
-    THIS IS: boxpct.py 12/3/22 D.C., using dem21 version: v1.2 2/11/25
-    Parallel processing: MPI, GHOST_ARRAY=True
-  
-  - Read 1 config(s) from /work/pi_candela_umass_edu/2025-01-apptainer/try-dem21/box.yaml
-  
-    SIM 1/1:
-    Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
-  
+  THIS IS: boxpct.py 12/3/22 D.C., using dem21 version: v1.2 2/11/25
+  Parallel processing: MPI, GHOST_ARRAY=True
+  - Read 1 config(s) from /work/pi_.../try-dem21/box.yaml
+  SIM 1/1:
+  Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
                      ...
   ```
 
-- Eamon Dwight has run much bigger simulations using the `dem21` package on Unity.  Here are some lines from a typical sbatch script he uses.  These were for simulations that ran well on 109 MPI ranks (due to the structure of `dem21`, which split the simulation domain into 216 boxes then allocated one MPI rank per two boxes plus one MPI rank for the control program).
+- **A larger `dem21` sim using `mx2.py`.**  To try out a more time-consuming simulation we follow (using an sbatch job on Unity) the steps shown for a PC in [A more intensive run with `mx2.py`](#mx2py) above.
   
-  ```
-  #SBATCH -q long                     # required for jobs running more than 2 days
-  #SBATCH -N 1                        # run on a single node
-  #SBATCH --nodelistcp=cpu[049-068]     # limit to nodes with 128 cores
-  #SBATCH -n 109                      # allocated for 109 MPI ranks
-  #SBATCH --mem=15000                 # allocate 15 GB memory (per node, one node here)
-  #SBATCH -t 300:00:00                # time limit 300 hrs (max allowed is 14 days = 336 hrs)
-  #SBATCH --constraint=ib
-  ```
-  
+  OLD BELOW Eamon Dwight has run much bigger simulations using the `dem21` package on Unity.  Here are some lines from a typical sbatch script he uses.  These were for simulations that ran well on 109 MPI ranks (due to the structure of `dem21`, which split the simulation domain into 216 boxes then allocated one MPI rank per two boxes plus one MPI rank for the control program).
+
+```
+#SBATCH -q long                     # required for jobs running more than 2 days
+#SBATCH -N 1                        # run on a single node
+#SBATCH --nodelistcp=cpu[049-068]     # limit to nodes with 128 cores
+#SBATCH -n 109                      # allocated for 109 MPI ranks
+#SBATCH --mem=15000                 # allocate 15 GB memory (per node, one node here)
+#SBATCH -t 300:00:00                # time limit 300 hrs (max allowed is 14 days = 336 hrs)
+#SBATCH --constraint=ib
+```
+
   The [docs for `sbatch`](https://slurm.schedmd.com/sbatch.html) seem to imply that *all* of the nodes listed in `--nodelist=..` will be allocated to the job, but experimentally only the number of nodes specified by `-N...` will be allocated.  With the `#SBATCH` settings shown above all MPI ranks were on a single node, which proved to be more efficient than some other ways of running.
-  
+
   TODO run bigger dem21 job.
 
 ### Using a GPU on Unity (without Apptainer)<a id="unity-gpu"></a>
@@ -3175,16 +3181,16 @@ For the examples here it assumed that the needed image file (**`m4p.sif`** or **
   
   The peak speeds seem about the same as observed in the the [non-Apptainer tests](#ways-mpi-unity) above.
 
-- **Running the `dem21` test program `boxpct.py`.** 
+- **Running the `dem21` test program `boxpct.py`.**  Here we follow the steps shown for a PC in [A container to run the more elaborate MPI package `dem21`](#dem21-container) above, but now running sbatch jobs on Unity.
   
-  - **TODO** run bigger sim
-    
-    (As was done earlier) `boxpct.py` is copied do a directory `try-dem21`. Now we also put in this directory an sbatch script **`app-boxpct.sh`** with these contents:
-    
-    ```
-    x
-    ```
-    
+  - As [described earlier](#images-to-unity) the container **`dem21.sif`** built on a PC as in [A container to run the more elaborate...](#dem21-container)  was copied to a Unity directory under `/work/pi..` and the alias `sifs` was set up to set the environment variable `SIFS` to point to this directory.
+  
+  - As was done earlier for a [non-containerized run on Unity](#sbatch-dem21),  `boxpct.py`  is copied to a directory `try-dem21`. Now we also put in this directory an sbatch script **`app-boxpct.sh`** with these contents:
+  
+  ```
+  x
+  ```
+  
     note
   
   - We run the script (from a login shell, if desired) and look at the output:
@@ -3202,8 +3208,10 @@ For the examples here it assumed that the needed image file (**`m4p.sif`** or **
     note
   
   - x
+  
+  - `gputest.py` was copied to the directory `try-gputest` (this was already done for other sections above).
 
-- **Running a larger DEM simulation with `dem21`.** 
+- **Running a larger DEM simulation with `dem21`.**   Here we continue to follow the corresponding steps shown for a PC in [A container to run the more elaborate MPI package `dem21`](#dem21-container) above.
   
   - x
 

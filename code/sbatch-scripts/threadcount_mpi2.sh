@@ -12,5 +12,5 @@
 echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used
 module purge                         # unload all modules
 module load conda/latest             # need this to use conda commands
-conda activate ompi5                 # environment with OpenMPI, NumPy and SciPy
+conda activate m4p                   # environment with OpenMPI, mpi4py, NumPy and SciPy
 mpirun --display bindings --cpus-per-rank 2 python threadcount_mpi.py
