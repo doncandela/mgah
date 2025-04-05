@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   4/4/25
+mgah.md  D. Candela   4/5/25
 
 - [Introduction](#intro)  
   
@@ -310,7 +310,7 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
   - **`gputest.py`** makes dense and sparse matrices of various sizes and floating-point types, and times operations using these matrices on the CPU and (if available) the GPU. If run in an environment without CuPy like **`p39`**, only CPU tests will be run. But if run in **`gpu`** and a GPU can be initialized, will also run GPU tests.
   - **`np-version.py`** is a very short program that imports NumPy and prints out its version.
   - **`dcfuncs`** is small package of utility functions, used in this document as an example of a Python package [installed locally](#local-package).  It is available from the public GitHub repo [doncandela/dcfuncs](https://github.com/doncandela/dcfuncs), which also includes the test programs **`test_util.py`**, etc, mentioned in this document.
-  - **`dem21`** is a complex package for doing DEM simulations of granular media using MPI parallelism. It is stored  in the currently private GitHub repo [doncandela/dem21](https://github.com/doncandela/dem21).  Although not available publicly it is used in this document as a test and example of how a large, complex MPI code can be run.
+  - **`dem21`** is a complex package for doing DEM simulations of granular media using MPI parallelism. It is stored  in the currently private GitHub repo [doncandela/dem21](https://github.com/doncandela/dem21).  It is used in this document as a test and example of how a large, complex MPI code can be run.  The `dem21` repo includes the test program `boxpct.py` mentioned in this document. Also mentioned is a much more complex simulation program called `mx2.py`.  While these codes are not available publicly, the examples here may be generally useful to show how an MPI program using many parallel ranks can be run on a PC or an HPC cluster, in both cases either non-containerized or containerized using Apptainer.
 
 - The following Apptainer definition files are used. They are all discussed in [Using Apptainer on a Linux PC](#apptainer-pc) below.  They have been all been used to build container images (`.sif` files) on PCs, which can then be run successfully both on the PCs and on Unity.
   
@@ -657,7 +657,9 @@ Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (n
 
 - **A more resource-intensive run with `mx2.py`.**<a id="mx2py"></a> Finally we run a much bigger, longer-running DEM simulation which is duplicated below using Apptainer and on Unity (and using Apptainer on Unity), to see if there is any performance impact from containerizing the code, and to investigate the speed-ups that can be obtained from the larger core counts available on Unity.
   
-  - The tested code was a simulation of a "granular memory" experiment on a dense pack of 10,240 tetrahedral grains (each composed of four spherical grainlets) with 450,000 time steps.  The simulation was carried out by the program `mx2.py`, continuing a sample-preparation simulation carried out by `ms.py` -- these programs called the `dem21` package and were run in MPI-parallel mode in various configurations.
+  - The tested code was a simulation of a "granular memory" experiment on a dense pack of 10,240 tetrahedral grains (each composed of four spherical grainlets) with 450,000 time steps.
+  
+  - The simulation was carried out by the program `mx2.py`, continuing a sample-preparation simulation (not shown here) carried out by `ms.py` -- these programs called the `dem21` package and were run in MPI-parallel mode in various configurations.
   
   - It was necessary to install the input-signals package  `msigs` which is used by `mx2.py` into the `dem21` environment:
     
@@ -668,7 +670,9 @@ Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (n
     (dem21)..GMEM/msigs$ pip install -e .
     ```
   
-  - The shell script **`cc-expts../mx2.sh`**   is used to run `mx2.py` and must be edited to reflect the run configuration to be used (e.g. use of hyperthreading).  For comparison with scripts shown in later sections to run `mx2.py` in other situations (with Apptainer, on Unity, both of these...) here are the contents of `mx2.sh` for this simple (non-Apptainer, PC) case:
+  - A rather complicated directory structure not described here is used to organize the simulations to generate the granular samples and carry out the memory simulations.  In brief, a single granular sample can be uses as the basis for several memory simulations.  Each memory simulation is carried out in a directory with a name like **`cc-expts...`** by the shell script **`cc-expts../mx2.sh`** , which runs the program  **`mx2.py`** located in a higher directory.
+    
+    Each of the various memory simulations described in this document (on a PC or on Unity, containerized or not, using different numbers of cores and/or hyperthreading) was carried out in its own  **`cc-expts...`** directory by making changes only to the **`cc-expts../mx2.sh`** script. For comparison with later sections here are the contents of **`mx2.sh`** for this simple (non-Apptainer, PC) case:
     
     ```
     #!/bin/bash
@@ -698,7 +702,9 @@ Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (n
                     ...
     ```
   
-  - With the chosen parameters (set by `.yaml` config files read by `ms.py` and `mx2.py`) the simulation spatial domain was divided into 216 "boxes", which were distributed as evenly as possible across the available MPI ranks: rank 0 is used by the overall control program, and each remaining rank holds a "crate" which in turn holds zero or more boxes. Computation by the boxes in each crate is sequential for each time step, thus one might expect the overall execution time to be roughly proportional to the number of boxes per crate.  For the maximum possible parallelism (one box per crate) the number of MPI ranks must be at least one greater than the number of boxes, i.e. at least 217 in the present case.
+  - With the chosen parameters (set by `.yaml` config files read by `ms.py` and `mx2.py`) the simulation spatial domain was divided into 216 "boxes",  each of which does independent work during each simulation step.  Thus up to 216 operations could be carried out in parallel, if sufficient MPI ranks were allocated.
+  
+  - The boxes are distributed as evenly as possible across the available MPI ranks: rank 0 is used by the overall control program, and each remaining rank holds a "crate" which in turn holds zero or more boxes. Computation by the boxes in each crate is sequential for each time step, thus one might expect the overall execution time to be roughly proportional to the number of boxes per crate.  For the maximum possible parallelism (one box per crate) the number of MPI ranks must be at least one greater than the number of boxes, i.e. at least 217 in the present case.
   
   - When run in 15 MPI ranks on the  16-core PC [candela-21](#pcs) with [hyperthreading disabled](#multithread-mpi) as it is by default:
     
@@ -2713,7 +2719,7 @@ See [More elaborate MPI programs...](#mpi-dem21) above for the corresponding ste
   try-dem21$ module load openmpi/5.0.3
   try-dem21$ conda create -n dem21 -c conda-forge openmpi=5 mpi4py python=3.12
   try-dem21$ conda activate dem21 
-  (dem21)..try-dem21$ conda install -c conda-forge numpy scipy matplotlib dill numba pyaml
+  (dem21)..try-dem21$ conda install numpy scipy matplotlib dill numba pyaml
   (dem21)..try-dem21$ conda install -c conda-forge quaternion
   (dem21)..try-dem21$ cd dem21
   (dem21)..try-dem21/dem21$ pip install -e .
@@ -2755,30 +2761,34 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
   
   ```
   try-dem21$ sbatch boxpct.sh
-  Submitted batch job 31259043
+  Submitted batch job 31294505
   (wait until 'squeue --me' shows that job has completed)
-  try-dem21$ cat slurm-31259043.out
-  nodelist=cpu053
+  try-dem21$ cat slurm-31294505.out
+  nodelist=uri-cpu007
   Loading conda
-  Warning: program compiled against libxml 213 using older 209
-  [cpu053:3598488] Rank 0 bound to package[1][core:79]
-  [cpu053:3598488] Rank 2 bound to package[1][core:81]
-  [cpu053:3598488] Rank 1 bound to package[1][core:80]
-  [cpu053:3598488] Rank 3 bound to package[1][core:82]
-  Warning: program compiled against libxml 213 using older 209
-  Warning: program compiled against libxml 213 using older 209
-  Warning: program compiled against libxml 213 using older 209
-  Warning: program compiled against libxml 213 using older 209
+  [uri-cpu007:472048] Rank 0 bound to package[0][core:0]
+  [uri-cpu007:472048] Rank 1 bound to package[0][core:1]
+  [uri-cpu007:472048] Rank 2 bound to package[1][core:32]
+  [uri-cpu007:472048] Rank 3 bound to package[1][core:33]
   - Started MPI on master + 3 worker ranks.
   THIS IS: boxpct.py 12/3/22 D.C., using dem21 version: v1.2 2/11/25
   Parallel processing: MPI, GHOST_ARRAY=True
   - Read 1 config(s) from /work/pi_.../try-dem21/box.yaml
+  
   SIM 1/1:
   Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
                      ...
   ```
+  
+  As of 4/25, under some circumstances, each rank emitted an warning message like...
+  
+  ```
+  Warning: program compiled against libxml 213 using older 209
+  ```
+  
+  ...before running successfully.  This was seen when `-c conda-forge` was supplied to the `conda install numpy...` command used in creating the Conda environment `dem21`, unlike what is shown above. However, I don't know if this is really the reason for such warnings or if, for example, it depends on the library versions installed on the Unity node allocated to the job.
 
-- **A larger `dem21` sim using `mx2.py`.**  To try out a more time-consuming simulation we follow (using an sbatch job on Unity) the steps shown for a PC in [A more intensive run with `mx2.py`](#mx2py) above.
+- **A larger `dem21` sim using `mx2.py`.**  To try out a more time-consuming simulation using an sbatch job on Unity, we follow the steps shown for a PC in [A more intensive run with `mx2.py`](#mx2py) above.
   
   OLD BELOW Eamon Dwight has run much bigger simulations using the `dem21` package on Unity.  Here are some lines from a typical sbatch script he uses.  These were for simulations that ran well on 109 MPI ranks (due to the structure of `dem21`, which split the simulation domain into 216 boxes then allocated one MPI rank per two boxes plus one MPI rank for the control program).
 
