@@ -2411,7 +2411,7 @@ body {
 <li><a href="#unity-apptainer">Using Apptainer on Unity</a><ul>
 <li><a href="#images-to-unity">Getting container images on the cluster</a></li>
 <li><a href="#unity-run-container">Running a container interactively or in batch job</a></li>
-<li><a href="#unity-mpi-container">Running a container that uses MPI</a></li>
+<li><a href="#unity-mpi-container">Running containers that use MPI</a></li>
 <li><a href="#unity-gpu-container">Running a container the uses a GPU</a></li>
 </ul>
 </li>
@@ -2666,7 +2666,7 @@ $ apt list &lt;package&gt; --installed  # list installed packages with this name
 <li><strong><code>m4p</code></strong> (defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) includes OpenMPI 5.0.3, and <code>mpi4py</code>, so MPI can be used.</li>
 <li><strong><code>dem21</code></strong> (also defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) is like <code>m4p</code> but additionally includes the locally-installed package <code>dem21</code> and additional packages that <code>dem21</code> imports.</li>
 <li><strong><code>gpu</code></strong> (defined in <a href="#unity-gpu">Using a GPU in Unity (without Apptainer)</a>) includes CuPy, so a GPU can be used.</li>
-<li><strong><code>ompi</code></strong> (defined in  <a href="#unity-mpi-container">Running a container that uses MPI</a>) includes only OpenMPI and Python as an example of a minimal environment for running a container that uses MPI.</li>
+<li><strong><code>ompi</code></strong> (defined in  <a href="#unity-mpi-container">Running containers that use MPI</a>) includes only OpenMPI and Python as an example of a minimal environment for running a container that uses MPI.</li>
 </ul>
 </li>
 <li><p>The following test code is used:</p>
@@ -2709,7 +2709,8 @@ $ apt list &lt;package&gt; --installed  # list installed packages with this name
 <li><strong><code>boxpct_mpi.sh</code></strong> (also defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) runs <code>boxpct.py</code> (which uses the <code>dem21</code> package) in MPI-parallel mode.</li>
 <li><strong><code>gputest.sh</code></strong> (defined in <a href="#unity-gpu">Using a GPU on Unity (without Apptainer)</a>) runs <code>gputest.py</code> which uses a GPU.</li>
 <li><strong><code>simple-app.sh</code></strong> (defined in <a href="#unity-run-container">Running a container interactively or in batch job</a>) uses an Apptainer container to run <code>gputest.py</code> without a GPU.</li>
-<li><strong><code>boxpct-app.sh</code></strong> (also defined in <a href="#unity-mpi-container">Running a container the uses MPI</a>) uses an Apptainer container to run the test program <code>boxpct.py</code> which uses the <code>dem21</code> package in n MPI ranks.</li>
+<li><strong><code>osubw-app.sh</code></strong> (defined in <a href="#unity-mpi-container">Running containers that use MPI</a>) uses an Apptainer container to run the MPI messaging-bandwidth test program <code>osu_bw.py</code>.</li>
+<li><strong><code>boxpct-app.sh</code></strong> (also defined in <a href="#unity-mpi-container">Running containers that use MPI</a>) uses an Apptainer container to run the test program for the <code>dem21</code> package <code>boxpct.py</code> in MPI-parallel ranks.</li>
 <li>The following sbatch scripts run the granular-memory simulation program <code>mx2.py</code>, which requires various additional files not detailed in this document:<ul>
 <li><strong><code>mx2-unity.sh</code></strong> runs <code>mx2.py</code> on Unity without Apptainer.</li>
 <li><strong><code>mx2-unity-app.sh</code></strong> runs <code>mx2.py</code> on Unity using the Apptainer container built by <strong><code>dem21.def</code></strong>.</li>
@@ -5281,7 +5282,7 @@ Multiply M*M=N element dense matrices
                  ...</code></pre>
 </li>
 </ul>
-<h4 class="atx" id="running-a-container-that-uses-mpilessa-iddouble-quoteunity-mpi-containerdouble-quotegreaterlessagreater">Running a container that uses MPI<a id="unity-mpi-container"></a></h4>
+<h4 class="atx" id="running-containers-that-use-mpilessa-iddouble-quoteunity-mpi-containerdouble-quotegreaterlessagreater">Running containers that use MPI<a id="unity-mpi-container"></a></h4>
 <p>Here we combine things from the sections above on <a href="#unity-run-container">running a non-MPI container on Unity</a>, <a href="#mpi-container">running a container with MPI on a PC</a>, and <a href="#unity-mpi">running a non-containerized MPI job on Unity</a>.</p>
 <p>For the examples here it assumed that the needed image file (<strong><code>m4p.sif</code></strong> or <strong><code>dem21.sif</code></strong>) has been built on a PC as shown in the sections referenced above and transferred to a directory under <code>/work/pi...</code> on Unity -- also that <strong><code>sifs</code></strong> has been aliased to a command that sets the environment variable <code>SIFS</code> to point to this directory, as <a href="#images-to-unity">discussed here</a>.</p>
 <ul>
@@ -5402,6 +5403,22 @@ osu_bw.py  ...
 16,777,216           12,310.61</code></pre>
 <p>The peak speeds seem about the same as observed in the the <a href="#ways-mpi-unity">non-Apptainer tests</a> above.</p>
 </li>
+<li><p><strong>Running a containerized MPI batch job.</strong> Here is an sbatch script <strong><code>osubw-app.sh</code></strong> for running <code>osu_bw.py</code> in a batch job:</p>
+<pre><code class="fenced-code-block">x
+
+x</code></pre>
+<p>This can be submitted from a login shell, without activating a Conda environment, and from any directory -- although as written the output will go into a <code>slurm-...out</code> file in that directory:</p>
+<pre><code class="fenced-code-block">$ sifs                # sets SIFS to directory containing m4p.sif 
+$ cd foo; ls          # cd to directory where osubw-app.sh is located, output will go here
+osubw-app.sh ...
+foo$ sbatch osubw-app.sh
+Submitted batch job 29310376
+(wait until 'squeue --me' shows that job has completed)
+foo$ cat slurm-29310376.out
+x</code></pre>
+</li>
+</ul>
+<ul>
 <li><p><strong>Running the <code>dem21</code> test program <code>boxpct.py</code>.</strong>  Here we follow the steps shown for a PC in <a href="#dem21-container">A container to run the more elaborate MPI package <code>dem21</code></a> above, but now running sbatch jobs on Unity.</p>
 <ul>
 <li><p>As <a href="#images-to-unity">described earlier</a> the container <strong><code>dem21.sif</code></strong> built on a PC as in <a href="#dem21-container">A container to run the more elaborate...</a>  was copied to a Unity directory under <code>/work/pi..</code> and the alias <code>sifs</code> was set up to set the environment variable <code>SIFS</code> to point to this directory.</p>
@@ -5428,7 +5445,7 @@ conda activate ompi5
 # python in constainer will run boxpct.py in CWD.
 mpirun --display bindings \
     apptainer exec $SIFS/dem21.sif python boxpct.py</code></pre>
-<p>  note</p>
+<p>  note  WORKING HERE</p>
 <ul>
 <li><p>We run the script (from a login shell, if desired) and look at the output:</p>
 <pre><code class="fenced-code-block">$ cd try-dem21; ls
