@@ -1,5 +1,5 @@
 #!/bin/bash
-# cc-expts/mx2-app.sh 4/6/25 D.C.
+# cc-expts-app/mx2-app.sh 4/6/25 D.C.
 # Shell script to run granular-memory simulation program mx2.py containerized
 # on a PC, as an example for "My cheat sheet for MPI, GPU, Apptainer, and HPC".
 #

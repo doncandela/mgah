@@ -312,7 +312,7 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
   - **`dcfuncs`** is small package of utility functions, used in this document as an example of a Python package [installed locally](#local-package).  It is available from the public GitHub repo [doncandela/dcfuncs](https://github.com/doncandela/dcfuncs), which also includes the test programs **`test_util.py`**, etc, mentioned in this document.
   - **`dem21`** is a complex package for doing DEM simulations of granular media using MPI parallelism. It is stored  in the currently private GitHub repo [doncandela/dem21](https://github.com/doncandela/dem21).  It is used in this document as a test and example of how a large, complex MPI code can be run.  The `dem21` repo includes the test program `boxpct.py` mentioned in this document. Also mentioned is a much more complex granular-memory simulation program called `mx2.py`.  While these codes are not available publicly, the examples here may be generally useful to show how an MPI program using many parallel ranks can be run on a PC or an HPC cluster, in both cases either non-containerized or containerized using Apptainer. The following shell scripts are used to run `mx2.py` on a PC, which requires various additional files not detailed in this document:
     - **`mx2.sh`** runs `mx2.py` without Apptainer.
-    - **`mx2.sh`** runs `mx2.py` using the Apptainer container built by **`dem21.def`**.
+    - **`mx2-app.sh`** runs `mx2.py` using the Apptainer container built by **`dem21.def`**.
 
 - The following Apptainer definition files are used. They are all discussed in [Using Apptainer on a Linux PC](#apptainer-pc) below.  They have been all been used to build container images (`.sif` files) on PCs, which can then be run successfully both on the PCs and on Unity.
   
@@ -675,7 +675,7 @@ Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (n
     (dem21)..GMEM/msigs$ pip install -e .
     ```
   
-  - A rather complicated directory structure not detailed here is used to organize the simulations so they can generate the granular samples and then carry out memory simulations on these samples.  Each memory simulation is carried out in a subdirectory called **`cc-expts`** by a shell script (or on Unity, an sbatch script) called **`cc-expts/mx2...sh`** , which runs the program  **`mx2.py`** located in a higher directory.
+  - A rather complicated directory structure not detailed here is used to organize the simulations so they can generate the granular samples and then carry out memory simulations on these samples.  Each memory simulation is carried out in a subdirectory called **`cc-expts..`** by a shell script (or on Unity, an sbatch script) called **`cc-expts/mx2...sh`** , which runs the program  **`mx2.py`** located in a higher directory.
     
     Each of the various memory simulations described in this document (on a PC or on Unity, containerized or not, using different numbers of cores and/or hyperthreading) was uses a different  **`mx2..sh`** script. For this simple non-Apptainer, PC case the script is called **`mx2.sh`**:
     
@@ -1568,7 +1568,7 @@ Here we use containerized code to duplicate the non-containerized tests shown in
   
   ```
   #!/bin/bash
-  # cc-expts/mx2-app.sh 4/6/25 D.C.
+  # cc-expts-app/mx2-app.sh 4/6/25 D.C.
   # Shell script to run granular-memory simulation program mx2.py containerized
   # on a PC, as an example for "My cheat sheet for MPI, GPU, Apptainer, and HPC".
   #
@@ -1584,14 +1584,14 @@ Here we use containerized code to duplicate the non-containerized tests shown in
   mpirun -n $1 apptainer exec "$SIFS"/dem21.sif python ../../mx2.py mx2mod |& tee output
   ```
 
-- The simulation is run in precisely the same way as when not containerized, except that is is run in the bare-bones OpenMPI environment `ompi` rather than the environment `dem21` which had `dem21`, `msigs`, and other packages installed:
+- The simulation is run in precisely the same way as when not containerized, except that it can be run in the bare-bones OpenMPI environment `ompi` rather than the environment `dem21` which had `dem21`, `msigs`, and other packages installed:
   
   ```
   ...$ conda activate ompi
-  (ompi)...$ cd cc-expts; ls
+  (ompi)...$ cd cc-expts-app; ls
   mx2mod.yaml  mx2-app.sh ...
-  (ompi)...cd-expts$ sifs           # alias sets SIFS to directory with dem21.sif
-  (ompi)...cd-expts$ ./mx2-app.sh 15    # run containerized code in 15 MPI ranks
+  (ompi)...cd-expts-app$ sifs               # alias sets SIFS to directory with dem21.sif
+  (ompi)...cd-expts-app$ ./mx2-app.sh 15    # run containerized code in 15 MPI ranks
   - Started MPI on master + 14 worker ranks.
   This is: mx2.py 7/29/24 D.C.
   Using dem21 version: v1.2 2/11/25
@@ -2201,7 +2201,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   #SBATCH --exclusive       # use entire nodes (don’t share nodes with other jobs)
   # When using the following probably should be setting the number of nodes with -N
   #SBATCH --mem=5G          # allocate 5 GB of memory per node
-  #SBATCH --mem=0           # allocate all available memory on nodes use
+  #SBATCH --mem=0           # allocate all available memory on nodes used
   ```
   
   The nodes on Unity are very heterogeneous, with between 12 and 192 cores per node, so I don’t think it makes sense to use `-N`,`--nodes` or` --exclusive` unless `--nodelist` or constraints are used to match the type of nodes used to the size of the job (tasks or cores used).  Similarly `--mem` sets the memory per node and I’m not sure what this means unless the number of nodes is specified.
@@ -2796,7 +2796,55 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
   
   ...before running successfully.  This was seen when `-c conda-forge` was supplied to the `conda install numpy...` command used in creating the Conda environment `dem21`, unlike what is shown above. However, I don't know if this is really the reason for such warnings or if, for example, it depends on the library versions installed on the Unity node allocated to the job.
 
-- **A larger `dem21` sim using `mx2.py`.**  To try out a more time-consuming simulation using an sbatch job on Unity, we follow the steps shown for a PC in [A more intensive run with `mx2.py`](#mx2py) above.
+- **A larger `dem21` sim using `mx2.py`.**  To try out a more time-consuming simulation using an sbatch job on Unity, we follow the steps shown for a PC in [A more intensive run with `mx2.py`](#mx2py) above. 
+  
+  - in the directory `cc-expts-unity` containing the other needed files (not explained here) we make an sbatch script **`mx2-unity.sh`** as follows:
+    
+    ```
+    #!/bin/bash
+    # cc-expts-unity/mx2-unity.sh 4/6/25 D.C.
+    # sbatch script to run granular-memory simulation program mx2.py non-containerized
+    # on the Unity cluster, as an example for "My cheat sheet for MPI, GPU, Apptainer,
+    # and HPC".
+    #
+    # Runs mx2.py in grandparent directory in 'mpi' parallel-processing mode.
+    # Reads default config file mx2.yaml in grandparent directory modified by
+    # mx2mod.yaml in current directory.
+    
+    #SBATCH -n 16                        # run 16 MPI ranks (cores here)
+    #SBATCH -N 1                         # use one node
+    #SBATCH --mem=100G                   # allocate 100G of memory per node
+    ##SBATCH --exclusive                  # don't share nodes with other jobs
+    ##SBATCH --mem=0                      # allocate all available memory on nodes used
+    #SBATCH -t 120                       # time limit 2 hrs (default is 1 hr)
+    #SBATCH -p cpu                       # submit to partition cpu
+    #SBATCH -C ib                        # require inifiniband connectivity
+    
+    echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used
+    module purge                         # unload all modules
+    module load conda/latest             # need this to use conda commands
+    conda activate dem21                 # environment with OpenMPI, dem21, and dependencies
+    export pproc=mpi                     # tells dem21 to run in MPI-parallel mode
+    mpirun --display bindings python ../../mx2.py mx2mod
+    ```
+  
+  - We submit the job from this directory  (`mx2.py` has been written to be run from the directory where its output should go -- this may not be true for other programs):
+    
+    ```
+    x
+    $ cd ..cc-expts-unity; ls
+    bw6-sigs.yaml  bw6.svg  mx2mod.yaml  mx2-unity.sh signals.sh
+    ..cc-expts-unity$ sbatch mx2-unity.sh
+    x
+    ```
+    
+    
+  
+  - WORKING HERE
+  
+  
+  
+   **WORKING HERE**
   
   OLD BELOW Eamon Dwight has run much bigger simulations using the `dem21` package on Unity.  Here are some lines from a typical sbatch script he uses.  These were for simulations that ran well on 109 MPI ranks (due to the structure of `dem21`, which split the simulation domain into 216 boxes then allocated one MPI rank per two boxes plus one MPI rank for the control program).
 
@@ -3307,13 +3355,25 @@ For the examples here it assumed that the needed image file (**`m4p.sif`** or **
     Submitted batch job 31304489
     (wait until 'squeue --me' shows that job has completed)
     try-mpi$ cat slurm-31304489.out
+    nodelist=cpu046
+    Loading apptainer version latest
+    Loading conda
+    [cpu046:717593] Rank 0 bound to package[0][core:1]
+    [cpu046:717593] Rank 1 bound to package[0][core:2]
+    [cpu046:717593] Rank 2 bound to package[1][core:32]
+    [cpu046:717593] Rank 3 bound to package[1][core:33]
+    - Started MPI on master + 3 worker ranks.
+    THIS IS: boxpct.py 12/3/22 D.C., using dem21 version: v1.2 2/11/25
+    Parallel processing: MPI, GHOST_ARRAY=True
+    - Read 1 config(s) from /work/pi_candela_umass_edu/dcstuff/2025-03ff-mgah/try-dem21/box.yaml
+    
+    SIM 1/1:
+    Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
     
                               ...
     ```
-    
-    
 
-- **Using a container to run a larger DEM simulation with `dem21`.**   Here we continue to follow the corresponding steps shown for a PC in [A container to run the more elaborate MPI package `dem21`](#dem21-container) above.
+- **Using a container to run a larger DEM simulation with `dem21`.**   Here we continue to follow the corresponding steps shown for a PC in [A container to run the more elaborate MPI package `dem21`](#dem21-container) above. **WORKING HERE**
   
   - x
 
