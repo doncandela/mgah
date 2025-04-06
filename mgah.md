@@ -3199,78 +3199,121 @@ For the examples here it assumed that the needed image file (**`m4p.sif`** or **
   
   The peak speeds seem about the same as observed in the the [non-Apptainer tests](#ways-mpi-unity) above.
 
-- **Running a containerized MPI batch job.** Here is an sbatch script **`osubw-app.sh`** for running `osu_bw.py` in a batch job:
-  
-  ```
-  x
-  
-  x
-  ```
-  
-  This can be submitted from a login shell, without activating a Conda environment, and from any directory -- although as written the output will go into a `slurm-...out` file in that directory:
-  
-  ```
-  $ sifs                # sets SIFS to directory containing m4p.sif 
-  $ cd foo; ls          # cd to directory where osubw-app.sh is located, output will go here
-  osubw-app.sh ...
-  foo$ sbatch osubw-app.sh
-  Submitted batch job 29310376
-  (wait until 'squeue --me' shows that job has completed)
-  foo$ cat slurm-29310376.out
-  x
-  ```
-  
-  
-
-- **Running the `dem21` test program `boxpct.py`.**  Here we follow the steps shown for a PC in [A container to run the more elaborate MPI package `dem21`](#dem21-container) above, but now running sbatch jobs on Unity.
-  
-  - As [described earlier](#images-to-unity) the container **`dem21.sif`** built on a PC as in [A container to run the more elaborate...](#dem21-container)  was copied to a Unity directory under `/work/pi..` and the alias `sifs` was set up to set the environment variable `SIFS` to point to this directory.
-  
-  - As was done earlier for a [non-containerized run on Unity](#sbatch-dem21),  `boxpct.py`  is copied to a directory `try-dem21`. Now we also put in this directory an sbatch script **`boxpct-app.sh`** with these contents:
+- **Running a containerized MPI batch job.** Here is an sbatch script **`osubw-app.sh`** for running `osu_bw.py`  with the container `myp.sif` in a batch job. The `#SBATCH` settings are the same as used for `salloc` when `osu_bw.py` was run interactively in the previous section:
   
   ```
   #!/bin/bash
-  # boxpct-app.sh 4/6/25 D.C.
-  # n-task sbatch script uses an Apptainer container dem21.sif that
-  # has OpenMPI and the dem21 package to run boxpct.py, which is a
-  # test program for the dem21 simulation package.
-  # Must set SIFS to directory containing dem21.sif before running this
-  # script in a directory containing boxpct.py
-  #SBATCH -n 4                       # allocate for n MPI ranks
+  # osubw-app.sh 4/6/25 D.C.
+  # Two-task sbatch script uses an Apptainer container m4p.sif that
+  # has OpenMPI to run osu_bw.py, which measures the commnunication
+  # speed between two MPI ranks. Activates the Conda environment ompi to
+  # make OpenMPI available outside the container. Must set SIFS to directory
+  # containing m4p.sif before running script in a directory containing osu_bw.py
+  #SBATCH -N 2                       # allocate two nodes
+  #SBATCH -n 4                       # allocate for up to 4 MPI ranks
   #SBATCH -p cpu                     # submit to partition cpu
   #SBATCH -C ib                      # require inifiniband connectivity
   echo nodelist=$SLURM_JOB_NODELIST  # print list of nodes used
   module purge                       # unload all modules
   module load apptainer/latest
   module load conda/latest
-  conda activate ompi5
-  # mpirun will run container dem21.sif in n ranks; in each rank
-  # python in constainer will run boxpct.py in CWD.
-  mpirun --display bindings \
-      apptainer exec $SIFS/dem21.sif python boxpct.py
+  conda activate ompi
+  mpirun -n 2 --display bindings apptainer exec $SIFS/m4p.sif python osu_bw.py
+  
+  # Alternative mpirun command has '--map-by node' to make run on two nodes.
+  #mpirun -n 2 --display bindings --map-by node \
+  #    apptainer exec $SIFS/ompi5.sif python osu_bw.py
   ```
   
-    note  WORKING HERE
+  The job is submitted from a directory containing this sbatch script and `osu_bw.py`.  As usual it can be submitted from a login shell, without activating a Conda environment:
   
-  - We run the script (from a login shell, if desired) and look at the output:
-    
-    ```
-    $ cd try-dem21; ls
-    boxpct-app.sh boxpct.py ...
-    try-dem21$ sifs                    # set SIFS
-    try-dem2$ sbatch boxpct-app.sh
-    Submitted batch job 29323951
-    (wait until 'squeue --me' shows that job has completed)
-    try-dem21$ cat slurm-29323951.out
-    ```
-    
-    note
-  
-  - x
-  
-  - `gputest.py` was copied to the directory `try-gputest` (this was already done for other sections above).
+  ```
+  $ sifs                # sets SIFS to directory containing m4p.sif 
+  $ cd try-mpi; ls      # cd to directory where osubw-app.sh and osu_bw.py are located
+  osubw-app.sh osu_bw.py...
+  try-mpi$ sbatch osubw-app.sh
+  Submitted batch job 31303947
+  (wait until 'squeue --me' shows that job has completed)
+  try-mpi$ cat slurm-31303947.out
+  nodelist=cpu[046-047]
+  Loading apptainer version latest
+  Loading conda
+  [cpu046:691666] Rank 0 bound to package[0][core:1]
+  [cpu046:691666] Rank 1 bound to package[0][core:2]
+  2
+  2
+  # MPI Bandwidth Test
+  # Size [B]    Bandwidth [MB/s]
+           1                2.43
+           2                4.81
+           4                9.80
+           8               19.52
+          16               39.17
+          32               77.89
+          64              155.72
+         128              288.67
+         256              578.99
+         512            1,155.67
+       1,024            2,242.96
+       2,048            4,224.08
+       4,096            7,576.89
+       8,192            5,053.99
+      16,384            7,661.24
+      32,768            9,452.70
+      65,536           16,074.42
+     131,072           20,191.90
+     262,144           14,337.65
+     524,288            9,070.66
+   1,048,576            8,696.12
+   2,097,152            9,255.01
+   4,194,304            9,152.04
+   8,388,608            9,188.64
+  16,777,216            8,734.19
+  ```
 
-- **Running a larger DEM simulation with `dem21`.**   Here we continue to follow the corresponding steps shown for a PC in [A container to run the more elaborate MPI package `dem21`](#dem21-container) above.
+- **Using a container to run the `dem21` test program `boxpct.py`.**  Here we follow the steps shown for a PC in [A container to run the more elaborate MPI package `dem21`](#dem21-container) above, but now running sbatch jobs on Unity.
+  
+  - As [described earlier](#images-to-unity) the container **`dem21.sif`** built on a PC as in [A container to run the more elaborate...](#dem21-container)  was copied to a Unity directory under `/work/pi..` and the alias `sifs` was set up to set the environment variable `SIFS` to point to this directory.
+  
+  - As was done earlier for a [non-containerized run on Unity](#sbatch-dem21),  `boxpct.py`  and its configuration file `box.yaml` are copied to a directory `try-dem21`. Now we also put in this directory an sbatch script **`boxpct-app.sh`** with these contents:
+    
+    ```
+    #!/bin/bash
+    # boxpct-app.sh 4/6/25 D.C.
+    # n-task sbatch script uses an Apptainer container dem21.sif that
+    # has OpenMPI and the dem21 package to run boxpct.py, which is a
+    # test program for the dem21 simulation package.
+    # Must set SIFS to directory containing dem21.sif before running this
+    # script in a directory containing boxpct.py
+    #SBATCH -n 4                       # allocate for n MPI ranks
+    #SBATCH -p cpu                     # submit to partition cpu
+    #SBATCH -C ib                      # require inifiniband connectivity
+    echo nodelist=$SLURM_JOB_NODELIST  # print list of nodes used
+    module purge                       # unload all modules
+    module load apptainer/latest
+    module load conda/latest
+    conda activate ompi
+    export pproc=mpi                   # tells dem21 to run in MPI-parallel mode
+    mpirun --display bindings apptainer exec $SIFS/dem21.sif python boxpct.py
+    ```
+  
+  - The job is run in the same manner as `osu_bw.py` was run just above:
+    
+    ```
+    $ sifs                # sets SIFS to directory containing m4p.sif 
+    $ cd try-dem21; ls      # cd to directory where boxpct-app.sh, boxpct.py, and box. are located
+    boxpct-app.sh boxpct.py  box.yaml  ...
+    try-dem21$ sbatch boxpct-app.sh
+    Submitted batch job 31304489
+    (wait until 'squeue --me' shows that job has completed)
+    try-mpi$ cat slurm-31304489.out
+    
+                              ...
+    ```
+    
+    
+
+- **Using a container to run a larger DEM simulation with `dem21`.**   Here we continue to follow the corresponding steps shown for a PC in [A container to run the more elaborate MPI package `dem21`](#dem21-container) above.
   
   - x
 

@@ -12,8 +12,6 @@ echo nodelist=$SLURM_JOB_NODELIST  # print list of nodes used
 module purge                       # unload all modules
 module load apptainer/latest
 module load conda/latest
-conda activate ompi5
-# mpirun will run container dem21.sif in n ranks; in each rank
-# python in constainer will run boxpct.py in CWD.
-mpirun --display bindings \
-    apptainer exec $SIFS/dem21.sif python boxpct.py
+conda activate ompi
+export pproc=mpi                   # tells dem21 to run in MPI-parallel mode
+mpirun --display bindings apptainer exec $SIFS/dem21.sif python boxpct.py
