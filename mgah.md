@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   4/5/25
+mgah.md  D. Candela   4/6/25
 
 - [Introduction](#intro)  
   
@@ -620,7 +620,7 @@ mpirun (Open MPI) 5.0.7
 
 #### More elaborate MPI programs using the `dem21` package<a id="mpi-dem21"></a>
 
-Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (not currently publicly available) as an example of a much more elaborate MPI program.  It is assumed that OpenMPI has been installed on the PC as [described above](#install-openmpi).
+Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (not currently publicly available) as an example of a much more elaborate MPI program.  It is assumed that OpenMPI has been installed on the PC as [described above](#install-openmpi-pc).
 
 - **Environment for running `dem21`.** With access the `dem21` repo is cloned from GitHub to a directory `foo/dem21`.  Then a suitable environment **`dem21`** is created similar to  `m4p` defined above but including the additional packages needed according to the instructions in the documentation `dem21.pdf` (in the repo).  Finally, the `dem21` package is installed in this environment (it was helpful to set the Python version to 3.11 and to break up the Conda install commands as shown here, otherwise Conda got stuck trying to solve the environment):
   
@@ -655,13 +655,13 @@ Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (n
                          ...
   ```
 
-- **A more resource-intensive run with `mx2.py`.**<a id="mx2py"></a> Finally we run a much bigger, longer-running DEM simulation which is duplicated below using Apptainer and on Unity (and using Apptainer on Unity), to see if there is any performance impact from containerizing the code, and to investigate the speed-ups that can be obtained from the larger core counts available on Unity.
+- **A more resource-intensive run with `mx2.py`.**<a id="mx2py"></a> Finally we run a much bigger, longer-running DEM simulation which will be repeated below using Apptainer and on Unity (and both), to see if there is any performance impact from containerizing the code, and to investigate the speed-ups that can be obtained from the larger core counts available on Unity.
   
-  - The tested code was a simulation of a "granular memory" experiment on a dense pack of 10,240 tetrahedral grains (each composed of four spherical grainlets) with 450,000 time steps.
+  - The tested code is a simulation of a "granular memory" experiment on a dense pack of 10,240 tetrahedral grains (each composed of four spherical grainlets) with 450,000 time steps.
   
-  - The simulation was carried out by the program `mx2.py`, continuing a sample-preparation simulation (not shown here) carried out by `ms.py` -- these programs called the `dem21` package and were run in MPI-parallel mode in various configurations.
+  - The simulation is carried out by the program `mx2.py`, continuing a sample-preparation simulation (not shown here) carried out by `ms.py` -- these programs call the `dem21` package which is run in run in MPI-parallel mode here.
   
-  - It was necessary to install the input-signals package  `msigs` which is used by `mx2.py` into the `dem21` environment:
+  - `mx2.py` needs the input-signals package `msigs` so we install it in the `dem21` environment:
     
     ```
     ..$ conda activate dem21
@@ -670,31 +670,36 @@ Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (n
     (dem21)..GMEM/msigs$ pip install -e .
     ```
   
-  - A rather complicated directory structure not described here is used to organize the simulations to generate the granular samples and carry out the memory simulations.  In brief, a single granular sample can be uses as the basis for several memory simulations.  Each memory simulation is carried out in a directory with a name like **`cc-expts...`** by the shell script **`cc-expts../mx2.sh`** , which runs the program  **`mx2.py`** located in a higher directory.
+  - A rather complicated directory structure not detailed here is used to organize the simulations so they can generate the granular samples and then carry out memory simulations on these samples.  Each memory simulation is carried out in a subdirectory called **`cc-expts`** by a shell script (or on Unity, an sbatch script) called **`cc-expts/mx2...sh`** , which runs the program  **`mx2.py`** located in a higher directory.
     
-    Each of the various memory simulations described in this document (on a PC or on Unity, containerized or not, using different numbers of cores and/or hyperthreading) was carried out in its own  **`cc-expts...`** directory by making changes only to the **`cc-expts../mx2.sh`** script. For comparison with later sections here are the contents of **`mx2.sh`** for this simple (non-Apptainer, PC) case:
+    Each of the various memory simulations described in this document (on a PC or on Unity, containerized or not, using different numbers of cores and/or hyperthreading) was uses a different  **`mx2..sh`** script. For this simple non-Apptainer, PC case the script is called **`mx2.sh`**:
     
     ```
     #!/bin/bash
-    # cc-samples/mx2.sh 7/29/24 D.C.
+    # cc-expts/mx2.sh 4/6/25 D.C.
+    # Shell script to run granular-memory simulation program mx2.py non-containerized
+    # on a PC, as an example for "My cheat sheet for MPI, GPU, Apptainer, and HPC".
+    #
     # Runs mx2.py in grandparent directory in 'mpi' parallel-processing mode.
     # Reads default config file mx2.yaml in grandparent directory modified by
-    # mx2mod.yaml in current directory
+    # mx2mod.yaml in current directory.
     #
-    # To run on N cores 1st activate MPI environment then do
+    # To run on N cores 1st activate environment 'dem21' then do
     #
     # ./mx2.sh N
     #
     export pproc=mpi
     mpirun -n $1 python ../../mx2.py mx2mod |& tee output
+    # Alt version allows hyperthreading:
+    #mpirun -n $1 python --use-hwthreads-cpus ../../mx2.py mx2mod |& tee output
     ```
     
-    After editing `cc-expts-../mx2.sh` to reflect the configuration being tested the simulation is run:
+    The simulation is run in the Conda environment **`dem21`**, in the directory `cc-expts` containing `mx2.sh` and other needed files not explained here:
     
     ```
-    (dem21)..$ cd ..cc-expts-...; ls   # cd to where desired version of mx2.sh is kept
+    (dem21)..$ cd ..cc-expts; ls
     bw6-sigs.yaml  bw6.svg  mx2mod.yaml  mx2.sh signals.sh
-    (dem21)...cc-expts-..$ ./mx2.sh 15 # run mx2.py in 15 MPI ranks
+    (dem21)...cc-expts$ ./mx2.sh 15 # run mx2.py in 15 MPI ranks
     - Started MPI on master + 14 worker ranks.
     This is: mx2.py 7/29/24 D.C.
     Using dem21 version: v1.2 2/11/25
@@ -704,7 +709,7 @@ Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (n
   
   - With the chosen parameters (set by `.yaml` config files read by `ms.py` and `mx2.py`) the simulation spatial domain was divided into 216 "boxes",  each of which does independent work during each simulation step.  Thus up to 216 operations could be carried out in parallel, if sufficient MPI ranks were allocated.
   
-  - The boxes are distributed as evenly as possible across the available MPI ranks: rank 0 is used by the overall control program, and each remaining rank holds a "crate" which in turn holds zero or more boxes. Computation by the boxes in each crate is sequential for each time step, thus one might expect the overall execution time to be roughly proportional to the number of boxes per crate.  For the maximum possible parallelism (one box per crate) the number of MPI ranks must be at least one greater than the number of boxes, i.e. at least 217 in the present case.
+  - The boxes are distributed by the `dem21` package as evenly as possible across the available MPI ranks: rank 0 is used by the overall control program, and each remaining rank holds a "crate" which in turn holds zero or more boxes. Computation by the boxes in each crate is sequential for each time step, thus one might expect the overall execution time to be roughly proportional to the number of boxes per crate.  For the maximum possible parallelism (one box per crate) the number of MPI ranks must be at least one greater than the number of boxes, i.e. at least 217 in the present case.
   
   - When run in 15 MPI ranks on the  16-core PC [candela-21](#pcs) with [hyperthreading disabled](#multithread-mpi) as it is by default:
     
@@ -712,7 +717,7 @@ Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (n
     
     - The 450,000 step simulation required 15,937 s = 4.427 hr, or 3.46 microsec/step-grain.
     
-    - Running the simulation required about 2.1 GB of memory (beyond what the PC was using before the simulation was run).
+    - Running the simulation required about 2.1 GB of memory beyond what the PC was using before the simulation was run.
   
   - The simulation was also run in 30 MPI ranks on the same PC with [hyperthreading enabled](#multithread-mpi) by supplying  `--use-hwthread-cpus` to the `mpirun` command in `mx2.sh`.
     
@@ -1402,7 +1407,7 @@ Next we make a container with the local package **`dcfuncs`** installed inside i
 
 #### A container that can use MPI<a id="mpi-container"></a>
 
-- [Apptainer and MPI applications](https://apptainer.org/docs/user/latest/mpi.html) in the Apptainer docs explains in some detail how MPI works with Apptainer. Here we give some rather simpler examples showing how Python programs using `mpi4py` for MPI parallelism can be run with Apptainer.  Basically I have found that if Conda is used to install OpenMPI and MPI for Python (`mpi4py`) in the container, then it will be possible for Python run in multiple containers started by `mpirun` (from OpenMPI installed outside the containers) to use MPI via `mpi4py` calls.  This did not require setting any environment variables, unlike the examples in the Apptainer docs referenced above.
+- [Apptainer and MPI applications](https://apptainer.org/docs/user/latest/mpi.html) in the Apptainer docs explains in some detail how MPI works with Apptainer. Here we give some rather simpler examples showing how Python programs using **`mpi4py`** for MPI parallelism can be run with Apptainer.  I have found that if Conda is used to install OpenMPI and MPI for Python (`mpi4py`) in the container, then it is possible for Python run in multiple containers started by `mpirun` (from OpenMPI installed outside the containers) to use MPI via `mpi4py` calls.  This did not require setting any environment variables, unlike the examples in the Apptainer docs referenced above.
 
 - **Memory usage.** In the examples below the command
   
@@ -1410,9 +1415,9 @@ Next we make a container with the local package **`dcfuncs`** installed inside i
   $ mpirun -n <n> apptainer exec <container>.sif python <pyscricpt>.py...
   ```
   
-  is used to run `<n>` copies of the container image `<container>.sif`, each of which runs `python`.  As `.sif` files are one or more GB in size, it might be thought this would require a lot of memory when the number `<n>` of MPI ranks is large but this is found not be true, see [below](#dem21-container).  I believe this is because the file systems in Apptainer containers are read-only, which allows multiple containers on the same PC to share one copy of the container image.
+  is used to run `<n>` copies of the container image `<container>.sif`, each of which runs `python <pyscript>.py`.  As `.sif` files are one or more GB in size, it might be thought this would require a lot of memory when the number of MPI ranks`<n>` is large but this is found not be true, see [below](#dem21-container).  I believe this is because the Apptainer container images including their internal file systems are read-only, which allows multiple containers on the same PC to share one copy of the container image.
 
-- Make a definition file **`m4p.def`** with the following contents. The `%post` commands in this file are similar to those shown above to [install OpenMPI on a PC](#install-openmpi):
+- Make a definition file **`m4p.def`** with the following contents. The `%post` commands in this file are similar to those shown above to [install OpenMPI on a PC](#install-openmpi-pc):
   
   ```
   Bootstrap: docker
@@ -1485,7 +1490,7 @@ Next we make a container with the local package **`dcfuncs`** installed inside i
   
   Things to note in this example:
 
-- The command `mpirun - n 6 ...` is running six separate copies of the container on six cores of the PC.  This `mpirun` command is running outside the container. This is an example of the "Hybrid model" for running MPI described in the [Apptainer docs](https://apptainer.org/docs/user/latest/mpi.html).
+- The command `mpirun -n 6 ...` is running six separate copies of the container on six cores of the PC.  This `mpirun` command is running outside the container. This is an example of the "Hybrid model" for running MPI described in the [Apptainer docs](https://apptainer.org/docs/user/latest/mpi.html).
 
 - For reasons I don't understand, `osu_bw.py` reports inter-rank communication speeds about three times faster when run using Apptainer (up to 45 GB/s), than when run [directly by MPI without Apptainer](#mpi-testprogs). 
 
@@ -1539,7 +1544,7 @@ Here we use containerized code to duplicate the non-containerized tests shown in
   boxpct.py box.yaml ...
   ```
   
-  Then we set `pproc` so `boxpct.py` will run in MPI-parallel mode, and use `mpirun` to run 16 copies of `apptainer exec python` with `boxpct.py` as the argument (as always, `SIFS` has been set to the directory containing the container image `dem21.sif`): 
+  Then we set `pproc=mpi` so `boxpct.py` will run in MPI-parallel mode, and use `mpirun` to run 16 copies of `apptainer exec python` with `boxpct.py` as the argument (as usual, `SIFS` has been set to the directory containing the container image `dem21.sif`): 
   
   ```
   (ompi)...tests/box$ export pproc=mpi   # this tells boxpct.py to use MPI
@@ -1554,24 +1559,22 @@ Here we use containerized code to duplicate the non-containerized tests shown in
                                   ....
   ```
 
-- Finally, as in the section [A more resource-intensive run...](#mx2py) above, we use the container image `dem21.sif` with `mx2.py` to run a larger simulation.   The only change required in the shell file `mx2.sh` that runs the simulation is in the last line, which uses `mpirun` to run multiple copies of `apptainer exec dem21.sif python` rather than multiple copies of `python`:
+- Finally, as in the section [A more resource-intensive run...](#mx2py) above, we use the container image `dem21.sif` with `mx2.py` to run a larger simulation.   The only change required in the shell file `mx2.sh` in that section that runs the simulation is in the last line, which now uses `mpirun` to run multiple copies of `apptainer exec dem21.sif python` rather than multiple copies of `python`.  This modified shell file is called **`mx2-app.sh`**:
   
   ```
   #!/bin/bash
-  # cc-samples/mx2.sh 7/29/24 D.C.
-  # modified 4/1/25 to try out using containerized code
-  
+  # cc-expts/mx2-app.sh 4/6/25 D.C.
+  # Shell script to run granular-memory simulation program mx2.py containerized
+  # on a PC, as an example for "My cheat sheet for MPI, GPU, Apptainer, and HPC".
+  #
   # Runs mx2.py in grandparent directory in 'mpi' parallel-processing mode.
   # Reads default config file mx2.yaml in grandparent directory modified by
-  # mx2mod.yaml in current directory
+  # mx2mod.yaml in current directory.
   #
-  # To run on N cores 1st activate MPI environment then do
+  # To run on N cores 1st activate environment 'ompi' then do
   #
-  # ./mx2.sh N
+  # ./mx2-app.sh N
   #
-  # (must do 'chmod +x mx2.sh' to make executable)
-  #
-  # note SIFS must be set to directory containing dem21.sif
   export pproc=mpi
   mpirun -n $1 apptainer exec "$SIFS"/dem21.sif python ../../mx2.py mx2mod |& tee output
   ```
@@ -1580,10 +1583,10 @@ Here we use containerized code to duplicate the non-containerized tests shown in
   
   ```
   ...$ conda activate ompi
-  (ompi)...$ cd cc-expts..; ls
-  mx2mod.yaml  mx2.sh ...
-  (ompi)...cd-expts..$ sifs           # alias sets SIFS to directory with dem21.sif
-  (ompi)...cd-expts..$ ./mx2.sh 15    # run containerized code in 15 MPI ranks
+  (ompi)...$ cd cc-expts; ls
+  mx2mod.yaml  mx2-app.sh ...
+  (ompi)...cd-expts$ sifs           # alias sets SIFS to directory with dem21.sif
+  (ompi)...cd-expts$ ./mx2-app.sh 15    # run containerized code in 15 MPI ranks
   - Started MPI on master + 14 worker ranks.
   This is: mx2.py 7/29/24 D.C.
   Using dem21 version: v1.2 2/11/25
@@ -1594,7 +1597,7 @@ Here we use containerized code to duplicate the non-containerized tests shown in
   
   This simulation required 17,054s (3.701e-6s/step-grain), which was 7% slower than the [identical simulation done without Apptainer](#mx2py).  Internal timing reported by `mx2.py` suggested that only 0.9% additional time was used for inter-process communication when Apptainer was used, so it is not clear if the 7% slowdown is actually due to containerization.
   
-  Running the simulation in this containerized mode required 2.2 GB of memory (beyond that used before the simulation was started).  This was only slightly more than the memory required to run the simulation without Apptainer, 2.1 GB.
+  Running the simulation in this containerized mode required 2.2 GB of memory, beyond that used before the simulation was started.  This was only slightly more than the memory required to run the simulation without Apptainer, 2.1 GB. This demonstrates clearly that running 16 copies of the 1.3 GB container image `dem21.sif` does not require 16 times as much memory, due I think to the read-only property of container images.
 
 #### A container that can use a GPU<a id="gpu-container"></a>
 
