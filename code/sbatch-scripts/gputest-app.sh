@@ -1,5 +1,5 @@
 #!/bin/bash
-# app-gputest.sh 3/2/25 D.C.
+# gputest-app.sh 4/6/25 D.C.
 # One-task sbatch script uses an Apptainer container gpu.sif
 # that has CuPy to run gputest.py, which will use a GPU.
 # Must set SIFS to directory containing gpu.sif before running this

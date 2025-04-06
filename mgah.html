@@ -2678,7 +2678,11 @@ $ apt list &lt;package&gt; --installed  # list installed packages with this name
 <li><strong><code>gputest.py</code></strong> makes dense and sparse matrices of various sizes and floating-point types, and times operations using these matrices on the CPU and (if available) the GPU. If run in an environment without CuPy like <strong><code>p39</code></strong>, only CPU tests will be run. But if run in <strong><code>gpu</code></strong> and a GPU can be initialized, will also run GPU tests.</li>
 <li><strong><code>np-version.py</code></strong> is a very short program that imports NumPy and prints out its version.</li>
 <li><strong><code>dcfuncs</code></strong> is small package of utility functions, used in this document as an example of a Python package <a href="#local-package">installed locally</a>.  It is available from the public GitHub repo <a href="https://github.com/doncandela/dcfuncs">doncandela/dcfuncs</a>, which also includes the test programs <strong><code>test_util.py</code></strong>, etc, mentioned in this document.</li>
-<li><strong><code>dem21</code></strong> is a complex package for doing DEM simulations of granular media using MPI parallelism. It is stored  in the currently private GitHub repo <a href="https://github.com/doncandela/dem21">doncandela/dem21</a>.  It is used in this document as a test and example of how a large, complex MPI code can be run.  The <code>dem21</code> repo includes the test program <code>boxpct.py</code> mentioned in this document. Also mentioned is a much more complex simulation program called <code>mx2.py</code>.  While these codes are not available publicly, the examples here may be generally useful to show how an MPI program using many parallel ranks can be run on a PC or an HPC cluster, in both cases either non-containerized or containerized using Apptainer.</li>
+<li><strong><code>dem21</code></strong> is a complex package for doing DEM simulations of granular media using MPI parallelism. It is stored  in the currently private GitHub repo <a href="https://github.com/doncandela/dem21">doncandela/dem21</a>.  It is used in this document as a test and example of how a large, complex MPI code can be run.  The <code>dem21</code> repo includes the test program <code>boxpct.py</code> mentioned in this document. Also mentioned is a much more complex granular-memory simulation program called <code>mx2.py</code>.  While these codes are not available publicly, the examples here may be generally useful to show how an MPI program using many parallel ranks can be run on a PC or an HPC cluster, in both cases either non-containerized or containerized using Apptainer. The following shell scripts are used to run <code>mx2.py</code> on a PC, which requires various additional files not detailed in this document:<ul>
+<li><strong><code>mx2.sh</code></strong> runs <code>mx2.py</code> without Apptainer.</li>
+<li><strong><code>mx2.sh</code></strong> runs <code>mx2.py</code> using the Apptainer container built by <strong><code>dem21.def</code></strong>.</li>
+</ul>
+</li>
 </ul>
 </li>
 <li><p>The following Apptainer definition files are used. They are all discussed in <a href="#apptainer-pc">Using Apptainer on a Linux PC</a> below.  They have been all been used to build container images (<code>.sif</code> files) on PCs, which can then be run successfully both on the PCs and on Unity.</p>
@@ -2704,10 +2708,14 @@ $ apt list &lt;package&gt; --installed  # list installed packages with this name
 <li><strong><code>threadcount_mpi.sh</code></strong> and <strong><code>threadcount_mpi2.sh</code></strong> (both also defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) run <code>threadcount_mpi.py</code> to demonstrate the use NumPy multithreading along with MPI parallelism.</li>
 <li><strong><code>boxpct_mpi.sh</code></strong> (also defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) runs <code>boxpct.py</code> (which uses the <code>dem21</code> package) in MPI-parallel mode.</li>
 <li><strong><code>gputest.sh</code></strong> (defined in <a href="#unity-gpu">Using a GPU on Unity (without Apptainer)</a>) runs <code>gputest.py</code> which uses a GPU.</li>
-<li><strong><code>app-simple.sh</code></strong> (defined in <a href="#unity-run-container">Running a container interactively or in batch job</a>) uses an Apptainer container to run <code>gputest.py</code> without a GPU.</li>
-<li><strong><code>app-osubw.sh</code></strong> (defined in <a href="#unity-mpi-container">Running a container the uses MPI</a>) uses an Apptainer container to run the MPI bandwidth-test program <code>osu_bw.py</code> in two MPI ranks.</li>
-<li><strong><code>app-boxpct.sh</code></strong> (also defined in <a href="#unity-mpi-container">Running a container the uses MPI</a>) uses an Apptainer container to run the test program <code>boxpct.py</code> which uses the <code>dem21</code> package in n MPI ranks.</li>
-<li><strong><code>app-gputest.sh</code></strong> (defined in <a href="#unity-gpu-container">Running a container the uses a GPU</a>) uses an Apptainer container to run <code>gputest.py</code>  which uses a GPU.</li>
+<li><strong><code>simple-app.sh</code></strong> (defined in <a href="#unity-run-container">Running a container interactively or in batch job</a>) uses an Apptainer container to run <code>gputest.py</code> without a GPU.</li>
+<li><strong><code>boxpct-app.sh</code></strong> (also defined in <a href="#unity-mpi-container">Running a container the uses MPI</a>) uses an Apptainer container to run the test program <code>boxpct.py</code> which uses the <code>dem21</code> package in n MPI ranks.</li>
+<li>The following sbatch scripts run the granular-memory simulation program <code>mx2.py</code>, which requires various additional files not detailed in this document:<ul>
+<li><strong><code>mx2-unity.sh</code></strong> runs <code>mx2.py</code> on Unity without Apptainer.</li>
+<li><strong><code>mx2-unity-app.sh</code></strong> runs <code>mx2.py</code> on Unity using the Apptainer container built by <strong><code>dem21.def</code></strong>.</li>
+</ul>
+</li>
+<li><strong><code>gputest-app.sh</code></strong> (defined in <a href="#unity-gpu-container">Running a container the uses a GPU</a>) uses an Apptainer container to run <code>gputest.py</code>  which uses a GPU.</li>
 </ul>
 </li>
 </ul>
@@ -3972,7 +3980,7 @@ SIM 1/1:
 Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
                                 ....</code></pre>
 </li>
-<li><p>Finally, as in the section <a href="#mx2py">A more resource-intensive run...</a> above, we use the container image <code>dem21.sif</code> with <code>mx2.py</code> to run a larger simulation.   The only change required in the shell file <code>mx2.sh</code> in that section that runs the simulation is in the last line, which uses <code>mpirun</code> to run multiple copies of <code>apptainer exec dem21.sif python</code> rather than multiple copies of <code>python</code>.  This modified shell file is called <strong><code>mx2-app.sh</code></strong>:</p>
+<li><p>Finally, as in the section <a href="#mx2py">A more resource-intensive run...</a> above, we use the container image <code>dem21.sif</code> with <code>mx2.py</code> to run a larger simulation.   The only change required in the shell file <code>mx2.sh</code> in that section that runs the simulation is in the last line, which now uses <code>mpirun</code> to run multiple copies of <code>apptainer exec dem21.sif python</code> rather than multiple copies of <code>python</code>.  This modified shell file is called <strong><code>mx2-app.sh</code></strong>:</p>
 <pre><code class="fenced-code-block">#!/bin/bash
 # cc-expts/mx2-app.sh 4/6/25 D.C.
 # Shell script to run granular-memory simulation program mx2.py containerized
@@ -5237,9 +5245,9 @@ Using: util.py 8/18/24 D.C.
   ...</code></pre>
 <p>It is interesting to see what outside files can be accessed from inside a container  -- this depends on how the system admins have set things up.  Poking around a container on Unity after doing <code>apptainer shell..</code> from a directory under <code>/work</code> , it seemed that from inside the container I could access all files under <code>/work</code> , but under <code>/home</code> I could only see the files under my own subdirectory of <code>/home</code> (as of 3/25).</p>
 </li>
-<li><p><strong>Running a  (non-MPI, non-GPU) container with a batch job.</strong><a id="app-sbatch"></a> For this purpose we have copied the python script <code>gputest.py</code> to  a Unity directory <code>/work/.../try-gputest</code> (this was also done in earlier sections showing how to run batch jobs without Apptainer). For now we will run <code>gputest.py</code> from a container that that does not contain CuPy, which will cause it not to use a GPU.  The container <strong><code>dfs.sif</code></strong> used just above would work, but here we use the even simpler container <strong><code>pack.sif</code></strong> defined in <a href="#packages-container">A container including chosen Python packages</a> .  An sbatch script <strong><code>app-simple.sh</code></strong> with the following contents is put in the directory <code>try-gputest</code>:</p>
+<li><p><strong>Running a  (non-MPI, non-GPU) container with a batch job.</strong><a id="app-sbatch"></a> For this purpose we have copied the python script <code>gputest.py</code> to  a Unity directory <code>/work/.../try-gputest</code> (this was also done in earlier sections showing how to run batch jobs without Apptainer). For now we will run <code>gputest.py</code> from a container that that does not contain CuPy, which will cause it not to use a GPU.  The container <strong><code>dfs.sif</code></strong> used just above would work, but here we use the even simpler container <strong><code>pack.sif</code></strong> defined in <a href="#packages-container">A container including chosen Python packages</a> .  An sbatch script <strong><code>simple-app.sh</code></strong> with the following contents is put in the directory <code>try-gputest</code>:</p>
 <pre><code class="fenced-code-block">#!/bin/bash
-# app-simple.sh 3/1/25 D.C.
+# simple-app.sh 4/6/25 D.C.
 # One-task sbatch script uses an Apptainer container pack.sif
 # that doesn't have CuPy or OpenMPI to run gputest.py (which detects
 # CuPy is not present and so doesn't use a GPU).
@@ -5255,8 +5263,8 @@ apptainer exec $SIFS/pack.sif python gputest.py</code></pre>
 <p>We can run the job from a login node, and there is no need to load any modules or set an environment as these are taken care of by the sbatch script above. Examining the output file,  it can be seen that <code>gputest.py</code> was unable to import <code>cupy</code> and so did not try to use a GPU:</p>
 <pre><code class="fenced-code-block">try-tprogs$ sifs          # sets SIFS to directory containing pack.sif 
 try-tprogs$ ls
-app-simple.sh  gputest.py
-try-tprogs$ sbatch app-simple.sh
+simple-app.sh  gputest.py
+try-tprogs$ sbatch simple-app.sh
 Submitted batch job 29310376
 (wait until 'squeue --me' shows that job has completed)
 try-gputest$ cat slurm-29310376.out
@@ -5398,17 +5406,35 @@ osu_bw.py  ...
 <ul>
 <li><p>As <a href="#images-to-unity">described earlier</a> the container <strong><code>dem21.sif</code></strong> built on a PC as in <a href="#dem21-container">A container to run the more elaborate...</a>  was copied to a Unity directory under <code>/work/pi..</code> and the alias <code>sifs</code> was set up to set the environment variable <code>SIFS</code> to point to this directory.</p>
 </li>
-<li><p>As was done earlier for a <a href="#sbatch-dem21">non-containerized run on Unity</a>,  <code>boxpct.py</code>  is copied to a directory <code>try-dem21</code>. Now we also put in this directory an sbatch script <strong><code>app-boxpct.sh</code></strong> with these contents:</p>
+<li><p>As was done earlier for a <a href="#sbatch-dem21">non-containerized run on Unity</a>,  <code>boxpct.py</code>  is copied to a directory <code>try-dem21</code>. Now we also put in this directory an sbatch script <strong><code>boxpct-app.sh</code></strong> with these contents:</p>
 </li>
 </ul>
-<pre><code class="fenced-code-block">x</code></pre>
+<pre><code class="fenced-code-block">#!/bin/bash
+# boxpct-app.sh 4/6/25 D.C.
+# n-task sbatch script uses an Apptainer container dem21.sif that
+# has OpenMPI and the dem21 package to run boxpct.py, which is a
+# test program for the dem21 simulation package.
+# Must set SIFS to directory containing dem21.sif before running this
+# script in a directory containing boxpct.py
+#SBATCH -n 4                       # allocate for n MPI ranks
+#SBATCH -p cpu                     # submit to partition cpu
+#SBATCH -C ib                      # require inifiniband connectivity
+echo nodelist=$SLURM_JOB_NODELIST  # print list of nodes used
+module purge                       # unload all modules
+module load apptainer/latest
+module load conda/latest
+conda activate ompi5
+# mpirun will run container dem21.sif in n ranks; in each rank
+# python in constainer will run boxpct.py in CWD.
+mpirun --display bindings \
+    apptainer exec $SIFS/dem21.sif python boxpct.py</code></pre>
 <p>  note</p>
 <ul>
 <li><p>We run the script (from a login shell, if desired) and look at the output:</p>
 <pre><code class="fenced-code-block">$ cd try-dem21; ls
-app-dem21.sh boxpct.py ...
+boxpct-app.sh boxpct.py ...
 try-dem21$ sifs                    # set SIFS
-try-dem2$ sbatch app-boxpct.sh
+try-dem2$ sbatch boxpct-app.sh
 Submitted batch job 29323951
 (wait until 'squeue --me' shows that job has completed)
 try-dem21$ cat slurm-29323951.out</code></pre>
@@ -5486,9 +5512,9 @@ Multiply M*M=N element dense matrices
 <li>We need the <code>–-nv</code> flag on apptainer exec.</li>
 </ul>
 </li>
-<li><p>Here is an sbatch script <strong><code>app-gputest.sh</code></strong> that incorporates these changes, which we put in the same directory <code>try-gputest</code> as <code>gputest.py</code>:</p>
+<li><p>Here is an sbatch script <strong><code>gputest-app.sh</code></strong> that incorporates these changes, which we put in the same directory <code>try-gputest</code> as <code>gputest.py</code>:</p>
 <pre><code class="fenced-code-block">#!/bin/bash
-# app-gputest.sh 3/2/25 D.C.
+# gputest-app.sh 4/6/25 D.C.
 # One-task sbatch script uses an Apptainer container gpu.sif
 # that has CuPy to run gputest.py, which will use a GPU.
 # Must set SIFS to directory containing gpu.sif before running this
@@ -5505,9 +5531,9 @@ module load cuda/12.6              # need CUDA to use a GPU
 apptainer exec --nv $SIFS/gpu.sif python gputest.py</code></pre>
 <p>As usual for <code>sbatch</code> jobs, we can run the job from a login node if desired:</p>
 <pre><code class="fenced-code-block">$ cd try-gputest; ls
-app-gputest.sh gputest.py ...
+gputest-app.sh gputest.py ...
 try-gputest$ sifs                    # set SIFS
-try-gputest$ sbatch app-gputest.sh
+try-gputest$ sbatch gputest-app.sh
 Submitted batch job 29323951
 (wait until 'squeue --me' shows that job has completed)
 try-gputest$ cat slurm-29323951.out

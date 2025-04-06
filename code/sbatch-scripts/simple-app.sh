@@ -1,5 +1,5 @@
 #!/bin/bash
-# app-simple.sh 3/1/25 D.C.
+# simple-app.sh 4/6/25 D.C.
 # One-task sbatch script uses an Apptainer container pack.sif
 # that doesn't have CuPy or OpenMPI to run gputest.py (which detects
 # CuPy is not present and so doesn't use a GPU).

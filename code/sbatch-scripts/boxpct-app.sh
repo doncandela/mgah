@@ -1,5 +1,5 @@
 #!/bin/bash
-# app-boxpct.sh 3/2/25 D.C.
+# boxpct-app.sh 4/6/25 D.C.
 # n-task sbatch script uses an Apptainer container dem21.sif that
 # has OpenMPI and the dem21 package to run boxpct.py, which is a
 # test program for the dem21 simulation package.
