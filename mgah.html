@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   4/6/25</p>
+<p>mgah.md  D. Candela   4/7/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -2671,6 +2671,8 @@ $ apt list &lt;package&gt; --installed  # list installed packages with this name
 </li>
 <li><p>The following test code is used:</p>
 <ul>
+<li><strong><code>mpi_hw.py</code></strong> is an MPI "Hello world" program that verifies that a functional MPI system is installed that can run multiple copies of a Python program in parallel.</li>
+<li><strong><code>osu_bw.py</code></strong> measures the communication speed between two MPI ranks.</li>
 <li><strong><code>count.py</code></strong> times how fast a Python program can count.</li>
 <li><strong><code>count_mpi.py</code></strong> times the counting speeds of multiple Python processes running simultaneously using MPI.</li>
 <li><strong><code>threadcount.py</code></strong> uses timing to estimate the number of threads in use while NumPy is multiplying matrices.</li>
@@ -5100,20 +5102,21 @@ export pproc=mpi                     # tells dem21 to run in MPI-parallel mode
 mpirun --display bindings python ../../mx2.py mx2mod</code></pre>
 </li>
 <li><p>We submit the job from this directory  (<code>mx2.py</code> has been written to be run from the directory where its output should go -- this may not be true for other programs):</p>
-<pre><code class="fenced-code-block">x
-$ cd ..cc-expts-unity; ls
+<pre><code class="fenced-code-block">$ cd ..cc-expts-unity; ls
 bw6-sigs.yaml  bw6.svg  mx2mod.yaml  mx2-unity.sh signals.sh
 ..cc-expts-unity$ sbatch mx2-unity.sh
+Submitted batch job 31446485
+(wait until 'squeue --me' shows that job has completed)
+..cc-expts-unity$ cat slurm-31446485.out
 x</code></pre>
 </li>
 </ul>
 </li>
+<li><p>WORKING HERE</p>
+<p> <strong>WORKING HERE</strong></p>
+<p>OLD BELOW Eamon Dwight has run much bigger simulations using the <code>dem21</code> package on Unity.  Here are some lines from a typical sbatch script he uses.  These were for simulations that ran well on 109 MPI ranks (due to the structure of <code>dem21</code>, which split the simulation domain into 216 boxes then allocated one MPI rank per two boxes plus one MPI rank for the control program).</p>
+</li>
 </ul>
-<ul>
-<li>WORKING HERE</li>
-</ul>
-<p>   <strong>WORKING HERE</strong></p>
-<p>  OLD BELOW Eamon Dwight has run much bigger simulations using the <code>dem21</code> package on Unity.  Here are some lines from a typical sbatch script he uses.  These were for simulations that ran well on 109 MPI ranks (due to the structure of <code>dem21</code>, which split the simulation domain into 216 boxes then allocated one MPI rank per two boxes plus one MPI rank for the control program).</p>
 <pre><code class="fenced-code-block">#SBATCH -q long                     # required for jobs running more than 2 days
 #SBATCH -N 1                        # run on a single node
 #SBATCH --nodelistcp=cpu[049-068]     # limit to nodes with 128 cores

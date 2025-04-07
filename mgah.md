@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   4/6/25
+mgah.md  D. Candela   4/7/25
 
 - [Introduction](#intro)  
   
@@ -303,6 +303,8 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
 
 - The following test code is used:
   
+  - **`mpi_hw.py`** is an MPI "Hello world" program that verifies that a functional MPI system is installed that can run multiple copies of a Python program in parallel.
+  - **`osu_bw.py`** measures the communication speed between two MPI ranks.
   - **`count.py`** times how fast a Python program can count.
   - **`count_mpi.py`** times the counting speeds of multiple Python processes running simultaneously using MPI.
   - **`threadcount.py`** uses timing to estimate the number of threads in use while NumPy is multiplying matrices.
@@ -2831,18 +2833,16 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
   - We submit the job from this directory  (`mx2.py` has been written to be run from the directory where its output should go -- this may not be true for other programs):
     
     ```
-    x
     $ cd ..cc-expts-unity; ls
     bw6-sigs.yaml  bw6.svg  mx2mod.yaml  mx2-unity.sh signals.sh
     ..cc-expts-unity$ sbatch mx2-unity.sh
+    Submitted batch job 31446485
+    (wait until 'squeue --me' shows that job has completed)
+    ..cc-expts-unity$ cat slurm-31446485.out
     x
     ```
-    
-    
-  
-  - WORKING HERE
-  
-  
+
+- WORKING HERE
   
    **WORKING HERE**
   
