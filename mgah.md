@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   4/7/25
+mgah.md  D. Candela   4/8/25
 
 - [Introduction](#intro)  
   
@@ -332,7 +332,7 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
 
 - The following sbatch scripts are defined for use with Slurm on the Unity cluster:
   
-  - **`simple.sh`** (defined in [Example of a simple batch job](#simple-batch)) runs job that uses none of MPI, a GPU, or Apptainer.
+  - **`simple.sh`** (defined in [Example of a simple batch job](#simple-batch)) runs job that uses none of MPI, a GPU, or Apptainer.  **`simple2.sh`** has an additional command to print the sbatch script into the output file.
   - **`osu_bw.sh`** (defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) runs the MPI messaging-bandwidth test program `osu_bw.py`.
   - **`threadcount_mpi.sh`** and **`threadcount_mpi2.sh`** (both also defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) run `threadcount_mpi.py` to demonstrate the use NumPy multithreading along with MPI parallelism.
   - **`boxpct_mpi.sh`** (also defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) runs `boxpct.py` (which uses the `dem21` package) in MPI-parallel mode.
@@ -1893,6 +1893,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   $ squeue --me                    # show info on my jobs
   $ sacct -j <jobid>               # show more detailed info on a specific job
   $ scancel <jobid>                # kill one of my jobs.
+  $ sacct -b                       # show brief info on recent jobs
   $ seff <jobid>                   # show utilization efficiency of a completed job
   $ sinfo -p cpu -r -l             # show status of nodes in partition cpu
   $ scontrol show partition cpu    # detailed info on partition cpu
@@ -2140,7 +2141,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
 - Here are some #SBATCH settings useful for both single-task (non-MPI) and multi-task (MPI) jobs.  Note many command have two equivalent forms: a single-dash+single-letter form that does not need an equals sign, and a double-dash+multi-letter form that takes an equal sign before any supplied value.
   
   ```
-  #SBATCH -J <name>           # set a name for job, otherwise will be script filename
+  SBATCH -J <name>           # set a name for job, otherwise will be script filename
   #SBATCH --job-name=<name>   # “ “
   
   #SBATCH -o <ofname>         # set filename for output, otherwise will be slurm-<jobid>.out
@@ -2196,8 +2197,6 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   #SBATCH -C ib             # only use nodes with InfiniBand networking
   #SBATCH --gpus-per-task=1 # allocate one GPU per task
   #SBATCH --nodelist=cpu[049-068] # run on specific nodes
-  
-  # When using the following probably should be using constraints or nodelist:
   #SBATCH -N 10             # run the job on 10 nodes
   #SBATCH --nodes=10        # “ “
   #SBATCH --exclusive       # use entire nodes (don’t share nodes with other jobs)
@@ -2206,7 +2205,15 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   #SBATCH --mem=0           # allocate all available memory on nodes used
   ```
   
-  The nodes on Unity are very heterogeneous, with between 12 and 192 cores per node, so I don’t think it makes sense to use `-N`,`--nodes` or` --exclusive` unless `--nodelist` or constraints are used to match the type of nodes used to the size of the job (tasks or cores used).  Similarly `--mem` sets the memory per node and I’m not sure what this means unless the number of nodes is specified.
+  The nodes on Unity are very heterogeneous, with between 12 and 192 cores per node, and there are various ways jobs can be constrained to run on nodes well-matched to the job:
+  
+  - The combination of `-n` (cores, typically) and `-N` (nodes) settings can be used to limit the job to high core-count nodes.  For example `-n 64` along with `-N 1`, or `-n 128` along with `-N 2`, will limit the job to nodes with at least 64 cores per node.
+  
+  - Setting `--exclusive` and `-n` without setting `-N` will also most likely result in nodes with certain minimum core counts.  For example `-n 128` with `--exclusive` will most likely run on two 64-core nodes, or one 128-core node.
+  
+  - `--nodelist` can limit the job to a specific set of nodes.
+  
+  - `-C` can limit the job to nodes having specific features. 
 
 - **Example of a  simple batch job**<a id="simple-batch"></a> not using MPI, or a GPU, or Apptainer.
   
@@ -2295,6 +2302,53 @@ Finally, the computational resources of an HPC cluster are only useful if availa
     Multiply M*M=N element dense matrices
                                 ...
     ```
+
+- **Including the sbatch script in the `slurm-<jobid>.out` file**<a id="keep-sbatch"></a>.
+  
+  - Sometimes it is useful to keep a record of the sbatch in the output file (called `slurm-<jobid>.out` by default). For example, if several jobs are run by making small changes to the batch file, it can be useful to keep a record in each output file of the precise batch file used to produce that output. This can be done by including the command `scontrol write batch_script $SLURM_JOB_ID -` in the sbatch file.  This sbatch script **`simple2.sh`** includes this feature:
+    
+    ```
+    #!/bin/bash
+    # simple2.sh 4/8/25 D.C.
+    # One-task sbatch script using none of MPI, a GPU, or Apptainer.
+    # This version writes the batch script to the ouput file.
+    #SBATCH -c 6                         # use 6 CPU cores
+    #SBATCH -p cpu                       # submit to partition cpu
+    echo nodelist=$SLURM_JOB_NODELIST    # print list of nodes used
+    echo; scontrol write batch_script $SLURM_JOB_ID -; echo
+    module purge                         # unload all modules
+    module load conda/latest             # need this to use conda commands
+    conda activate npsp                  # environment with NumPy and SciPy but not CuPy
+    python gputest.py                    # run gputest.py, output will be in slurm-<jobid>.out
+    ```
+  
+  - Here is the start of the `slurm-<jobid>.out` file produced by running `sbatch simple2.sh`:
+    
+    ```
+    nodelist=cpu023
+    
+    #!/bin/bash
+    # simple2.sh 4/8/25 D.C.
+    # One-task sbatch script using none of MPI, a GPU, or Apptainer.
+    # This version writes the batch script to the ouput file.
+    #SBATCH -c 6                         # use 6 CPU cores
+    #SBATCH -p cpu                       # submit to partition cpu
+    echo nodelist=$SLURM_JOB_NODELIST    # print list of nodes used
+    echo; scontrol write batch_script $SLURM_JOB_ID -; echo
+    module purge                         # unload all modules
+    module load conda/latest             # need this to use conda commands
+    conda activate npsp                  # environment with NumPy and SciPy but not CuPy
+    python gputest.py                    # run gputest.py, output will be in slurm-<jobid>.out
+    
+    Loading conda
+    Running: gputest.py 11/22/23 D.C.
+    Local time: Tue Apr  8 22:10:44 2025
+    Import cupy failed, using CPU only
+    CPU timings use last 10 of 11 trials
+                        . . . 
+    ```
+    
+    
 
 ### Using MPI on Unity (without Apptainer)<a id="unity-mpi"></a>
 
@@ -2800,7 +2854,7 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
 
 - **A larger `dem21` sim using `mx2.py`.**  To try out a more time-consuming simulation using an sbatch job on Unity, we follow the steps shown for a PC in [A more intensive run with `mx2.py`](#mx2py) above. 
   
-  - in the directory `cc-expts-unity` containing the other needed files (not explained here) we make an sbatch script **`mx2-unity.sh`** as follows:
+  - In the directory `cc-expts-unity` containing the other needed files (not explained here) we make an sbatch script **`mx2-unity.sh`** as follows.  Since this file will be modified slightly to test various ways of running on Unity, this script [includes an `scontrol` command](#keep-sbatch) to print the sbatch script used in the `slurm-<jobid>.out` file: **WORKING HERE**
     
     ```
     #!/bin/bash
@@ -2815,8 +2869,9 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
     
     #SBATCH -n 16                        # run 16 MPI ranks (cores here)
     #SBATCH -N 1                         # use one node
-    #SBATCH --mem=100G                   # allocate 100G of memory per node
     ##SBATCH --exclusive                  # don't share nodes with other jobs
+    ##SBATCH --nodelist=cpu[049-068]      # limit to a certain set of nodes
+    #SBATCH --mem=100G                   # allocate 100G of memory per node
     ##SBATCH --mem=0                      # allocate all available memory on nodes used
     #SBATCH -t 120                       # time limit 2 hrs (default is 1 hr)
     #SBATCH -p cpu                       # submit to partition cpu
@@ -2833,14 +2888,78 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
   - We submit the job from this directory  (`mx2.py` has been written to be run from the directory where its output should go -- this may not be true for other programs):
     
     ```
+    (start the jobss)
     $ cd ..cc-expts-unity; ls
     bw6-sigs.yaml  bw6.svg  mx2mod.yaml  mx2-unity.sh signals.sh
     ..cc-expts-unity$ sbatch mx2-unity.sh
     Submitted batch job 31446485
-    (wait until 'squeue --me' shows that job has completed)
+    (use 'squeue --me' to see when job starts, time running, if done)
+    ..cc-expts-unity$ cat slurm-31446485.out  # can do while running to see output so far
+    (for long jobs no need to stay logged in to Unity while they run)
+    
+    (see when job is done, check efficiency)
+    $ sacct -b        # show brief summary of recent jobs
+    $ seff 31446485   # check cores, memory, time used by completed job
+    ob ID: 31446485
+    Cluster: unity
+    User/Group: candela_umass_edu/candela_umass_edu
+    State: COMPLETED (exit code 0)
+    Nodes: 1
+    Cores per node: 15
+    CPU Utilized: 3-10:37:41
+    CPU Efficiency: 99.95% of 3-10:40:00 core-walltime
+    Job Wall-clock time: 05:30:40
+    Memory Utilized: 3.34 GB
+    Memory Efficiency: 3.34% of 100.00 GB
+    
+    (look at job output)
+    cd ..cc-expts-unity        # cd to where job was run from...
     ..cc-expts-unity$ cat slurm-31446485.out
-    x
+    nodelist=cpu054
+    Loading conda
+    [cpu054:261073] Rank 0 bound to package[0][core:0]
+    [cpu054:261073] Rank 1 bound to package[0][core:1]
+    [cpu054:261073] Rank 2 bound to package[0][core:6]
+    [cpu054:261073] Rank 3 bound to package[0][core:7]
+    [cpu054:261073] Rank 4 bound to package[0][core:8]
+    [cpu054:261073] Rank 5 bound to package[0][core:9]
+    [cpu054:261073] Rank 6 bound to package[0][core:10]
+    [cpu054:261073] Rank 7 bound to package[0][core:11]
+    [cpu054:261073] Rank 8 bound to package[1][core:73]
+    [cpu054:261073] Rank 9 bound to package[1][core:75]
+    [cpu054:261073] Rank 10 bound to package[1][core:76]
+    [cpu054:261073] Rank 11 bound to package[1][core:77]
+    [cpu054:261073] Rank 12 bound to package[1][core:78]
+    [cpu054:261073] Rank 13 bound to package[1][core:79]
+    [cpu054:261073] Rank 14 bound to package[1][core:80]
+    - Started MPI on master + 14 worker ranks.
+    
+    This is: mx2.py 7/29/24 D.C.
+    Using dem21 version: v1.2 2/11/25
+    Imput signals made by: memsigs.py 8/23/24 D.C.
+    Parallel processing mode: MPI, GHOST_ARRAY=True
+    - Read 1 config(s) from /work/pi_../cc-expts-unity/../../mx2.yaml << mx2mod.yaml
+    - Read 1 config(s) from bw6-sigs.yaml
+    
+    **** SIM 1/1   forces n='hertz' t='coulh' mu=1.0 signal binwords-43 (sig 0 in 'bw6')
     ```
+  
+  Some stats from running in various ways:
+  
+  | system               | candela-21        | Unity             | Unity             | Unity | Unity |
+  | -------------------- | ----------------- | ----------------- | ----------------- | ----- | ----- |
+  | cores                | 15                | 15                | 64                | 128   | 256   |
+  | nodes                | -                 | 1                 | 1                 | 1     | 2     |
+  | exclusive            | -                 | no                | yes               | yes   | yes   |
+  | max boxes/crate      | 16                | 16                | 4                 | 2     | 1     |
+  | cpus used            | -                 | cpu054            | umd-cscdr-045     |       |       |
+  | inter-rank comm time |                   | 3.3%              | 9.8%              |       |       |
+  | memory used          | 2.1 GB            | 3.3 GB            | 10.8 GB           |       |       |
+  | sim wall time        | 266 min = 4.43 hr | 331 min = 5.51 hr | 119 min = 1.99 hr |       |       |
+  | time/(step-grain)    | 3.46e-6 s         | 4.30e-6 s         | 1.56e-6 s         |       |       |
+  | speed/candela-21     | 1.00              | 0.80              | 2.24              |       |       |
+  
+  note
 
 - WORKING HERE
   
