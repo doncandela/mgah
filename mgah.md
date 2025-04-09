@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   4/8/25
+mgah.md  D. Candela   4/9/25
 
 - [Introduction](#intro)  
   
@@ -2305,17 +2305,17 @@ Finally, the computational resources of an HPC cluster are only useful if availa
 
 - **Including the sbatch script in the `slurm-<jobid>.out` file**<a id="keep-sbatch"></a>.
   
-  - Sometimes it is useful to keep a record of the sbatch in the output file (called `slurm-<jobid>.out` by default). For example, if several jobs are run by making small changes to the batch file, it can be useful to keep a record in each output file of the precise batch file used to produce that output. This can be done by including the command `scontrol write batch_script $SLURM_JOB_ID -` in the sbatch file.  This sbatch script **`simple2.sh`** includes this feature:
+  - Sometimes it is useful to keep a record of the sbatch script in the output file (called `slurm-<jobid>.out` by default). For example, if several jobs are run by making small changes to the sbatch script, your may want to keep a record in each output file of the precise sbatch script used to produce that output. This can be done by including the command `scontrol write batch_script $SLURM_JOB_ID -` in the sbatch file.  This sbatch script **`simple2.sh`** includes this feature:
     
     ```
     #!/bin/bash
-    # simple2.sh 4/8/25 D.C.
+    # # simple2.sh 4/9/25 D.C.
     # One-task sbatch script using none of MPI, a GPU, or Apptainer.
     # This version writes the batch script to the ouput file.
     #SBATCH -c 6                         # use 6 CPU cores
     #SBATCH -p cpu                       # submit to partition cpu
+    scontrol write batch_script $SLURM_JOB_ID -;echo # print this script to output
     echo nodelist=$SLURM_JOB_NODELIST    # print list of nodes used
-    echo; scontrol write batch_script $SLURM_JOB_ID -; echo
     module purge                         # unload all modules
     module load conda/latest             # need this to use conda commands
     conda activate npsp                  # environment with NumPy and SciPy but not CuPy
@@ -2325,21 +2325,20 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   - Here is the start of the `slurm-<jobid>.out` file produced by running `sbatch simple2.sh`:
     
     ```
-    nodelist=cpu023
-    
     #!/bin/bash
     # simple2.sh 4/8/25 D.C.
     # One-task sbatch script using none of MPI, a GPU, or Apptainer.
     # This version writes the batch script to the ouput file.
     #SBATCH -c 6                         # use 6 CPU cores
     #SBATCH -p cpu                       # submit to partition cpu
+    scontrol write batch_script $SLURM_JOB_ID -;echo # print this script to output
     echo nodelist=$SLURM_JOB_NODELIST    # print list of nodes used
-    echo; scontrol write batch_script $SLURM_JOB_ID -; echo
     module purge                         # unload all modules
     module load conda/latest             # need this to use conda commands
     conda activate npsp                  # environment with NumPy and SciPy but not CuPy
     python gputest.py                    # run gputest.py, output will be in slurm-<jobid>.out
     
+    nodelist=cpu023
     Loading conda
     Running: gputest.py 11/22/23 D.C.
     Local time: Tue Apr  8 22:10:44 2025
@@ -2347,8 +2346,6 @@ Finally, the computational resources of an HPC cluster are only useful if availa
     CPU timings use last 10 of 11 trials
                         . . . 
     ```
-    
-    
 
 ### Using MPI on Unity (without Apptainer)<a id="unity-mpi"></a>
 
@@ -2854,29 +2851,27 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
 
 - **A larger `dem21` sim using `mx2.py`.**  To try out a more time-consuming simulation using an sbatch job on Unity, we follow the steps shown for a PC in [A more intensive run with `mx2.py`](#mx2py) above. 
   
-  - In the directory `cc-expts-unity` containing the other needed files (not explained here) we make an sbatch script **`mx2-unity.sh`** as follows.  Since this file will be modified slightly to test various ways of running on Unity, this script [includes an `scontrol` command](#keep-sbatch) to print the sbatch script used in the `slurm-<jobid>.out` file: **WORKING HERE**
+  - In the directory `cc-expts-unity` containing the other needed files (not explained here) we make an sbatch script **`mx2-unity.sh`** as follows.  Since this file will be modified slightly to test various ways of running on Unity, this script [includes an `scontrol` command](#keep-sbatch) to print the sbatch script used in the `slurm-<jobid>.out` file: 
     
     ```
     #!/bin/bash
-    # cc-expts-unity/mx2-unity.sh 4/6/25 D.C.
+    # cc-expts-unity/mx2-unity.sh 4/9/25 D.C.
     # sbatch script to run granular-memory simulation program mx2.py non-containerized
     # on the Unity cluster, as an example for "My cheat sheet for MPI, GPU, Apptainer,
     # and HPC".
-    #
     # Runs mx2.py in grandparent directory in 'mpi' parallel-processing mode.
     # Reads default config file mx2.yaml in grandparent directory modified by
     # mx2mod.yaml in current directory.
-    
-    #SBATCH -n 16                        # run 16 MPI ranks (cores here)
+    #SBATCH -n 15                        # run 15 MPI ranks (cores here)
     #SBATCH -N 1                         # use one node
-    ##SBATCH --exclusive                  # don't share nodes with other jobs
-    ##SBATCH --nodelist=cpu[049-068]      # limit to a certain set of nodes
     #SBATCH --mem=100G                   # allocate 100G of memory per node
-    ##SBATCH --mem=0                      # allocate all available memory on nodes used
-    #SBATCH -t 120                       # time limit 2 hrs (default is 1 hr)
-    #SBATCH -p cpu                       # submit to partition cpu
-    #SBATCH -C ib                        # require inifiniband connectivity
-    
+    ##SBATCH --exclusive                  # don't share nodes with other jobs
+    #SBATCH --mem=0                      # allocate all available memory on nodes used
+    #SBATCH -t 10:00:00                  # time limit 10 hrs (default is 1 hr)
+    #SBATCH -p cpu                       # submit to partition cpu 
+    ##SBATCH -p cpu,cpu-preempt           # submit to partition cpu or cpu-preempt (<2 hrs)
+    #SBATCH -C ib                        # require infiniband connectivity
+    scontrol write batch_script $SLURM_JOB_ID -;echo # print this script to output
     echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used
     module purge                         # unload all modules
     module load conda/latest             # need this to use conda commands
@@ -2915,6 +2910,7 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
     (look at job output)
     cd ..cc-expts-unity        # cd to where job was run from...
     ..cc-expts-unity$ cat slurm-31446485.out
+    (batch script is printed here)
     nodelist=cpu054
     Loading conda
     [cpu054:261073] Rank 0 bound to package[0][core:0]
@@ -2946,40 +2942,41 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
   
   Some stats from running in various ways:
   
-  | system               | candela-21        | Unity             | Unity             | Unity | Unity |
-  | -------------------- | ----------------- | ----------------- | ----------------- | ----- | ----- |
-  | cores                | 15                | 15                | 64                | 128   | 256   |
-  | nodes                | -                 | 1                 | 1                 | 1     | 2     |
-  | exclusive            | -                 | no                | yes               | yes   | yes   |
-  | max boxes/crate      | 16                | 16                | 4                 | 2     | 1     |
-  | cpus used            | -                 | cpu054            | umd-cscdr-045     |       |       |
-  | inter-rank comm time |                   | 3.3%              | 9.8%              |       |       |
-  | memory used          | 2.1 GB            | 3.3 GB            | 10.8 GB           |       |       |
-  | sim wall time        | 266 min = 4.43 hr | 331 min = 5.51 hr | 119 min = 1.99 hr |       |       |
-  | time/(step-grain)    | 3.46e-6 s         | 4.30e-6 s         | 1.56e-6 s         |       |       |
-  | speed/candela-21     | 1.00              | 0.80              | 2.24              |       |       |
+  | system                           | candela-21        | Unity             | Unity             | Unity            | Unity                  | Unity                                 |
+  | -------------------------------- | ----------------- | ----------------- | ----------------- | ---------------- | ---------------------- | ------------------------------------- |
+  | cores (`-n`)                     | 15                | 15                | 64                | 128              | 128                    | 256                                   |
+  | max boxes/crate                  | 16                | 16                | 4                 | 2                | 2                      | 1                                     |
+  | req. number of nodes (`-N`)      | -                 | 1                 | 1                 | 1                | no `-N`                | no `-N`                               |
+  | `--exclusive` ?                  | -                 | no                | yes               | yes              | yes                    | yes                                   |
+  | number of nodes used, cores/node |                   | 1                 | 1, 64             | 1, 128           | 2, 64                  | 4, 64                                 |
+  | which nodes used                 | -                 | cpu054            | umd-cscdr-045     | cpu061           | umd-cscdr-cpu[045-046] | umd-cscdr-cpu[022-023,025],uri-cpu050 |
+  | inter-rank comm time             |                   | 3.3%              | 9.8%              | 18.8%            | 19.7%                  | 35.0%                                 |
+  | memory used                      | 2.1 GB            | 3.3 GB            | 10.8 GB           | 26.5 GB          | 11.1 GB                | 34.0 GB                               |
+  | sim wall time                    | 266 min = 4.43 hr | 331 min = 5.51 hr | 119 min = 1.99 hr | 64 min = 1.07 hr | 72 min = 1.19 hr       | 50 min = 0.83 hr                      |
+  | time/(step-grain)                | 3.46e-6 s         | 4.30e-6 s         | 1.56e-6 s         | 0.83e-6 s        | 0.93e-6 s              | 0.65e-6 s                             |
+  | speed/candela-21                 | 1.00              | 0.80              | 2.2               | 4.2              | 3.7                    | 5.3                                   |
   
-  note
-
-- WORKING HERE
+  Notes:
   
-   **WORKING HERE**
+  - The speed scales rather less than linearly with the number of cores (less than strong scaling). It appears useful for this particular situation to use up to 128 cores (which however is only about 5 times faster than using 15 cores, rather than the strong-scaling expectation of 8 times faster) -- but going beyond this to 256 cores did not help much, and queue times were generally much longer for 256 cores.
   
-  OLD BELOW Eamon Dwight has run much bigger simulations using the `dem21` package on Unity.  Here are some lines from a typical sbatch script he uses.  These were for simulations that ran well on 109 MPI ranks (due to the structure of `dem21`, which split the simulation domain into 216 boxes then allocated one MPI rank per two boxes plus one MPI rank for the control program).
-
-```
-#SBATCH -q long                     # required for jobs running more than 2 days
-#SBATCH -N 1                        # run on a single node
-#SBATCH --nodelistcp=cpu[049-068]     # limit to nodes with 128 cores
-#SBATCH -n 109                      # allocated for 109 MPI ranks
-#SBATCH --mem=15000                 # allocate 15 GB memory (per node, one node here)
-#SBATCH -t 300:00:00                # time limit 300 hrs (max allowed is 14 days = 336 hrs)
-#SBATCH --constraint=ib
-```
-
-  The [docs for `sbatch`](https://slurm.schedmd.com/sbatch.html) seem to imply that *all* of the nodes listed in `--nodelist=..` will be allocated to the job, but experimentally only the number of nodes specified by `-N...` will be allocated.  With the `#SBATCH` settings shown above all MPI ranks were on a single node, which proved to be more efficient than some other ways of running.
-
-  TODO run bigger dem21 job.
+  - Allowing the 128-core sims to run on 2 64-code nodes was only about 15% slower than running on 1 128-core node, and again the queue time was shorter for 64-code nodes.
+  
+  - In summary the best way to run here was to used `--exclusive` and `--mem=0` to get full use of nodes with all of their memory, but to not specify `-N`  (which typically resulting in 64-core nodes) or to explicitly specify `-N` that gives 64-core nodes.
+  
+  - Here are some typical `#SBATCH` settings that Eamon Dwight used for a script that submitted many jobs similar to the job described above:
+    
+    ```
+    #SBATCH -q long                     # required for jobs running more than 2 days
+    #SBATCH -N 1                        # run on a single node
+    #SBATCH --nodelistcp=cpu[049-068]     # limit to nodes with 128 cores
+    #SBATCH -n 109                      # allocated for 109 MPI ranks
+    #SBATCH --mem=15000                 # allocate 15 GB memory (per node, one node here)
+    #SBATCH -t 300:00:00                # time limit 300 hrs (max allowed is 14 days = 336 hrs)
+    #SBATCH --constraint=ib
+    ```
+    
+    The [docs for `sbatch`](https://slurm.schedmd.com/sbatch.html) seem to imply that *all* of the nodes listed in `--nodelist=..` will be allocated to the job, but experimentally only the number of nodes specified by `-N...` will be allocated.  With the `#SBATCH` settings shown above all MPI ranks were on a single node, which proved to be more efficient than some other ways of running.
 
 ### Using a GPU on Unity (without Apptainer)<a id="unity-gpu"></a>
 
