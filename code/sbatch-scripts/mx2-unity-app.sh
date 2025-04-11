@@ -23,4 +23,4 @@ module load conda/latest             # need this to use conda commands
 conda activate ompi                  # environment with OpenMPI and Python
 export pproc=mpi                     # tells dem21 to run in MPI-parallel mode
 mpirun --display bindings \
-   apptaner exec $SIFS/dem21.sif python ../../mx2.py mx2mod
+   apptainer exec $SIFS/dem21.sif python ../../mx2.py mx2mod

@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   4/9/25</p>
+<p>mgah.md  D. Candela   4/10/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -5150,7 +5150,7 @@ export pproc=mpi                     # tells dem21 to run in MPI-parallel mode
 mpirun --display bindings python ../../mx2.py mx2mod</code></pre>
 </li>
 <li><p>We submit the job from this directory  (<code>mx2.py</code> has been written to be run from the directory where its output should go -- this may not be true for other programs):</p>
-<pre><code class="fenced-code-block">(start the jobss)
+<pre><code class="fenced-code-block">(start the job)
 $ cd ..cc-expts-unity; ls
 bw6-sigs.yaml  bw6.svg  mx2mod.yaml  mx2-unity.sh signals.sh
 ..cc-expts-unity$ sbatch mx2-unity.sh
@@ -5162,7 +5162,7 @@ Submitted batch job 31446485
 (see when job is done, check efficiency)
 $ sacct -b        # show brief summary of recent jobs
 $ seff 31446485   # check cores, memory, time used by completed job
-ob ID: 31446485
+Job ID: 31446485
 Cluster: unity
 User/Group: candela_umass_edu/candela_umass_edu
 State: COMPLETED (exit code 0)
@@ -5218,6 +5218,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <th>Unity</th>
 <th>Unity</th>
 <th>Unity</th>
+<th>Unity</th>
 </tr>
 </thead>
 <tbody><tr>
@@ -5228,6 +5229,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>128</td>
 <td>128</td>
 <td>256</td>
+<td>256</td>
 </tr>
 <tr>
 <td>max boxes/crate</td>
@@ -5236,6 +5238,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>4</td>
 <td>2</td>
 <td>2</td>
+<td>1</td>
 <td>1</td>
 </tr>
 <tr>
@@ -5246,11 +5249,13 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>1</td>
 <td>no <code>-N</code></td>
 <td>no <code>-N</code></td>
+<td>2</td>
 </tr>
 <tr>
 <td><code>--exclusive</code> ?</td>
 <td>-</td>
 <td>no</td>
+<td>yes</td>
 <td>yes</td>
 <td>yes</td>
 <td>yes</td>
@@ -5264,6 +5269,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>1, 128</td>
 <td>2, 64</td>
 <td>4, 64</td>
+<td>2, 128</td>
 </tr>
 <tr>
 <td>which nodes used</td>
@@ -5273,6 +5279,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>cpu061</td>
 <td>umd-cscdr-cpu[045-046]</td>
 <td>umd-cscdr-cpu[022-023,025],uri-cpu050</td>
+<td>cpu[061,064]</td>
 </tr>
 <tr>
 <td>inter-rank comm time</td>
@@ -5282,6 +5289,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>18.8%</td>
 <td>19.7%</td>
 <td>35.0%</td>
+<td>35.1%</td>
 </tr>
 <tr>
 <td>memory used</td>
@@ -5291,6 +5299,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>26.5 GB</td>
 <td>11.1 GB</td>
 <td>34.0 GB</td>
+<td>28.0 GB</td>
 </tr>
 <tr>
 <td>sim wall time</td>
@@ -5300,6 +5309,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>64 min = 1.07 hr</td>
 <td>72 min = 1.19 hr</td>
 <td>50 min = 0.83 hr</td>
+<td>47 min = 0.78 hr</td>
 </tr>
 <tr>
 <td>time/(step-grain)</td>
@@ -5309,6 +5319,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>0.83e-6 s</td>
 <td>0.93e-6 s</td>
 <td>0.65e-6 s</td>
+<td>0.61e-6</td>
 </tr>
 <tr>
 <td>speed/candela-21</td>
@@ -5318,11 +5329,12 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>4.2</td>
 <td>3.7</td>
 <td>5.3</td>
+<td>5.7</td>
 </tr>
 </tbody></table>
 <p>Notes:</p>
 <ul>
-<li><p>The speed scales rather less than linearly with the number of cores (less than strong scaling). It appears useful for this particular situation to use up to 128 cores (which however is only about 5 times faster than using 15 cores, rather than the strong-scaling expectation of 8 times faster) -- but going beyond this to 256 cores did not help much, and queue times were generally much longer for 256 cores.</p>
+<li><p>The speed scales rather less than linearly with the number of cores (less than strong scaling). It appears useful for this particular situation to use up to 128 cores (which however is only about 5 times faster than using 15 cores, rather than the strong-scaling expectation of 8 times faster) -- but going beyond this to 256 cores did not help much, and queue times were longer for 256 cores.</p>
 </li>
 <li><p>Allowing the 128-core sims to run on 2 64-code nodes was only about 15% slower than running on 1 128-core node, and again the queue time was shorter for 64-code nodes.</p>
 </li>
@@ -5397,7 +5409,8 @@ Multiply M*M=N element dense matrices
 </ul>
 <h4 class="atx" id="a-batch-job-using-a-gpulessa-iddouble-quotegpu-sbatchdouble-quotegreaterlessagreater">A batch job using a GPU<a id="gpu-sbatch"></a></h4>
 <ul>
-<li><p>As in the non-GPU background job example above, here we again run <code>gputest.py</code> in the directory <code>/work/...test_gpu</code> but now we activate the Conda environment <code>gpu</code> which does include CuPy, so <code>gputest.py</code> will try to use a GPU.  We will also need to ensure the CUDA module is loaded, request a GPU, and run the job in a GPU partition.  So we will use an sbatch script <strong><code>gputest.sh</code></strong> with these contents:</p>
+<li><p>As in the non-GPU background job example above, here we again run <code>gputest.py</code> in the directory <code>/work/...test_gpu</code> but now we activate the Conda environment <code>gpu</code> which does include CuPy, so <code>gputest.py</code> will try to use a GPU.  We will also need to ensure the CUDA module is loaded, request a GPU, and run the job in a GPU partition.  So we will use an sbatch script <strong><code>gputest.sh</code></strong> with these contents:
+<strong>TODO</strong> request specific GPU, print full results.</p>
 <pre><code class="fenced-code-block">#!/bin/bash
 # gputest.sh 2/28/25 D.C.
 # One-task sbatch script using a GPU but not Apptainer, runs gputest.py
@@ -5767,7 +5780,7 @@ Loading conda
 - Started MPI on master + 3 worker ranks.
 THIS IS: boxpct.py 12/3/22 D.C., using dem21 version: v1.2 2/11/25
 Parallel processing: MPI, GHOST_ARRAY=True
-- Read 1 config(s) from /work/pi_candela_umass_edu/dcstuff/2025-03ff-mgah/try-dem21/box.yaml
+- Read 1 config(s) from /work/pi.../try-dem21/box.yaml
 
 SIM 1/1:
 Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
@@ -5776,9 +5789,157 @@ Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
 </li>
 </ul>
 </li>
-<li><p><strong>Using a container to run a larger DEM simulation with <code>dem21</code>.</strong>   Here we continue to follow the corresponding steps shown for a PC in <a href="#dem21-container">A container to run the more elaborate MPI package <code>dem21</code></a> above. <strong>WORKING HERE</strong></p>
+<li><p><strong>Using a container to run a larger DEM simulation with <code>dem21</code>.</strong>   Here we continue to follow the corresponding steps shown for a PC in <a href="#dem21-container">A container to run the more elaborate MPI package <code>dem21</code></a> above.</p>
 <ul>
+<li><p>Here is an appropriate sbatch script, called <strong><code>mx2-unity-app.sh</code></strong>.  As in the other examples above, this script does not load an OpenMPI module but does activate the environment <code>ompi</code> with OpenMPI installed (these choices are discussed in <a href="#ways-mpi-unity">Ways of running Python MPI programs on Unity</a> above):</p>
+<pre><code class="fenced-code-block">#!/bin/bash
+# cc-expts-unity-app/mx2-unity-app.sh 4/10/25 D.C.
+# sbatch script to run granular-memory simulation program mx2.py containerized on the
+# Unity cluster, as an example for "My cheat sheet for MPI, GPU, Apptainer, and HPC".
+# Runs mx2.py in grandparent directory in 'mpi' parallel-processing mode.
+# Reads default config file mx2.yaml in grandparent directory modified by
+# mx2mod.yaml in current directory. Must set SIFS to directory containing
+# dem21.sif before running this script.
+#SBATCH -n 15                        # run 15 MPI ranks (cores here)
+#SBATCH -N 1                         # use one node
+#SBATCH --mem=100G                   # allocate 100G of memory per node
+##SBATCH --exclusive                  # don't share nodes with other jobs
+##SBATCH --mem=0                      # allocate all available memory on nodes used
+#SBATCH -t 10:00:00                  # time limit 10 hrs (default is 1 hr)
+#SBATCH -p cpu                       # submit to partition cpu 
+##SBATCH -p cpu,cpu-preempt           # submit to partition cpu or cpu-preempt (&lt;2 hrs)
+#SBATCH -C ib                        # require infiniband connectivity
+scontrol write batch_script $SLURM_JOB_ID -;echo # print this script to output
+echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used
+module purge                         # unload all modules
+module load apptainer/latest
+module load openmpi/5.0.3
+#module load conda/latest             # need this to use conda commands
+#conda activate ompi                  # environment with OpenMPI and Python
+export pproc=mpi                     # tells dem21 to run in MPI-parallel mode
+mpirun --display bindings \
+   apptainer exec $SIFS/dem21.sif python ../../mx2.py mx2mod</code></pre>
+</li>
+<li><p>As was done for a <a href="#sbatch-dem21">non-containerized run on Unity</a> we can run this script from on a login node in the directory containing the script.  But now we must set <code>SIFS</code> to the directory with the container image:</p>
+<pre><code class="fenced-code-block">$ sifs                # sets SIFS to directory containing dem21.sif 
+$ cd ..cc-expts-unity; ls
+bw6-sigs.yaml  bw6.svg  mx2mod.yaml  mx2-unity-app.sh signals.sh
+..cc-expts-unity$ sbatch mx2-unity-app.sh
+Submitted batch job 31844213
+(use 'squeue --me' to see when job starts, time running, if done)
+..cc-expts-unity$ cat slurm-31844213.out  # can do while running to see output so far
+(for long jobs no need to stay logged in to Unity while they run)</code></pre>
+<p>Some stats from running in various ways (all containerized):</p>
+</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>system</th>
+<th>candela-21</th>
+<th>Unity</th>
+<th>Unity</th>
+<th>Unity</th>
+<th>Unity</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>cores (<code>-n</code>)</td>
+<td>15</td>
+<td>15</td>
+<td>64</td>
+<td>128</td>
+<td>256</td>
+</tr>
+<tr>
+<td>max boxes/crate</td>
+<td>16</td>
+<td>16</td>
+<td>4</td>
+<td>2</td>
+<td>1</td>
+</tr>
+<tr>
+<td>req. number of nodes (<code>-N</code>)</td>
+<td>-</td>
+<td>1</td>
+<td>1</td>
+<td>no <code>-N</code></td>
+<td>no <code>-N</code></td>
+</tr>
+<tr>
+<td><code>--exclusive</code> ?</td>
+<td>-</td>
+<td>no</td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>number of nodes used, cores/node</td>
+<td></td>
+<td>1</td>
+<td>1, 64</td>
+<td>2, 64</td>
+<td>4, 64</td>
+</tr>
+<tr>
+<td>which nodes used</td>
+<td>-</td>
+<td>TODO</td>
+<td>TODO</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr>
+<td>inter-rank comm time</td>
+<td></td>
+<td>3.3%</td>
+<td>9.8%</td>
+<td>19.7%</td>
+<td>35.0%</td>
+</tr>
+<tr>
+<td>memory used</td>
+<td>2.2 GB</td>
+<td>3.3 GB</td>
+<td>10.8 GB</td>
+<td>11.1 GB</td>
+<td>34.0 GB</td>
+</tr>
+<tr>
+<td>sim wall time</td>
+<td>284 min = 4.74 hr</td>
+<td>331 min = 5.51 hr</td>
+<td>119 min = 1.99 hr</td>
+<td>72 min = 1.19 hr</td>
+<td>50 min = 0.83 hr</td>
+</tr>
+<tr>
+<td>time/(step-grain)</td>
+<td>3.70e-6 s</td>
+<td>4.30e-6 s</td>
+<td>1.56e-6 s</td>
+<td>0.93e-6 s</td>
+<td>0.65e-6 s</td>
+</tr>
+<tr>
+<td>speed/candela-21</td>
+<td>1.00</td>
+<td>0.80</td>
+<td>2.2</td>
+<td>3.7</td>
+<td>5.3</td>
+</tr>
+</tbody></table>
+<p>Notes:</p>
+<ul>
+<li>We are comparing the speed to a <a href="#dem21-container">containerized run on the <code>candela-21</code> PC</a>, which was found to be 7% slower than a non-containerized run on the same PC.</li>
+<li>One of these jobs was repeated but now loading the <code>openmpi/5.0.3</code> module, and not loading the Conda module or the <code>ompi</code> Conda environment.  As was <a href="#ways-mpi-unity">found above</a> for non-containerized MPI jobs on Unity, TODO</li>
+<li>Comparing with the corresponding <a href="#sbatch-dem21">non-containerized runs on Unity</a>,<ul>
 <li>x</li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -5842,7 +6003,7 @@ Multiply M*M=N element dense matrices
 <li>We need the <code>–-nv</code> flag on apptainer exec.</li>
 </ul>
 </li>
-<li><p>Here is an sbatch script <strong><code>gputest-app.sh</code></strong> that incorporates these changes, which we put in the same directory <code>try-gputest</code> as <code>gputest.py</code>:</p>
+<li><p>Here is an sbatch script <strong><code>gputest-app.sh</code></strong> that incorporates these changes, which we put in the same directory <code>try-gputest</code> as <code>gputest.py</code>:  TODO request specific GPU - A100?</p>
 <pre><code class="fenced-code-block">#!/bin/bash
 # gputest-app.sh 4/6/25 D.C.
 # One-task sbatch script uses an Apptainer container gpu.sif
@@ -5859,7 +6020,7 @@ module load cuda/12.6              # need CUDA to use a GPU
 # Use python in gpu.sif to run gputest.py in CWD; need --nv flag
 # on apptainer exec to use a GPU.
 apptainer exec --nv $SIFS/gpu.sif python gputest.py</code></pre>
-<p>As usual for <code>sbatch</code> jobs, we can run the job from a login node if desired:</p>
+<p>As usual for <code>sbatch</code> jobs, we can run the job from a login node if desired:  TODO print full results</p>
 <pre><code class="fenced-code-block">$ cd try-gputest; ls
 gputest-app.sh gputest.py ...
 try-gputest$ sifs                    # set SIFS
@@ -5896,6 +6057,7 @@ CPU Efficiency: 19.12% of 00:17:00 core-walltime
 Job Wall-clock time: 00:02:50
 Memory Utilized: 2.76 GB
 Memory Efficiency: 46.07% of 6.00 GB</code></pre>
+<p>TODO compare with non-containerized A100 results</p>
 </li>
 </ul>
 </li>

@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   4/9/25
+mgah.md  D. Candela   4/10/25
 
 - [Introduction](#intro)  
   
@@ -2883,7 +2883,7 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
   - We submit the job from this directory  (`mx2.py` has been written to be run from the directory where its output should go -- this may not be true for other programs):
     
     ```
-    (start the jobss)
+    (start the job)
     $ cd ..cc-expts-unity; ls
     bw6-sigs.yaml  bw6.svg  mx2mod.yaml  mx2-unity.sh signals.sh
     ..cc-expts-unity$ sbatch mx2-unity.sh
@@ -2895,7 +2895,7 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
     (see when job is done, check efficiency)
     $ sacct -b        # show brief summary of recent jobs
     $ seff 31446485   # check cores, memory, time used by completed job
-    ob ID: 31446485
+    Job ID: 31446485
     Cluster: unity
     User/Group: candela_umass_edu/candela_umass_edu
     State: COMPLETED (exit code 0)
@@ -2942,23 +2942,23 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
   
   Some stats from running in various ways:
   
-  | system                           | candela-21        | Unity             | Unity             | Unity            | Unity                  | Unity                                 |
-  | -------------------------------- | ----------------- | ----------------- | ----------------- | ---------------- | ---------------------- | ------------------------------------- |
-  | cores (`-n`)                     | 15                | 15                | 64                | 128              | 128                    | 256                                   |
-  | max boxes/crate                  | 16                | 16                | 4                 | 2                | 2                      | 1                                     |
-  | req. number of nodes (`-N`)      | -                 | 1                 | 1                 | 1                | no `-N`                | no `-N`                               |
-  | `--exclusive` ?                  | -                 | no                | yes               | yes              | yes                    | yes                                   |
-  | number of nodes used, cores/node |                   | 1                 | 1, 64             | 1, 128           | 2, 64                  | 4, 64                                 |
-  | which nodes used                 | -                 | cpu054            | umd-cscdr-045     | cpu061           | umd-cscdr-cpu[045-046] | umd-cscdr-cpu[022-023,025],uri-cpu050 |
-  | inter-rank comm time             |                   | 3.3%              | 9.8%              | 18.8%            | 19.7%                  | 35.0%                                 |
-  | memory used                      | 2.1 GB            | 3.3 GB            | 10.8 GB           | 26.5 GB          | 11.1 GB                | 34.0 GB                               |
-  | sim wall time                    | 266 min = 4.43 hr | 331 min = 5.51 hr | 119 min = 1.99 hr | 64 min = 1.07 hr | 72 min = 1.19 hr       | 50 min = 0.83 hr                      |
-  | time/(step-grain)                | 3.46e-6 s         | 4.30e-6 s         | 1.56e-6 s         | 0.83e-6 s        | 0.93e-6 s              | 0.65e-6 s                             |
-  | speed/candela-21                 | 1.00              | 0.80              | 2.2               | 4.2              | 3.7                    | 5.3                                   |
+  | system                           | candela-21        | Unity             | Unity             | Unity            | Unity                  | Unity                                 | Unity            |
+  | -------------------------------- | ----------------- | ----------------- | ----------------- | ---------------- | ---------------------- | ------------------------------------- | ---------------- |
+  | cores (`-n`)                     | 15                | 15                | 64                | 128              | 128                    | 256                                   | 256              |
+  | max boxes/crate                  | 16                | 16                | 4                 | 2                | 2                      | 1                                     | 1                |
+  | req. number of nodes (`-N`)      | -                 | 1                 | 1                 | 1                | no `-N`                | no `-N`                               | 2                |
+  | `--exclusive` ?                  | -                 | no                | yes               | yes              | yes                    | yes                                   | yes              |
+  | number of nodes used, cores/node |                   | 1                 | 1, 64             | 1, 128           | 2, 64                  | 4, 64                                 | 2, 128           |
+  | which nodes used                 | -                 | cpu054            | umd-cscdr-045     | cpu061           | umd-cscdr-cpu[045-046] | umd-cscdr-cpu[022-023,025],uri-cpu050 | cpu[061,064]     |
+  | inter-rank comm time             |                   | 3.3%              | 9.8%              | 18.8%            | 19.7%                  | 35.0%                                 | 35.1%            |
+  | memory used                      | 2.1 GB            | 3.3 GB            | 10.8 GB           | 26.5 GB          | 11.1 GB                | 34.0 GB                               | 28.0 GB          |
+  | sim wall time                    | 266 min = 4.43 hr | 331 min = 5.51 hr | 119 min = 1.99 hr | 64 min = 1.07 hr | 72 min = 1.19 hr       | 50 min = 0.83 hr                      | 47 min = 0.78 hr |
+  | time/(step-grain)                | 3.46e-6 s         | 4.30e-6 s         | 1.56e-6 s         | 0.83e-6 s        | 0.93e-6 s              | 0.65e-6 s                             | 0.61e-6          |
+  | speed/candela-21                 | 1.00              | 0.80              | 2.2               | 4.2              | 3.7                    | 5.3                                   | 5.7              |
   
   Notes:
   
-  - The speed scales rather less than linearly with the number of cores (less than strong scaling). It appears useful for this particular situation to use up to 128 cores (which however is only about 5 times faster than using 15 cores, rather than the strong-scaling expectation of 8 times faster) -- but going beyond this to 256 cores did not help much, and queue times were generally much longer for 256 cores.
+  - The speed scales rather less than linearly with the number of cores (less than strong scaling). It appears useful for this particular situation to use up to 128 cores (which however is only about 5 times faster than using 15 cores, rather than the strong-scaling expectation of 8 times faster) -- but going beyond this to 256 cores did not help much, and queue times were longer for 256 cores.
   
   - Allowing the 128-core sims to run on 2 64-code nodes was only about 15% slower than running on 1 128-core node, and again the queue time was shorter for 64-code nodes.
   
@@ -3047,6 +3047,7 @@ Unlike on my PCs, on Unity it was not necessary to explicitly specify `-c conda-
 #### A batch job using a GPU<a id="gpu-sbatch"></a>
 
 - As in the non-GPU background job example above, here we again run `gputest.py` in the directory `/work/...test_gpu` but now we activate the Conda environment `gpu` which does include CuPy, so `gputest.py` will try to use a GPU.  We will also need to ensure the CUDA module is loaded, request a GPU, and run the job in a GPU partition.  So we will use an sbatch script **`gputest.sh`** with these contents:
+  **TODO** request specific GPU, print full results.
   
   ```
   #!/bin/bash
@@ -3481,7 +3482,7 @@ For the examples here it assumed that the needed image file (**`m4p.sif`** or **
     - Started MPI on master + 3 worker ranks.
     THIS IS: boxpct.py 12/3/22 D.C., using dem21 version: v1.2 2/11/25
     Parallel processing: MPI, GHOST_ARRAY=True
-    - Read 1 config(s) from /work/pi_candela_umass_edu/dcstuff/2025-03ff-mgah/try-dem21/box.yaml
+    - Read 1 config(s) from /work/pi.../try-dem21/box.yaml
     
     SIM 1/1:
     Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
@@ -3489,9 +3490,75 @@ For the examples here it assumed that the needed image file (**`m4p.sif`** or **
                               ...
     ```
 
-- **Using a container to run a larger DEM simulation with `dem21`.**   Here we continue to follow the corresponding steps shown for a PC in [A container to run the more elaborate MPI package `dem21`](#dem21-container) above. **WORKING HERE**
+- **Using a container to run a larger DEM simulation with `dem21`.**   Here we continue to follow the corresponding steps shown for a PC in [A container to run the more elaborate MPI package `dem21`](#dem21-container) above.
   
-  - x
+  - Here is an appropriate sbatch script, called **`mx2-unity-app.sh`**.  As in the other examples above, this script does not load an OpenMPI module but does activate the environment `ompi` with OpenMPI installed (these choices are discussed in [Ways of running Python MPI programs on Unity](#ways-mpi-unity) above):
+    
+    ```
+    #!/bin/bash
+    # cc-expts-unity-app/mx2-unity-app.sh 4/10/25 D.C.
+    # sbatch script to run granular-memory simulation program mx2.py containerized on the
+    # Unity cluster, as an example for "My cheat sheet for MPI, GPU, Apptainer, and HPC".
+    # Runs mx2.py in grandparent directory in 'mpi' parallel-processing mode.
+    # Reads default config file mx2.yaml in grandparent directory modified by
+    # mx2mod.yaml in current directory. Must set SIFS to directory containing
+    # dem21.sif before running this script.
+    #SBATCH -n 15                        # run 15 MPI ranks (cores here)
+    #SBATCH -N 1                         # use one node
+    #SBATCH --mem=100G                   # allocate 100G of memory per node
+    ##SBATCH --exclusive                  # don't share nodes with other jobs
+    ##SBATCH --mem=0                      # allocate all available memory on nodes used
+    #SBATCH -t 10:00:00                  # time limit 10 hrs (default is 1 hr)
+    #SBATCH -p cpu                       # submit to partition cpu 
+    ##SBATCH -p cpu,cpu-preempt           # submit to partition cpu or cpu-preempt (<2 hrs)
+    #SBATCH -C ib                        # require infiniband connectivity
+    scontrol write batch_script $SLURM_JOB_ID -;echo # print this script to output
+    echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used
+    module purge                         # unload all modules
+    module load apptainer/latest
+    module load openmpi/5.0.3
+    #module load conda/latest             # need this to use conda commands
+    #conda activate ompi                  # environment with OpenMPI and Python
+    export pproc=mpi                     # tells dem21 to run in MPI-parallel mode
+    mpirun --display bindings \
+       apptainer exec $SIFS/dem21.sif python ../../mx2.py mx2mod
+    ```
+  
+  - As was done for a [non-containerized run on Unity](#sbatch-dem21) we can run this script from on a login node in the directory containing the script.  But now we must set `SIFS` to the directory with the container image:
+    
+    ```
+    $ sifs                # sets SIFS to directory containing dem21.sif 
+    $ cd ..cc-expts-unity; ls
+    bw6-sigs.yaml  bw6.svg  mx2mod.yaml  mx2-unity-app.sh signals.sh
+    ..cc-expts-unity$ sbatch mx2-unity-app.sh
+    Submitted batch job 31844213
+    (use 'squeue --me' to see when job starts, time running, if done)
+    ..cc-expts-unity$ cat slurm-31844213.out  # can do while running to see output so far
+    (for long jobs no need to stay logged in to Unity while they run)
+    ```
+    
+    Some stats from running in various ways (all containerized):
+  
+  | system                           | candela-21        | Unity             | Unity             | Unity            | Unity            |
+  | -------------------------------- | ----------------- | ----------------- | ----------------- | ---------------- | ---------------- |
+  | cores (`-n`)                     | 15                | 15                | 64                | 128              | 256              |
+  | max boxes/crate                  | 16                | 16                | 4                 | 2                | 1                |
+  | req. number of nodes (`-N`)      | -                 | 1                 | 1                 | no `-N`          | no `-N`          |
+  | `--exclusive` ?                  | -                 | no                | yes               | yes              | yes              |
+  | number of nodes used, cores/node |                   | 1                 | 1, 64             | 2, 64            | 4, 64            |
+  | which nodes used                 | -                 | TODO              | TODO              | TODO             | TODO             |
+  | inter-rank comm time             |                   | 3.3%              | 9.8%              | 19.7%            | 35.0%            |
+  | memory used                      | 2.2 GB            | 3.3 GB            | 10.8 GB           | 11.1 GB          | 34.0 GB          |
+  | sim wall time                    | 284 min = 4.74 hr | 331 min = 5.51 hr | 119 min = 1.99 hr | 72 min = 1.19 hr | 50 min = 0.83 hr |
+  | time/(step-grain)                | 3.70e-6 s         | 4.30e-6 s         | 1.56e-6 s         | 0.93e-6 s        | 0.65e-6 s        |
+  | speed/candela-21                 | 1.00              | 0.80              | 2.2               | 3.7              | 5.3              |
+  
+  Notes:
+  
+  - We are comparing the speed to a [containerized run on the `candela-21` PC](#dem21-container), which was found to be 7% slower than a non-containerized run on the same PC.
+  - One of these jobs was repeated but now loading the `openmpi/5.0.3` module, and not loading the Conda module or the `ompi` Conda environment.  As was [found above](#ways-mpi-unity) for non-containerized MPI jobs on Unity, TODO
+  - Comparing with the corresponding [non-containerized runs on Unity](#sbatch-dem21),
+    - x
 
 #### Running a container the uses a GPU<a id="unity-gpu-container"></a>
 
@@ -3555,7 +3622,7 @@ For the examples here it assumed that the needed image file (**`m4p.sif`** or **
     - We use the container `gpu.sif` that was built including Cupy.
     - We need the `–-nv` flag on apptainer exec.
   
-  - Here is an sbatch script **`gputest-app.sh`** that incorporates these changes, which we put in the same directory `try-gputest` as `gputest.py`:
+  - Here is an sbatch script **`gputest-app.sh`** that incorporates these changes, which we put in the same directory `try-gputest` as `gputest.py`:  TODO request specific GPU - A100?
     
     ```
     #!/bin/bash
@@ -3576,7 +3643,7 @@ For the examples here it assumed that the needed image file (**`m4p.sif`** or **
     apptainer exec --nv $SIFS/gpu.sif python gputest.py
     ```
     
-    As usual for `sbatch` jobs, we can run the job from a login node if desired:
+    As usual for `sbatch` jobs, we can run the job from a login node if desired:  TODO print full results
     
     ```
     $ cd try-gputest; ls
@@ -3616,6 +3683,8 @@ For the examples here it assumed that the needed image file (**`m4p.sif`** or **
     Memory Utilized: 2.76 GB
     Memory Efficiency: 46.07% of 6.00 GB
     ```
+    
+    TODO compare with non-containerized A100 results
 
 ## Random notes on parallel computing with Python<a id="random-notes"></a>
 
