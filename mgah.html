@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   4/10/25</p>
+<p>mgah.md  D. Candela   4/11/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -2646,7 +2646,7 @@ $ apt list &lt;package&gt; --installed  # list installed packages with this name
 </ul>
 <h3 class="atx" id="conda-environments-and-test-code-used-in-this-documentlessa-iddouble-quoteenvs-testcodedouble-quotegreaterlessagreater">Conda environments and test code used in this document<a id="envs-testcode"></a></h3>
 <ul>
-<li><p><strong>Conda environments and Apptainer</strong>. Often, and for all the examples in this document, there is no need to create a Conda environment when an Apptainer container is being used - the container serves as an environment.  (One could run an Apptainer container from a Conda environment if additional packages not installed in the container were needed  -- but that is not shown here.)</p>
+<li><p><strong>Conda environments and Apptainer</strong>. Often, and for all the examples in this document, there is no need to create a Conda environment when an Apptainer container is being used - the container serves as an environment.  The exception is for a set of containers running MPI, as in this case it is necessary to have an MPI system running outside the containers.</p>
 </li>
 <li><p>The following Conda environments are created and used on a PC, when Apptainer is not being used (except for <strong><code>ompi</code></strong> which is used when an Apptainer container is run). </p>
 <ul>
@@ -2659,14 +2659,14 @@ $ apt list &lt;package&gt; --installed  # list installed packages with this name
 <li><strong><code>ompi</code></strong> (defined in <a href="#mpi-container">A container that can use MPI</a>) includes only OpenMPI and Python as an example of a minimal environment for running a container that uses MPI.</li>
 </ul>
 </li>
-<li><p>The following Conda environments are created and used on the Unity HPC cluster, when Apptainer is not being used (except for <strong><code>ompi</code></strong> which is used when an Apptainer container is run).  They generally do the same things as the corresponding environments defined for PCs listed just above.</p>
+<li><p>The following Conda environments are created and used on the Unity HPC cluster, when Apptainer is not being used (except for <strong><code>ompi</code></strong> which can be used when an Apptainer container is run).  They generally do the same things as the corresponding environments defined for PCs listed just above.</p>
 <ul>
 <li><strong><code>npsp</code></strong> (defined in <a href="#unity-modules-conda">Using modules and Conda</a>) has NumPy, SciPy, and Matplotlib, but not CuPy.</li>
 <li><strong><code>dfs</code></strong> (also defined in <a href="#unity-modules-conda">Using modules and Conda</a>) has NumPy and the local package <code>dcfuncs</code> installed.</li>
-<li><strong><code>m4p</code></strong> (defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) includes OpenMPI 5.0.3, and <code>mpi4py</code>, so MPI can be used.</li>
-<li><strong><code>dem21</code></strong> (also defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) is like <code>m4p</code> but additionally includes the locally-installed package <code>dem21</code> and additional packages that <code>dem21</code> imports.</li>
+<li><strong><code>m4p</code></strong> (defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) includes OpenMPI 5.0.3, and <code>mpi4py</code>, so MPI can be used.  We also define <strong><code>m4pe</code></strong> which is like <code>m4p</code> except that it links to an external OpenMPI package which requires loading an OpenMPI module.</li>
+<li><strong><code>dem21</code></strong> (also defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) is like <code>m4p</code> but additionally includes the locally-installed package <code>dem21</code> and additional packages that <code>dem21</code> imports.  We also define <strong><code>dem21e</code></strong> which (like <code>m4pe</code>) links to an external OpenMPI package.</li>
 <li><strong><code>gpu</code></strong> (defined in <a href="#unity-gpu">Using a GPU in Unity (without Apptainer)</a>) includes CuPy, so a GPU can be used.</li>
-<li><strong><code>ompi</code></strong> (defined in  <a href="#unity-mpi-container">Running containers that use MPI</a>) includes only OpenMPI and Python as an example of a minimal environment for running a container that uses MPI.</li>
+<li><strong><code>ompi</code></strong> (defined in  <a href="#unity-mpi-container">Running containers that use MPI</a>) includes only OpenMPI and Python as an example of a minimal environment for running a container that uses MPI on Unity, when an OpenMPI module is not loaded.</li>
 </ul>
 </li>
 <li><p>The following test code is used:</p>
@@ -4684,6 +4684,14 @@ CPU timings use last 10 of 11 trials
 <h4 class="atx" id="ways-of-running-python-mpi-programs-on-unitylessa-iddouble-quoteways-mpi-unitydouble-quotegreaterlessagreater">Ways of running Python MPI programs on Unity<a id="ways-mpi-unity"></a></h4>
 <p>Using Python MPI program requires (a) a working MPI installation - as in <a href="#on-linux-pc">Part 1</a> we only consider <a href="https://docs.open-mpi.org/en/v5.0.x/">OpenMPI</a> here, and (b) Python MPI functions - also as in Part 1 we only consider <a href="https://mpi4py.readthedocs.io/en/stable/"><code>mpi4py</code></a> here.  Even with these restrictions there are various choices involving modules and Conda environments that seem to work on Unity (and others that don't).  In this section we use the basic <a href="#mpi-testprogs">MPI test programs described above</a>: <strong><code>mpi_hw.py</code></strong> to check that there is a functional MPI + <code>mpi4py</code> setup, and <strong><code>osu_bw.py</code></strong> to measure the speed of communication between MPI ranks.</p>
 <ul>
+<li><p>There are <strong>two different ways of running MPI</strong> on Unity, both of which seem to work.  <strong>TODO</strong> pending more tests it is not clear which is better in general:</p>
+<ul>
+<li><p>OpenMPI can be <strong>installed in the environment</strong> used, in which case it is not necessary to load an OpenMPI module when the program is run.  This is the case with the Conda environments <strong><code>m4p</code></strong> and <strong><code>dem21</code></strong> defined below, and <strong><code>ompi</code></strong> used when running containers.</p>
+</li>
+<li><p>Conversely, as explained on <a href="https://conda-forge.org/docs/user/tipsandtricks/#using-external-message-passing-interface-mpi-libraries">this conda-forge page</a>, a "dummy" version of OpenMPI can be installed in the Conda environment, which <strong>links to the OpenMPI installed outside the environment</strong>, which must be made available by loading an OpenMPI module.  This is the case with the Conda environments <strong><code>m4pe</code></strong> and <strong><code>dem21e</code></strong> defined below (and when running containers, no Conda environment is needed).</p>
+</li>
+</ul>
+</li>
 <li><p>First we see which OpenMPI modules are available on Unity (as of 3/25). In the examples shown below when an OpenMPI module is used the latest version without CUDA <code>openmpi/5.0.3</code> is selected.</p>
 <pre><code class="fenced-code-block">$ module av openmpi
 
@@ -4692,9 +4700,9 @@ CPU timings use last 10 of 11 trials
 </li>
 <li><p>Next we create two Conda environments <strong><code>m4p</code></strong> and <strong><code>m4pe</code></strong> with OpenMPI, <code>mpi4py</code>, Python, and other packages likely to be needed by programs running in this environment (here we show <code>numpy</code>, <code>scipy</code>, and <code>matplotlib</code>).  Things to note:</p>
 <ul>
-<li><p>It seems necessary to load a Unity OpenMPI module before creating these environments, as shown here, for everything shown later to work.</p>
+<li><p>It seems necessary to load a Unity OpenMPI module before creating these environments, as shown here, for everything shown later to work, whether or not the OpenMPI module will be loaded when the environments are used.</p>
 </li>
-<li><p>We use <code>conda-forge</code>, which seems to have relatively up-to-date packages, and for <strong><code>m4pe</code></strong> (but not <strong><code>m4p</code></strong>) we follow the prescription on <a href="https://conda-forge.org/docs/user/tipsandtricks/#using-external-message-passing-interface-mpi-libraries">this conda-forge page</a> to specify that an external MPI implementation will be used. </p>
+<li><p>We use <code>conda-forge</code>, which seems to have relatively up-to-date packages, and for <strong><code>m4pe</code></strong> (but not <strong><code>m4p</code></strong>) we follow the <a href="https://conda-forge.org/docs/user/tipsandtricks/#using-external-message-passing-interface-mpi-libraries">conda-forge prescription</a> to specify that an external MPI implementation will be used. </p>
 </li>
 </ul>
 <pre><code class="fenced-code-block">$ unity-compute
@@ -4860,7 +4868,7 @@ python-scripts$ conda activate m4p
 <p>Now the maximum speed is 12 GB/s, i.e.  35% slower than the speed between ranks on the same node - but for some reason the largest message sizes are actually faster between nodes than between ranks on the same node.</p>
 <p>The OpenMPI version of <code>mpirun</code> has <a href="https://docs.open-mpi.org/en/main/man-openmpi/man1/mpirun.1.html">many other options</a>.  Note that in other MPI packages such as MPICH  <code>mpirun</code> has different, incompatible options.</p>
 </li>
-<li><p>The speed tests were repeated using the environment <strong><code>m4pe</code></strong> (external MPI installation) and gave identical speed results, both between ranks on the same node and on different nodes.  As noted above this required loading the OpenMPI module and then <code>--display bindings</code> no longer showed the core numbers used.</p>
+<li><p>The speed tests were repeated using the environment <strong><code>m4pe</code></strong> (external MPI installation) and gave apparently identical speed results, both between ranks on the same node and on different nodes.  As noted above this required loading the OpenMPI module and then <code>--display bindings</code> no longer showed the core numbers used.</p>
 </li>
 </ul>
 </li>
@@ -5059,11 +5067,13 @@ Memory Efficiency: 11.57% of 64.00 GB (8.00 GB/core)</code></pre>
 try-dem21$ ls
 dem  msigs ...</code></pre>
 </li>
-<li><p>As in <a href="#ways-mpi-unity">Ways of running Python MPI programs on Unity</a> above a Conda environment <strong><code>dem21</code></strong> is defined on Unity, similar to the <strong><code>m4p</code></strong>  environment defined in that section but now including additional packages required by <code>dem21</code> and with the <code>dem21</code> and <code>msigs</code> packages installed:</p>
+<li><p>As in <a href="#ways-mpi-unity">Ways of running Python MPI programs on Unity</a> above a Conda environment <strong><code>dem21</code></strong> is defined on Unity, similar to the <strong><code>m4p</code></strong>  environment defined in that section but now including additional packages required by <code>dem21</code> and with the <code>dem21</code> and <code>msigs</code> packages installed.  Also an environment <strong><code>dem21e</code></strong> is created similar to <strong><code>mype</code></strong> which includes a dummy version of OpenMPI that links to the system OpenMPI:</p>
 <pre><code class="fenced-code-block">try-dem21$ unity-compute             # get an interactive shell on a compute node
 (wait for the compute-node shell to come up)
 try-dem21$ module load conda/latest
 try-dem21$ module load openmpi/5.0.3
+
+# Make environment dem21:
 try-dem21$ conda create -n dem21 -c conda-forge openmpi=5 mpi4py python=3.12
 try-dem21$ conda activate dem21 
 (dem21)..try-dem21$ conda install numpy scipy matplotlib dill numba pyaml
@@ -5071,7 +5081,18 @@ try-dem21$ conda activate dem21
 (dem21)..try-dem21$ cd dem21
 (dem21)..try-dem21/dem21$ pip install -e .
 (dem21)..try-dem21/dem21$ cd ../msigs
-(dem21)..try-dem21/msigs$ pip install -e .</code></pre>
+(dem21)..try-dem21/msigs$ pip install -e .
+
+# Make environment dem21e:
+(dem21)..try-dem21/conda deactivate
+try-dem21$ conda create -n dem21e -c conda-forge "openmpi=5.0.3=external_*" mpi4py python=3.12
+try-dem21$ conda activate dem21e 
+(dem21e)..try-dem21$ conda install numpy scipy matplotlib dill numba pyaml
+(dem21e)..try-dem21$ conda install -c conda-forge quaternion
+(dem21e)..try-dem21$ cd dem21
+(dem21e)..try-dem21/dem21$ pip install -e .
+(dem21e)..try-dem21/dem21$ cd ../msigs
+(dem21e)..try-dem21/msigs$ pip install -e .</code></pre>
 </li>
 <li><p>At this point we can log out and back into Unity, and there will be no need to activate the environment <code>dem21</code> interactively as it will be activated by sbatch scripts as needed.</p>
 </li>
