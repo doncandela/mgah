@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   4/11/25
+mgah.md  D. Candela   4/12/25
 
 - [Introduction](#intro)  
   
@@ -2353,11 +2353,13 @@ Finally, the computational resources of an HPC cluster are only useful if availa
 
 Using Python MPI program requires (a) a working MPI installation - as in [Part 1](#on-linux-pc) we only consider [OpenMPI](https://docs.open-mpi.org/en/v5.0.x/) here, and (b) Python MPI functions - also as in Part 1 we only consider [`mpi4py`](https://mpi4py.readthedocs.io/en/stable/) here.  Even with these restrictions there are various choices involving modules and Conda environments that seem to work on Unity (and others that don't).  In this section we use the basic [MPI test programs described above](#mpi-testprogs): **`mpi_hw.py`** to check that there is a functional MPI + `mpi4py` setup, and **`osu_bw.py`** to measure the speed of communication between MPI ranks.
 
-- There are **two different ways of running MPI** on Unity, both of which seem to work.  **TODO** pending more tests it is not clear which is better in general:
+- There are **two different ways of running MPI** on Unity, both of which seem to work.
   
-  - OpenMPI can be **installed in the environment** used, in which case it is not necessary to load an OpenMPI module when the program is run.  This is the case with the Conda environments **`m4p`** and **`dem21`** defined below, and **`ompi`** used when running containers.
+  - OpenMPI can be **installed in the environment** used, in which case it is not necessary to load an OpenMPI module when the program is run.  This is the case with the Conda environments **`m4p`** and **`dem21`** for non-containerized jobs, and **`ompi`** for containerized jobs (all defined below).
   
-  - Conversely, as explained on [this conda-forge page](https://conda-forge.org/docs/user/tipsandtricks/#using-external-message-passing-interface-mpi-libraries), a "dummy" version of OpenMPI can be installed in the Conda environment, which **links to the OpenMPI installed outside the environment**, which must be made available by loading an OpenMPI module.  This is the case with the Conda environments **`m4pe`** and **`dem21e`** defined below (and when running containers, no Conda environment is needed).
+  - Conversely, as explained on [this conda-forge page](https://conda-forge.org/docs/user/tipsandtricks/#using-external-message-passing-interface-mpi-libraries), a "dummy" version of OpenMPI can be installed in the Conda environment, which **links to the OpenMPI installed outside the environment**, which must be made available by loading an OpenMPI module.  This is the case with the Conda environments **`m4pe`** and **`dem21e`** for non-containerized jobs -- when running containers, no Conda environment is needed when an OpenMPI module is loaded.
+  
+  From tests done 4/25 it appears that both methods work equally well on Unity, with no appreciable speed difference.  These tests were done with a moderately large MPI job (about one hour of run time on 128 cores) and for both non-containerized and containerized jobs.  The only difference noticed  was when the second method was used (OpenMPI module loaded), `mpirun --display bindings...` was unable to report which cores tasks were bound to.
 
 - First we see which OpenMPI modules are available on Unity (as of 3/25). In the examples shown below when an OpenMPI module is used the latest version without CUDA `openmpi/5.0.3` is selected.
   
@@ -2874,29 +2876,32 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
     
     ```
     #!/bin/bash
-    # cc-expts-unity/mx2-unity.sh 4/9/25 D.C.
-    # sbatch script to run granular-memory simulation program mx2.py non-containerized
-    # on the Unity cluster, as an example for "My cheat sheet for MPI, GPU, Apptainer,
-    # and HPC".
+    # cc-expts-unity/mx2-unity.sh 4/12/25 D.C.
+    # sbatch script to run granular-memory simulation program mx2.py non-containerized on
+    # the Unity cluster, as an example for "My cheat sheet for MPI, GPU, Apptainer, and HPC".
     # Runs mx2.py in grandparent directory in 'mpi' parallel-processing mode.
     # Reads default config file mx2.yaml in grandparent directory modified by
     # mx2mod.yaml in current directory.
-    #SBATCH -n 15                        # run 15 MPI ranks (cores here)
-    #SBATCH -N 1                         # use one node
-    #SBATCH --mem=100G                   # allocate 100G of memory per node
-    ##SBATCH --exclusive                  # don't share nodes with other jobs
-    #SBATCH --mem=0                      # allocate all available memory on nodes used
+    #SBATCH -n 15                        # run on 128 cores
+    #SBATCH -N 1                         # use 1 node
+    # #SBATCH --exclusive                  # don't share nodes with other jobs
+    #SBATCH --mem=100G                   # allocate 100GB memory per node
+    # #SBATCH --mem=0                      # allocate all available memory on nodes used
     #SBATCH -t 10:00:00                  # time limit 10 hrs (default is 1 hr)
     #SBATCH -p cpu                       # submit to partition cpu 
-    ##SBATCH -p cpu,cpu-preempt           # submit to partition cpu or cpu-preempt (<2 hrs)
-    #SBATCH -C ib                        # require infiniband connectivity
-    scontrol write batch_script $SLURM_JOB_ID -;echo # print this script to output
-    echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used
+    # #SBATCH -p cpu,cpu-preempt           # submit to partition cpu or cpu-preempt (<2 hrs)
+    # #SBATCH --nodelist=cpu[022-029],cpu[049-068]  # restrict to 128-core nodes 
+    #SBATCH -C ib                        # require inifiniband connectivity
+    scontrol write batch_script $SLURM_JOB_ID -;echo # print this batch script to output
+    echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used 
     module purge                         # unload all modules
     module load conda/latest             # need this to use conda commands
-    conda activate dem21                 # environment with OpenMPI, dem21, and dependencies
+    conda activate dem21                 # environment with OpenMPI, then don't need OpenMPI module
+    # module load openmpi/5.0.3            # load OpenMPI module, use with environment dem21e
+    # conda activate dem21e                # environment with external OpenMPI, use with OpenMPI module
     export pproc=mpi                     # tells dem21 to run in MPI-parallel mode
-    mpirun --display bindings python ../../mx2.py mx2mod
+    mpirun --display bindings python ../../mx2.py mx2mod  # run displaying bindings
+    # mpirun python ../../mx2.py mx2mod    # run without displaying bindings
     ```
   
   - We submit the job from this directory  (`mx2.py` has been written to be run from the directory where its output should go -- this may not be true for other programs):
@@ -2981,7 +2986,7 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
   
   - Allowing the 128-core sims to run on 2 64-code nodes was only about 15% slower than running on 1 128-core node, and again the queue time was shorter for 64-code nodes.
   
-  - In summary the best way to run here was to used `--exclusive` and `--mem=0` to get full use of nodes with all of their memory, but to not specify `-N`  (which typically resulting in 64-core nodes) or to explicitly specify `-N` that gives 64-core nodes.
+  - In summary the best way to run here was to used `--exclusive` and `--mem=0` to get full use of nodes with all of their memory, but to not specify `-N`  (which typically resulting in 64-core nodes) or to explicitly specify `-N` that gives 64-core nodes as Unity currently (4/25) has a lot of 64-core nodes.
   
   - Here are some typical `#SBATCH` settings that Eamon Dwight used for a script that submitted many jobs similar to the job described above:
     
@@ -3505,7 +3510,6 @@ For the examples here it assumed that the needed image file (**`m4p.sif`** or **
     
     SIM 1/1:
     Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
-    
                               ...
     ```
 
@@ -3515,32 +3519,34 @@ For the examples here it assumed that the needed image file (**`m4p.sif`** or **
     
     ```
     #!/bin/bash
-    # cc-expts-unity-app/mx2-unity-app.sh 4/10/25 D.C.
+    # cc-expts-unity-app/mx2-unity-app.sh 4/12/25 D.C.
     # sbatch script to run granular-memory simulation program mx2.py containerized on the
     # Unity cluster, as an example for "My cheat sheet for MPI, GPU, Apptainer, and HPC".
     # Runs mx2.py in grandparent directory in 'mpi' parallel-processing mode.
     # Reads default config file mx2.yaml in grandparent directory modified by
-    # mx2mod.yaml in current directory. Must set SIFS to directory containing
-    # dem21.sif before running this script.
-    #SBATCH -n 15                        # run 15 MPI ranks (cores here)
-    #SBATCH -N 1                         # use one node
-    #SBATCH --mem=100G                   # allocate 100G of memory per node
-    ##SBATCH --exclusive                  # don't share nodes with other jobs
-    ##SBATCH --mem=0                      # allocate all available memory on nodes used
+    # mx2mod.yaml in current directory.
+    #SBATCH -n 15                        # run on 15 cores
+    #SBATCH -N 1                         # use 1 node
+    # #SBATCH --exclusive                  # don't share nodes with other jobs
+    #SBATCH --mem=100G                   # allocate 100GB memory per node
+    # #SBATCH --mem=0                      # allocate all available memory on nodes used
     #SBATCH -t 10:00:00                  # time limit 10 hrs (default is 1 hr)
-    #SBATCH -p cpu                       # submit to partition cpu 
-    ##SBATCH -p cpu,cpu-preempt           # submit to partition cpu or cpu-preempt (<2 hrs)
-    #SBATCH -C ib                        # require infiniband connectivity
+    #SBATCH -p cpu                       # submit to partition cpu
+    # #SBATCH -p cpu,cpu-preempt           # submit to partition cpu or cpu-preempt (<2 hrs)
+    #SBATCH -C ib                        # require inifiniband connectivity
     scontrol write batch_script $SLURM_JOB_ID -;echo # print this script to output
     echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used
     module purge                         # unload all modules
     module load apptainer/latest
-    module load openmpi/5.0.3
-    #module load conda/latest             # need this to use conda commands
-    #conda activate ompi                  # environment with OpenMPI and Python
+    module load conda/latest             # need this to use conda commands
+    conda activate ompi                  # environment with OpenMPI, then don't need OpenMPI module
+    # module load openmpi/5.0.3            # load OpenMPI module, then don't need ompi environment 
     export pproc=mpi                     # tells dem21 to run in MPI-parallel mode
-    mpirun --display bindings \
-       apptainer exec $SIFS/dem21.sif python ../../mx2.py mx2mod
+    SIFS='/work/pi_candela_umass_edu/dcstuff/sifs'   # where dem21.sif is kept
+    mpirun --display bindings apptainer exec $SIFS/dem21.sif \
+         python ../../mx2.py mx2mod       # run displaying bindings
+    # mpirun apptainer exec $SIFS/dem21.sif \
+    #    python ../../mx2.py mx2mod       # run without displaying bindings
     ```
   
   - As was done for a [non-containerized run on Unity](#sbatch-dem21) we can run this script from on a login node in the directory containing the script.  But now we must set `SIFS` to the directory with the container image:
