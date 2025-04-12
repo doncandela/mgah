@@ -1020,8 +1020,7 @@ NVIDA has made many different GPUs. This table shows includes the relatively sma
 | float32 CPU /GPU:                  |                        | **0.26 /0.94 GF**       | 0.09 / 3.0 GF            | 0.10 / 11.9 GF     | **0.26 / 21 GF**   |                  |
 | Node forces using CSR matrix       |                        |                         |                          |                    |                    |                  |
 | float64 CPU / GPU:                 |                        | **0.55 /1.28 GF**       | 0.14 / 1.96 GF           | 0.13 /7.9 GF       | **0.36 /31 GF**    |                  |
-| float32 CPU /GPU:                  |                        | **0.66 /1.41 GF**       | 0.22 / 3.82 GF           | 0.23 / 13.8 GF     |                    |                  |
-| **0.43 / 55 GF**                   |                        |                         |                          |                    |                    |                  |
+| float32 CPU /GPU:                  |                        | **0.66 /1.41 GF**       | 0.22 / 3.82 GF           | 0.23 / 13.8 GF     | **0.43 / 55 GF**   |                  |
 
 These test results used arrays with $10^6$ elements.  Here TF = TFLOPS = $10^{12}$ FP ops/s, GF = GFLOPS = $10^9$ FP ops/s. 
 
@@ -1858,7 +1857,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   - [Research Computing User's Guide](http://acadix.biz/RCUG/HTML/index.html) (esp Ch. 11 "Job Scheduling with SLURM").
   - A few more advanced resources are linked in [Running batch jobs](#run-batch) below.
 
-- The nodes in a Slurm cluster are assigned to **partitions**, and one or more partitions are specified when a job is submitted.  Slurm allows a node to be assigned to multiple partitions, but I don’t think this is done much on Unity except that some `gpu` nodes are also in `cpu`, etc.  Here are the **x86_64 general-access and preempt [partitions on Unity](https://docs.unity.rc.umass.edu/documentation/cluster_specs/partitions/)** (numbers and best GPUs as of 1/25):
+- The nodes in a Slurm cluster are assigned to **partitions**, and one or more partitions are specified when a job is submitted.  Slurm allows a node to be assigned to multiple partitions, but I don’t think this is done much on Unity except that some `gpu` nodes are also in `cpu`, etc.  Here are the **x86_64 general-access and preempt [partitions on Unity](https://docs.unity.rc.umass.edu/documentation/cluster_specs/partitions/) (numbers and best GPUs as of 1/25):
   
   | Partition     | Nodes | Total cores | Cores/node | Mem/node     | GPUs/node | Best GPUs         |
   | ------------- | ----- | ----------- | ---------- | ------------ | --------- | ----------------- |
@@ -1882,10 +1881,12 @@ Finally, the computational resources of an HPC cluster are only useful if availa
       - To get more chance of scheduling sbatch script can list more than one partition, e.g
         
         ```
-        #SBATCH -p=cpu,cpu-prempt
+        #SBATCH -p=cpu,cpu-preempt
         ```
   
   - Jobs submitted to the `gpu` or `gpu-preempt` partitions will be rejected if they do not request GPUs using e.g. `#SBATCH -G=..`.
+  
+  - In my recent (4/25) experience, jobs submitted to the preempt partitions typically are scheduled more quickly than for the non-preempt partitions -- so it is worth doing this if the time limit can be kept less than two hours.  Also, it is possible that the Unity limits for total cores and total GPUs in use are not enforced for jobs on the preempt partitions.
 
 - Some useful Slurm commands:
   
@@ -2988,7 +2989,7 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
   
   - In summary the best way to run here was to used `--exclusive` and `--mem=0` to get full use of nodes with all of their memory, but to not specify `-N`  (which typically resulting in 64-core nodes) or to explicitly specify `-N` that gives 64-core nodes as Unity currently (4/25) has a lot of 64-core nodes.
   
-  - Here are some typical `#SBATCH` settings that Eamon Dwight used for a script that submitted many jobs similar to the job described above:
+  - Here are some typical `#SBATCH` settings that someone in my group used successfully for a script that submitted many jobs similar to the job described above:
     
     ```
     #SBATCH -q long                     # required for jobs running more than 2 days
@@ -3071,15 +3072,17 @@ Unlike on my PCs, on Unity it was not necessary to explicitly specify `-c conda-
 #### A batch job using a GPU<a id="gpu-sbatch"></a>
 
 - As in the non-GPU background job example above, here we again run `gputest.py` in the directory `/work/...test_gpu` but now we activate the Conda environment `gpu` which does include CuPy, so `gputest.py` will try to use a GPU.  We will also need to ensure the CUDA module is loaded, request a GPU, and run the job in a GPU partition.  So we will use an sbatch script **`gputest.sh`** with these contents:
-  **TODO** request specific GPU, print full results.
   
   ```
   #!/bin/bash
-  # gputest.sh 2/28/25 D.C.
+  # gputest.sh 4/12/25 D.C.
   # One-task sbatch script using a GPU but not Apptainer, runs gputest.py
-  #SBATCH -c 6                  # use 6 CPU cores
+  #SBATCH -c 6                  # allocate 6 CPU cores
   #SBATCH -G 1                  # use one GPU
+  # #SBATCH -C v100               # insist on a V100 GPU
+  # #SBATCH -C a100               # insist on an A100 GPU (not avail on partition gpu)
   #SBATCH -p gpu                # submit to partition gpu
+  # #SBATCH -p gpu,gpu-preempt    # submit to partition gpu or gpu-preempt (<2 hrs)
   echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used
   module purge                  # unload all modules
   module load conda/latest
@@ -3088,7 +3091,12 @@ Unlike on my PCs, on Unity it was not necessary to explicitly specify `-c conda-
   python gputest.py
   ```
   
-    As written, this script puts no constraints on the type of GPU that will be allocated or how much memory it will have. Here is an [article in the Unity docs](https://docs.unity.rc.umass.edu/documentation/tools/gpus/) with extensive information on the GPUs available on Unity and how to select them.
+  Here is an [article in the Unity docs](https://docs.unity.rc.umass.edu/documentation/tools/gpus/) with extensive information on the GPUs available on Unity and how to select them.  The examples of selecting particular GPUs shown (commented out) in the sbatch script are not very practical as V100 GPUs can be hard to get and A100 GPUs nearly impossible. Before submitting a job that requests specific GPU models, it may be worth checking on their current availability:
+  
+  ```
+  # Show idleness of nodes that have V100 GPUs:
+  $ unity-slurm-find-nodes v100 | unity-slurm-node-usage 
+  ```
 
 - Here we submit the job, then examine its output. Note this can be run in any (or no) Conda environment, and if desired on a login node, as it is the node allocated by `sbatch` that will be used to run the job:
   
@@ -3120,11 +3128,11 @@ Unlike on my PCs, on Unity it was not necessary to explicitly specify `-c conda-
 
 To run on Unity, a suitable container image (`.sif` file) must be present in a Unity job I/O location under `/work/pi_<userc>`.  Note `.sif` files are typically one to several GB in size.
 
-- An image can be built on a Linux PC as described in [Using Apptainer on a Linux PC](#apptainer-pc) above, then [tranferred to Unity](#unity-file-transfer) using `scp` (the graphical [**Unity OnDemand**](https://ood.unity.rc.umass.edu/pun/sys/dashboard) does not seem able to transfer files this big).
+- An image can be built on a Linux PC as described in [Using Apptainer on a Linux PC](#apptainer-pc) above, then [tranferred to Unity](#unity-file-transfer) using `scp` (the graphical [**Unity OnDemand**](https://ood.unity.rc.umass.edu/pun/sys/dashboard) does not seem able to transfer files this big).  All of the containers used in this document were built on a Linux PC in this way.  It is remarkable that these PC-built containers all worked without modification when transferred to Unity.
 
 - It may be possible to build an image directly on Unity using the **`--fakeroot`** option to `apptainer build`, I haven’t tried this.
 
-- Due to their large sizes, I find it handy to put all my `.sif` files in one directory on Unity and define an alias that sets the environment variable `SIFS` to the path to this directory:
+- Due to their large sizes, I find it handy to put all my `.sif` files in one directory on Unity.  For interactive jobs it is useful to define an alias that sets the environment variable `SIFS` to the path to this directory:
   
   ```
   # Add this to ~/.bash_aliases:
@@ -3144,7 +3152,15 @@ To run on Unity, a suitable container image (`.sif` file) must be present in a U
                ...
   ```
   
-  It is assumed below that **`SIFS` is set** and the **container images `dem21.sf`..`pack.sif` have been built** as detailed in [Using Apptainer on a Linux PC](#apptainer-pc)  and transferred to Unity, as shown just above.
+  It is generally  assumed below that **`SIFS` is set** and the **container images `dem21.sf`..`pack.sif` have been built** as detailed in [Using Apptainer on a Linux PC](#apptainer-pc)  and transferred to Unity, as shown just above.
+  
+  For big batch container jobs, it seems better to to set the location of  `.sif` files directly in the sbatch script -- otherwise if   it is accidentally forgotten to set the location before submitting a job with a long queue time the job will die when it finally runs:
+  
+  ```
+  (typical lines in an sbatch script using Apptainer)
+  SIFS='/work/pi_.../sifs'          # where <mycontainer>.sif is kept
+  mpirun apptainer exec $SIFS/<mycontainer>.sif python <myprogram>.py
+  ```
 
 #### Running a container interactively or in a batch job<a id="unity-run-container"></a>
 
@@ -3549,10 +3565,9 @@ For the examples here it assumed that the needed image file (**`m4p.sif`** or **
     #    python ../../mx2.py mx2mod       # run without displaying bindings
     ```
   
-  - As was done for a [non-containerized run on Unity](#sbatch-dem21) we can run this script from on a login node in the directory containing the script.  But now we must set `SIFS` to the directory with the container image:
+  - As was done for a [non-containerized run on Unity](#sbatch-dem21) we can run this script from on a login node in the directory containing the script:
     
     ```
-    $ sifs                # sets SIFS to directory containing dem21.sif 
     $ cd ..cc-expts-unity; ls
     bw6-sigs.yaml  bw6.svg  mx2mod.yaml  mx2-unity-app.sh signals.sh
     ..cc-expts-unity$ sbatch mx2-unity-app.sh
@@ -3564,26 +3579,27 @@ For the examples here it assumed that the needed image file (**`m4p.sif`** or **
     
     Some stats from running in various ways (all containerized):
   
-  | system                           | candela-21        | Unity             | Unity             | Unity            | Unity            |
-  | -------------------------------- | ----------------- | ----------------- | ----------------- | ---------------- | ---------------- |
-  | cores (`-n`)                     | 15                | 15                | 64                | 128              | 256              |
-  | max boxes/crate                  | 16                | 16                | 4                 | 2                | 1                |
-  | req. number of nodes (`-N`)      | -                 | 1                 | 1                 | no `-N`          | no `-N`          |
-  | `--exclusive` ?                  | -                 | no                | yes               | yes              | yes              |
-  | number of nodes used, cores/node |                   | 1                 | 1, 64             | 2, 64            | 4, 64            |
-  | which nodes used                 | -                 | TODO              | TODO              | TODO             | TODO             |
-  | inter-rank comm time             |                   | 3.3%              | 9.8%              | 19.7%            | 35.0%            |
-  | memory used                      | 2.2 GB            | 3.3 GB            | 10.8 GB           | 11.1 GB          | 34.0 GB          |
-  | sim wall time                    | 284 min = 4.74 hr | 331 min = 5.51 hr | 119 min = 1.99 hr | 72 min = 1.19 hr | 50 min = 0.83 hr |
-  | time/(step-grain)                | 3.70e-6 s         | 4.30e-6 s         | 1.56e-6 s         | 0.93e-6 s        | 0.65e-6 s        |
-  | speed/candela-21                 | 1.00              | 0.80              | 2.2               | 3.7              | 5.3              |
+  | system                           | candela-21        | Unity        | Unity             | Unity                  | Unity                    |
+  | -------------------------------- | ----------------- | ------------ | ----------------- | ---------------------- | ------------------------ |
+  | cores (`-n`)                     | 15                | 15           | 64                | 128                    | 256                      |
+  | max boxes/crate                  | 16                | 16           | 4                 | 2                      | 1                        |
+  | req. number of nodes (`-N`)      | -                 | 1            | 1                 | 2                      | no `-N`                  |
+  | `--exclusive` ?                  | -                 | no           | yes               | yes                    | yes                      |
+  | number of nodes used, cores/node |                   | 1            | 1, 64             | 2, 64                  | 4, 64                    |
+  | which nodes used                 | -                 | TODO         | umd-cscdr-cpu042  | umd-cscdr-cpu[033-034] | uri-cpu[017,022,024-025] |
+  | inter-rank comm time             |                   | X%           | 9.9%              | 26.4%                  | 48.8%                    |
+  | memory used                      | 2.2 GB            | TODO GB      | 16.9 GB           | 16.9 GB                | 50.4 GB                  |
+  | sim wall time                    | 284 min = 4.74 hr | X min = X hr | 119 min = 1.99 hr | 80 min = 1.33 hr       | 67 min = 1.12 hr         |
+  | time/(step-grain)                | 3.70e-6 s         | Xe-6 s       | 1.56e-6 s         | 1.04e-6 s              | 0.88e-6 s                |
+  | speed/candela-21                 | 1.00              | 0.X          | 2.4               | 3.6                    | 4.2                      |
   
   Notes:
   
   - We are comparing the speed to a [containerized run on the `candela-21` PC](#dem21-container), which was found to be 7% slower than a non-containerized run on the same PC.
-  - One of these jobs was repeated but now loading the `openmpi/5.0.3` module, and not loading the Conda module or the `ompi` Conda environment.  As was [found above](#ways-mpi-unity) for non-containerized MPI jobs on Unity, TODO
-  - Comparing with the corresponding [non-containerized runs on Unity](#sbatch-dem21),
-    - x
+  - One of these jobs was repeated but now loading the `openmpi/5.0.3` module, and not loading the Conda module or the `ompi` Conda environment.  As was [found above](#ways-mpi-unity) for non-containerized MPI jobs on Unity, this had no apparent effect on the speed at which the job ran.
+  - Compared with the corresponding [non-containerized runs on Unity](#sbatch-dem21),
+    - The speed is between 0% and 34% slower, suggesting a modest speed penalty for containerizing the job (on the `candela-21` PC, containerizing this job resulted in 7% slower execution.)
+    - The speed penalty for containerizing the job appears to be worse when more nodes are used, but this may an accidental result of the particular nodes allocated.
 
 #### Running a container the uses a GPU<a id="unity-gpu-container"></a>
 

@@ -3534,16 +3534,7 @@ Multiply M*M=N element dense matrices
 <td><strong>0.66 /1.41 GF</strong></td>
 <td>0.22 / 3.82 GF</td>
 <td>0.23 / 13.8 GF</td>
-<td></td>
-<td></td>
-</tr>
-<tr>
 <td><strong>0.43 / 55 GF</strong></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
 <td></td>
 </tr>
 </tbody></table>
@@ -4211,7 +4202,7 @@ Are you sure you want to continue connecting (yes/no/[fingerprint])? yes</code><
 <li>A few more advanced resources are linked in <a href="#run-batch">Running batch jobs</a> below.</li>
 </ul>
 </li>
-<li><p>The nodes in a Slurm cluster are assigned to <strong>partitions</strong>, and one or more partitions are specified when a job is submitted.  Slurm allows a node to be assigned to multiple partitions, but I don’t think this is done much on Unity except that some <code>gpu</code> nodes are also in <code>cpu</code>, etc.  Here are the <strong>x86_64 general-access and preempt <a href="https://docs.unity.rc.umass.edu/documentation/cluster_specs/partitions/">partitions on Unity</a></strong> (numbers and best GPUs as of 1/25):</p>
+<li><p>The nodes in a Slurm cluster are assigned to <strong>partitions</strong>, and one or more partitions are specified when a job is submitted.  Slurm allows a node to be assigned to multiple partitions, but I don’t think this is done much on Unity except that some <code>gpu</code> nodes are also in <code>cpu</code>, etc.  Here are the **x86_64 general-access and preempt <a href="https://docs.unity.rc.umass.edu/documentation/cluster_specs/partitions/">partitions on Unity</a> (numbers and best GPUs as of 1/25):</p>
 <table>
 <thead>
 <tr>
@@ -4275,13 +4266,15 @@ Are you sure you want to continue connecting (yes/no/[fingerprint])? yes</code><
 <li><p>If a job does start on a preempt partition, it will not be killed before 2 hours of run time.</p>
 </li>
 <li><p>To get more chance of scheduling sbatch script can list more than one partition, e.g</p>
-<pre><code class="fenced-code-block">#SBATCH -p=cpu,cpu-prempt</code></pre>
+<pre><code class="fenced-code-block">#SBATCH -p=cpu,cpu-preempt</code></pre>
 </li>
 </ul>
 </li>
 </ul>
 </li>
 <li><p>Jobs submitted to the <code>gpu</code> or <code>gpu-preempt</code> partitions will be rejected if they do not request GPUs using e.g. <code>#SBATCH -G=..</code>.</p>
+</li>
+<li><p>In my recent (4/25) experience, jobs submitted to the preempt partitions typically are scheduled more quickly than for the non-preempt partitions -- so it is worth doing this if the time limit can be kept less than two hours.  Also, it is possible that the Unity limits for total cores and total GPUs in use are not enforced for jobs on the preempt partitions.</p>
 </li>
 </ul>
 </li>
@@ -5365,7 +5358,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 </li>
 <li><p>In summary the best way to run here was to used <code>--exclusive</code> and <code>--mem=0</code> to get full use of nodes with all of their memory, but to not specify <code>-N</code>  (which typically resulting in 64-core nodes) or to explicitly specify <code>-N</code> that gives 64-core nodes as Unity currently (4/25) has a lot of 64-core nodes.</p>
 </li>
-<li><p>Here are some typical <code>#SBATCH</code> settings that Eamon Dwight used for a script that submitted many jobs similar to the job described above:</p>
+<li><p>Here are some typical <code>#SBATCH</code> settings that someone in my group used successfully for a script that submitted many jobs similar to the job described above:</p>
 <pre><code class="fenced-code-block">#SBATCH -q long                     # required for jobs running more than 2 days
 #SBATCH -N 1                        # run on a single node
 #SBATCH --nodelistcp=cpu[049-068]     # limit to nodes with 128 cores
@@ -5434,21 +5427,25 @@ Multiply M*M=N element dense matrices
 </ul>
 <h4 class="atx" id="a-batch-job-using-a-gpulessa-iddouble-quotegpu-sbatchdouble-quotegreaterlessagreater">A batch job using a GPU<a id="gpu-sbatch"></a></h4>
 <ul>
-<li><p>As in the non-GPU background job example above, here we again run <code>gputest.py</code> in the directory <code>/work/...test_gpu</code> but now we activate the Conda environment <code>gpu</code> which does include CuPy, so <code>gputest.py</code> will try to use a GPU.  We will also need to ensure the CUDA module is loaded, request a GPU, and run the job in a GPU partition.  So we will use an sbatch script <strong><code>gputest.sh</code></strong> with these contents:
-<strong>TODO</strong> request specific GPU, print full results.</p>
+<li><p>As in the non-GPU background job example above, here we again run <code>gputest.py</code> in the directory <code>/work/...test_gpu</code> but now we activate the Conda environment <code>gpu</code> which does include CuPy, so <code>gputest.py</code> will try to use a GPU.  We will also need to ensure the CUDA module is loaded, request a GPU, and run the job in a GPU partition.  So we will use an sbatch script <strong><code>gputest.sh</code></strong> with these contents:</p>
 <pre><code class="fenced-code-block">#!/bin/bash
-# gputest.sh 2/28/25 D.C.
+# gputest.sh 4/12/25 D.C.
 # One-task sbatch script using a GPU but not Apptainer, runs gputest.py
-#SBATCH -c 6                  # use 6 CPU cores
+#SBATCH -c 6                  # allocate 6 CPU cores
 #SBATCH -G 1                  # use one GPU
+# #SBATCH -C v100               # insist on a V100 GPU
+# #SBATCH -C a100               # insist on an A100 GPU (not avail on partition gpu)
 #SBATCH -p gpu                # submit to partition gpu
+# #SBATCH -p gpu,gpu-preempt    # submit to partition gpu or gpu-preempt (&lt;2 hrs)
 echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used
 module purge                  # unload all modules
 module load conda/latest
 module load cuda/12.6         # need CUDA to use a GPU
 conda activate gpu            # environment with NumPy, SciPy, and CuPy
 python gputest.py</code></pre>
-<p>  As written, this script puts no constraints on the type of GPU that will be allocated or how much memory it will have. Here is an <a href="https://docs.unity.rc.umass.edu/documentation/tools/gpus/">article in the Unity docs</a> with extensive information on the GPUs available on Unity and how to select them.</p>
+<p>Here is an <a href="https://docs.unity.rc.umass.edu/documentation/tools/gpus/">article in the Unity docs</a> with extensive information on the GPUs available on Unity and how to select them.  The examples of selecting particular GPUs shown (commented out) in the sbatch script are not very practical as V100 GPUs can be hard to get and A100 GPUs nearly impossible. Before submitting a job that requests specific GPU models, it may be worth checking on their current availability:</p>
+<pre><code class="fenced-code-block"># Show idleness of nodes that have V100 GPUs:
+$ unity-slurm-find-nodes v100 | unity-slurm-node-usage </code></pre>
 </li>
 <li><p>Here we submit the job, then examine its output. Note this can be run in any (or no) Conda environment, and if desired on a login node, as it is the node allocated by <code>sbatch</code> that will be used to run the job:</p>
 <pre><code class="fenced-code-block">try-gputest$ sbatch gputest.sh
@@ -5475,11 +5472,11 @@ Multiply M*M=N element dense matrices
 <h4 class="atx" id="getting-container-images-on-the-clusterlessa-iddouble-quoteimages-to-unitydouble-quotegreaterlessagreater">Getting container images on the cluster<a id="images-to-unity"></a></h4>
 <p>To run on Unity, a suitable container image (<code>.sif</code> file) must be present in a Unity job I/O location under <code>/work/pi_&lt;userc&gt;</code>.  Note <code>.sif</code> files are typically one to several GB in size.</p>
 <ul>
-<li><p>An image can be built on a Linux PC as described in <a href="#apptainer-pc">Using Apptainer on a Linux PC</a> above, then <a href="#unity-file-transfer">tranferred to Unity</a> using <code>scp</code> (the graphical <a href="https://ood.unity.rc.umass.edu/pun/sys/dashboard"><strong>Unity OnDemand</strong></a> does not seem able to transfer files this big).</p>
+<li><p>An image can be built on a Linux PC as described in <a href="#apptainer-pc">Using Apptainer on a Linux PC</a> above, then <a href="#unity-file-transfer">tranferred to Unity</a> using <code>scp</code> (the graphical <a href="https://ood.unity.rc.umass.edu/pun/sys/dashboard"><strong>Unity OnDemand</strong></a> does not seem able to transfer files this big).  All of the containers used in this document were built on a Linux PC in this way.  It is remarkable that these PC-built containers all worked without modification when transferred to Unity.</p>
 </li>
 <li><p>It may be possible to build an image directly on Unity using the <strong><code>--fakeroot</code></strong> option to <code>apptainer build</code>, I haven’t tried this.</p>
 </li>
-<li><p>Due to their large sizes, I find it handy to put all my <code>.sif</code> files in one directory on Unity and define an alias that sets the environment variable <code>SIFS</code> to the path to this directory:</p>
+<li><p>Due to their large sizes, I find it handy to put all my <code>.sif</code> files in one directory on Unity.  For interactive jobs it is useful to define an alias that sets the environment variable <code>SIFS</code> to the path to this directory:</p>
 <pre><code class="fenced-code-block"># Add this to ~/.bash_aliases:
 alias sifs='export SIFS=/work/pi_..../sifs'</code></pre>
 <p>If the <strong>path has any spaces</strong> <code>"$SIFS"</code> must be used rather than <code>$SIFS</code>  but this is not shown below. Then when a new shell is obtained <code>SIFS</code> can easily be set (and if desired, the list of container images and their sizes seen): </p>
@@ -5491,7 +5488,11 @@ $ du -ah $SIFS
 1.3G&nbsp;&nbsp;&nbsp;&nbsp;/work/pi_..../sifs/dem21.sif
 3.3G&nbsp;&nbsp;&nbsp;&nbsp;/work/pi_..../sifs/gpu.sif
              ...</code></pre>
-<p>It is assumed below that <strong><code>SIFS</code> is set</strong> and the <strong>container images <code>dem21.sf</code>..<code>pack.sif</code> have been built</strong> as detailed in <a href="#apptainer-pc">Using Apptainer on a Linux PC</a>  and transferred to Unity, as shown just above.</p>
+<p>It is generally  assumed below that <strong><code>SIFS</code> is set</strong> and the <strong>container images <code>dem21.sf</code>..<code>pack.sif</code> have been built</strong> as detailed in <a href="#apptainer-pc">Using Apptainer on a Linux PC</a>  and transferred to Unity, as shown just above.</p>
+<p>For big batch container jobs, it seems better to to set the location of  <code>.sif</code> files directly in the sbatch script -- otherwise if   it is accidentally forgotten to set the location before submitting a job with a long queue time the job will die when it finally runs:</p>
+<pre><code class="fenced-code-block">(typical lines in an sbatch script using Apptainer)
+SIFS='/work/pi_.../sifs'          # where &lt;mycontainer&gt;.sif is kept
+mpirun apptainer exec $SIFS/&lt;mycontainer&gt;.sif python &lt;myprogram&gt;.py</code></pre>
 </li>
 </ul>
 <h4 class="atx" id="running-a-container-interactively-or-in-a-batch-joblessa-iddouble-quoteunity-run-containerdouble-quotegreaterlessagreater">Running a container interactively or in a batch job<a id="unity-run-container"></a></h4>
@@ -5846,9 +5847,8 @@ mpirun --display bindings apptainer exec $SIFS/dem21.sif \
 # mpirun apptainer exec $SIFS/dem21.sif \
 #    python ../../mx2.py mx2mod       # run without displaying bindings</code></pre>
 </li>
-<li><p>As was done for a <a href="#sbatch-dem21">non-containerized run on Unity</a> we can run this script from on a login node in the directory containing the script.  But now we must set <code>SIFS</code> to the directory with the container image:</p>
-<pre><code class="fenced-code-block">$ sifs                # sets SIFS to directory containing dem21.sif 
-$ cd ..cc-expts-unity; ls
+<li><p>As was done for a <a href="#sbatch-dem21">non-containerized run on Unity</a> we can run this script from on a login node in the directory containing the script:</p>
+<pre><code class="fenced-code-block">$ cd ..cc-expts-unity; ls
 bw6-sigs.yaml  bw6.svg  mx2mod.yaml  mx2-unity-app.sh signals.sh
 ..cc-expts-unity$ sbatch mx2-unity-app.sh
 Submitted batch job 31844213
@@ -5890,7 +5890,7 @@ Submitted batch job 31844213
 <td>-</td>
 <td>1</td>
 <td>1</td>
-<td>no <code>-N</code></td>
+<td>2</td>
 <td>no <code>-N</code></td>
 </tr>
 <tr>
@@ -5913,57 +5913,58 @@ Submitted batch job 31844213
 <td>which nodes used</td>
 <td>-</td>
 <td>TODO</td>
-<td>TODO</td>
-<td>TODO</td>
-<td>TODO</td>
+<td>umd-cscdr-cpu042</td>
+<td>umd-cscdr-cpu[033-034]</td>
+<td>uri-cpu[017,022,024-025]</td>
 </tr>
 <tr>
 <td>inter-rank comm time</td>
 <td></td>
-<td>3.3%</td>
-<td>9.8%</td>
-<td>19.7%</td>
-<td>35.0%</td>
+<td>X%</td>
+<td>9.9%</td>
+<td>26.4%</td>
+<td>48.8%</td>
 </tr>
 <tr>
 <td>memory used</td>
 <td>2.2 GB</td>
-<td>3.3 GB</td>
-<td>10.8 GB</td>
-<td>11.1 GB</td>
-<td>34.0 GB</td>
+<td>TODO GB</td>
+<td>16.9 GB</td>
+<td>16.9 GB</td>
+<td>50.4 GB</td>
 </tr>
 <tr>
 <td>sim wall time</td>
 <td>284 min = 4.74 hr</td>
-<td>331 min = 5.51 hr</td>
+<td>X min = X hr</td>
 <td>119 min = 1.99 hr</td>
-<td>72 min = 1.19 hr</td>
-<td>50 min = 0.83 hr</td>
+<td>80 min = 1.33 hr</td>
+<td>67 min = 1.12 hr</td>
 </tr>
 <tr>
 <td>time/(step-grain)</td>
 <td>3.70e-6 s</td>
-<td>4.30e-6 s</td>
+<td>Xe-6 s</td>
 <td>1.56e-6 s</td>
-<td>0.93e-6 s</td>
-<td>0.65e-6 s</td>
+<td>1.04e-6 s</td>
+<td>0.88e-6 s</td>
 </tr>
 <tr>
 <td>speed/candela-21</td>
 <td>1.00</td>
-<td>0.80</td>
-<td>2.2</td>
-<td>3.7</td>
-<td>5.3</td>
+<td>0.X</td>
+<td>2.4</td>
+<td>3.6</td>
+<td>4.2</td>
 </tr>
 </tbody></table>
 <p>Notes:</p>
 <ul>
 <li>We are comparing the speed to a <a href="#dem21-container">containerized run on the <code>candela-21</code> PC</a>, which was found to be 7% slower than a non-containerized run on the same PC.</li>
-<li>One of these jobs was repeated but now loading the <code>openmpi/5.0.3</code> module, and not loading the Conda module or the <code>ompi</code> Conda environment.  As was <a href="#ways-mpi-unity">found above</a> for non-containerized MPI jobs on Unity, TODO</li>
-<li>Comparing with the corresponding <a href="#sbatch-dem21">non-containerized runs on Unity</a>,<ul>
-<li>x</li>
+<li>One of these jobs was repeated but now loading the <code>openmpi/5.0.3</code> module, and not loading the Conda module or the <code>ompi</code> Conda environment.  As was <a href="#ways-mpi-unity">found above</a> for non-containerized MPI jobs on Unity, this had no apparent effect on the speed at which the job ran.</li>
+<li>Compared with the corresponding <a href="#sbatch-dem21">non-containerized runs on Unity</a>,<ul>
+<li>The speed is between 0% and 34% slower, suggesting a modest speed penalty for containerizing the job (on the <code>candela-21</code> PC, containerizing this job resulted in 7% slower execution.)</li>
+<li>The speed penalty for containerizing the job appears to be worse when more nodes are used, but this may an accidental result of the particular nodes allocated.</li>
 </ul>
 </li>
 </ul>
