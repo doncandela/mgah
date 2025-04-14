@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   4/12/25</p>
+<p>mgah.md  D. Candela   4/14/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -3031,6 +3031,8 @@ Imput signals made by: memsigs.py 8/23/24 D.C.
 </li>
 </ul>
 </li>
+<li><p><strong>TODO</strong> Run 1e5 grain sim (~40hrs?) to check against Unity</p>
+</li>
 </ul>
 </li>
 </ul>
@@ -3224,6 +3226,8 @@ Multiply M*M=N element dense matrices
     99,856 6.30e+07 3.39e-03s 5.05e-04s 1.25e+11/s 1.23e-03s 5.12e+10/s 3.27e-02s  0.10GB/s
  1,000,000 2.00e+09 2.92e-02s 8.69e-03s 2.30e+11/s 2.85e-02s 7.02e+10/s 1.01e-02s  3.17GB/s
                                         ...</code></pre>
+</li>
+<li><p><strong>Checking usage of GPU memory (VRAM)</strong>  xxx <strong>TODO</strong></p>
 </li>
 </ul>
 <h4 class="atx" id="a-few-of-nvdiaand39s-many-gpus-with-test-resultslessa-iddouble-quotegpu-listdouble-quotegreaterlessagreater">A few of NVDIA's many GPUS, with test results<a id="gpu-list"></a></h4>
@@ -5358,6 +5362,8 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 </li>
 <li><p>In summary the best way to run here was to used <code>--exclusive</code> and <code>--mem=0</code> to get full use of nodes with all of their memory, but to not specify <code>-N</code>  (which typically resulting in 64-core nodes) or to explicitly specify <code>-N</code> that gives 64-core nodes as Unity currently (4/25) has a lot of 64-core nodes.</p>
 </li>
+<li><p><strong>TODO</strong> run job with 1e5 grains to see if can get weak-scaling advantage (i.e. better than 5x speed of candela-21 for big enough job)</p>
+</li>
 <li><p>Here are some typical <code>#SBATCH</code> settings that someone in my group used successfully for a script that submitted many jobs similar to the job described above:</p>
 <pre><code class="fenced-code-block">#SBATCH -q long                     # required for jobs running more than 2 days
 #SBATCH -N 1                        # run on a single node
@@ -5466,6 +5472,8 @@ Multiply M*M=N element dense matrices
 *********************************************************
                            ...</code></pre>
 <p>  Looking at the <a href="https://docs.unity.rc.umass.edu/documentation/cluster_specs/nodes/">Unity node list</a> we see that node <code>gypsum-gpu168</code> has NVIDIA RTX 2080ti GPUs, which according to the <a href="https://docs.unity.rc.umass.edu/documentation/tools/gpus/">Unity GPU info</a> has compute capability 7.5 in agreement with the output of <code>gputest.py</code>.</p>
+</li>
+<li><p><strong>TODO</strong> Need more on choosing and specifying GPUs and checking VRAM used as V100s (much less A100s) not freely available.</p>
 </li>
 </ul>
 <h3 class="atx" id="using-apptainer-on-unitylessa-iddouble-quoteunity-apptainerdouble-quotegreaterlessagreater">Using Apptainer on Unity<a id="unity-apptainer"></a></h3>

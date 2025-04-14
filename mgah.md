@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   4/12/25
+mgah.md  D. Candela   4/14/25
 
 - [Introduction](#intro)  
   
@@ -731,6 +731,8 @@ Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (n
     - Now there were 27 crates with 8 boxes and 2 crates with 0 boxes, requiring 8 serial box calculations at each time step, i.e. half as many as without hyperthreading.
     
     - Now the simulation required 16,567 s = 4.602 hr, or 3.60 microsec/step-grain.  So despite the greater degree of parallelism with hyperthreading, in this case there was no overall advantage in in fact the program ran slightly slower.  It seems that whatever speed advantage was provided by hyperthreading ([expected to be of order 25%](#multiple-cores)) was negated by the the increased MPI communication required or other unknown factors.
+  
+  - **TODO** Run 1e5 grain sim (~40hrs?) to check against Unity
 
 #### Hyperthreading and NumPy multithreading with MPI<a id="multithread-mpi"></a>
 
@@ -981,6 +983,8 @@ These steps are only need once on a given PC, unless updating to newer versions.
    1,000,000 2.00e+09 2.92e-02s 8.69e-03s 2.30e+11/s 2.85e-02s 7.02e+10/s 1.01e-02s  3.17GB/s
                                           ...
   ```
+
+- **Checking usage of GPU memory (VRAM)**  xxx **TODO**
 
 #### A few of NVDIA's many GPUS, with test results<a id="gpu-list"></a>
 
@@ -2989,6 +2993,8 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
   
   - In summary the best way to run here was to used `--exclusive` and `--mem=0` to get full use of nodes with all of their memory, but to not specify `-N`  (which typically resulting in 64-core nodes) or to explicitly specify `-N` that gives 64-core nodes as Unity currently (4/25) has a lot of 64-core nodes.
   
+  - **TODO** run job with 1e5 grains to see if can get weak-scaling advantage (i.e. better than 5x speed of candela-21 for big enough job)
+  
   - Here are some typical `#SBATCH` settings that someone in my group used successfully for a script that submitted many jobs similar to the job described above:
     
     ```
@@ -3121,6 +3127,8 @@ Unlike on my PCs, on Unity it was not necessary to explicitly specify `-c conda-
   ```
   
     Looking at the [Unity node list](https://docs.unity.rc.umass.edu/documentation/cluster_specs/nodes/) we see that node `gypsum-gpu168` has NVIDIA RTX 2080ti GPUs, which according to the [Unity GPU info](https://docs.unity.rc.umass.edu/documentation/tools/gpus/) has compute capability 7.5 in agreement with the output of `gputest.py`.
+
+- **TODO** Need more on choosing and specifying GPUs and checking VRAM used as V100s (much less A100s) not freely available.
 
 ### Using Apptainer on Unity<a id="unity-apptainer"></a>
 
