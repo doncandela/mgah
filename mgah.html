@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   4/14/25</p>
+<p>mgah.md  D. Candela   4/16/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -2393,6 +2393,7 @@ body {
 <li><a href="#rc-files">Using <code>.bashrc</code> and <code>.bash_aliases</code></a></li>
 <li><a href="#unity-modules-conda">Using modules and Conda</a></li>
 <li><a href="#run-batch">Running batch jobs: <code>sbatch</code></a></li>
+<li><a href="#why-wont-run">Why won't my jobs run</a></li>
 </ul>
 </li>
 <li><a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a><ul>
@@ -2968,7 +2969,7 @@ No gravity, 'hertz' normal force law, Coulomb w. Hookean spring friction with GG
 - READYING SIM with 343 grains and 6 walls
                        ...</code></pre>
 </li>
-<li><p><strong>A more resource-intensive run with <code>mx2.py</code>.</strong><a id="mx2py"></a> Finally we run a much bigger, longer-running DEM simulation which will be repeated below using Apptainer and on Unity (and both), to see if there is any performance impact from containerizing the code, and to investigate the speed-ups that can be obtained from the larger core counts available on Unity.</p>
+<li><p><strong>More resource-intensive runs with <code>mx2.py</code>.</strong><a id="mx2py"></a> Finally we run a much bigger, longer-running DEM simulation which will be repeated below using Apptainer and on Unity (and both), to see if there is any performance impact from containerizing the code, and to investigate the speed-ups that can be obtained from the larger core counts available on Unity.</p>
 <ul>
 <li><p>The tested code is a simulation of a "granular memory" experiment on a dense pack of 10,240 tetrahedral grains (each composed of four spherical grainlets) with 450,000 time steps.</p>
 </li>
@@ -3031,7 +3032,7 @@ Imput signals made by: memsigs.py 8/23/24 D.C.
 </li>
 </ul>
 </li>
-<li><p><strong>TODO</strong> Run 1e5 grain sim (~40hrs?) to check against Unity</p>
+<li><p><strong>An even bigger simulation.</strong> To provide more things to compare with Unity the same code was used to run an even bigger sim,  with ten times as many grains (100,450) but otherwise identical, on <code>candela-16</code> using 16 cores with hyperthreading disabled.  Now there were 1,728 boxes giving up to 116 boxes per crate, so other factors being equal one would expect the sim to take (116/16) = 7.3 times as long to run. <strong>WORKING HERE</strong></p>
 </li>
 </ul>
 </li>
@@ -3978,7 +3979,7 @@ SIM 1/1:
 Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
                                 ....</code></pre>
 </li>
-<li><p>Finally, as in the section <a href="#mx2py">A more resource-intensive run...</a> above, we use the container image <code>dem21.sif</code> with <code>mx2.py</code> to run a larger simulation.   The only change required in the shell file <code>mx2.sh</code> in that section that runs the simulation is in the last line, which now uses <code>mpirun</code> to run multiple copies of <code>apptainer exec dem21.sif python</code> rather than multiple copies of <code>python</code>.  This modified shell file is called <strong><code>mx2-app.sh</code></strong>:</p>
+<li><p>Finally, as in the section <a href="#mx2py">More resource-intensive runs...</a> above, we use the container image <code>dem21.sif</code> with <code>mx2.py</code> to run a larger simulation.   The only change required in the shell file <code>mx2.sh</code> in that section that runs the simulation is in the last line, which now uses <code>mpirun</code> to run multiple copies of <code>apptainer exec dem21.sif python</code> rather than multiple copies of <code>python</code>.  This modified shell file is called <strong><code>mx2-app.sh</code></strong>:</p>
 <pre><code class="fenced-code-block">#!/bin/bash
 # cc-expts-app/mx2-app.sh 4/6/25 D.C.
 # Shell script to run granular-memory simulation program mx2.py containerized
@@ -4292,14 +4293,6 @@ $ sinfo -p cpu -r -l             # show status of nodes in partition cpu
 $ scontrol show partition cpu    # detailed info on partition cpu
 $ scontrol show node cpu029      # detailed info on node cpu029
 $ scontrol show config           # show slurm configuration including default values</code></pre>
-</li>
-<li><p>Some useful scripts to see current usage/availablilty of resources on Unity, <a href="https://docs.unity.rc.umass.edu/documentation/jobs/helper_scripts/">more are here</a>.</p>
-<pre><code class="fenced-code-block">$ unity-slurm-partition-usage  # show how many idle cores and gpus in each partition
-$ unity-slurm-node-usage       # for each node show idle cores and gpus, partition is in
-$ unity-slurm-account-usage    # show cores and gpus my group is currently using
-$ unity-slurm-find-nodes a100  # show nodes with specified constraint (here A100 GPUs)
-$ unity-slurm-find-nodes a100 | unity-slurm-node-usage    # show idleness of nodes with
-                                                          # specified constraint</code></pre>
 </li>
 </ul>
 <h4 class="atx" id="running-jobs-interactively-salloc-or-unity-computelessa-iddouble-quoterun-interactivedouble-quotegreaterlessagreater">Running jobs interactively: <code>salloc</code> or <code>unity-compute</code><a id="run-interactive"></a></h4>
@@ -4673,6 +4666,62 @@ Local time: Tue Apr  8 22:10:44 2025
 Import cupy failed, using CPU only
 CPU timings use last 10 of 11 trials
                     . . . </code></pre>
+</li>
+</ul>
+</li>
+</ul>
+<h4 class="atx" id="why-wonand39t-my-jobs-runlessa-iddouble-quotewhy-wont-rundouble-quotegreaterlessagreater">Why won't my jobs run<a id="why-wont-run"></a></h4>
+<ul>
+<li><p>Here are some useful scripts to see current usage/availablilty of resources on Unity, <a href="https://docs.unity.rc.umass.edu/documentation/jobs/helper_scripts/">more are here</a>.</p>
+<pre><code class="fenced-code-block">$ unity-slurm-partition-usage  # show how many idle cores and gpus in each partition
+$ unity-slurm-node-usage       # for each node show idle cores and gpus, partition is in
+$ unity-slurm-account-usage    # show cores and gpus my group is currently using
+$ unity-slurm-find-nodes a100  # show nodes with specified constraint (here A100 GPUs)
+$ unity-slurm-find-nodes a100 | unity-slurm-node-usage    # show idleness of nodes with
+                                                          # specified constraint</code></pre>
+</li>
+<li><p>The Slurm <strong><code>sprio</code></strong> command returns information about the priorities of all pending jobs, and the factors that enter into those priorities.  One of those factors is the current  <a href="https://docs.crc.ku.edu/how-to/fairshare-priority/">fairshare score</a> for the PI group, and the Slurm <strong><code>sshare</code></strong> shows how that is computed.  Here is an example that I encountered when trying to run some jobs in 4/25:</p>
+<ul>
+<li><p>Running <strong><code>squeue --me</code></strong> shows that I have five jobs stuck pending:</p>
+<pre><code class="fenced-code-block">$ squeue --me
+             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
+          32556933       cpu mx2-unit candela_ PD       0:00      4 (Resources)
+          32556435       cpu mx2-unit candela_ PD       0:00      2 (Priority)
+          32555853       cpu mx2-unit candela_ PD       0:00      1 (Priority)
+          32223401       gpu gputest. candela_ PD       0:00      1 (Priority)
+          32586974       gpu gputest. candela_ PD       0:00      1 (Priority)</code></pre>
+</li>
+<li><p>Looking at the output of <strong><code>sprio</code></strong> for one of these jobs (last line here) we see that it's priority (10284) is low, due in part I guess to the low fairshare number (213):</p>
+<pre><code class="fenced-code-block"># Run sprio twice, one to show the head of the table and a second time to pull out
+# the line for one of my stuck jobs 32556933:
+$ sprio|head;sprio|grep 32556933
+          JOBID PARTITION   PRIORITY       SITE        AGE  FAIRSHARE    JOBSIZE  PARTITION        QOS
+       28472863 building       11082          0       1000        344         31      10000       1000
+       28958275 building        9233          0       1000        344         10      10000       1000
+       28958276 building        9229          0       1000        344         10      10000       1000
+       29898988 gpu-preem      11456          0        980        301        176      10000          0
+       30151398 building       10733          0        832        344         31      10000       1000
+       31002153 gpu            10870          0        507        301         62      10000          0
+       31184153 gypsum-rt      10611          0        424        174         13      10000          0
+       31259028 gpu            10799          0        405        301         94      10000          0
+       31259100 gpu            10767          0        405        301         62      10000          0
+       32556933 cpu            10284          0         13        213         59      10000          0</code></pre>
+</li>
+<li><p>Looking at the output of <strong><code>sshare</code></strong> for my PI group we see a FairShare score of 0.425616, due perhaps to fairly heavy usage of the cluster recently.  According to <a href="https://docs.crc.ku.edu/how-to/fairshare-priority/">this site</a> a FairShare score less than 0.5 indicates our group has over-utilized our share:</p>
+<pre><code class="fenced-code-block">$ sshare|head;sshare|grep candela
+Account                    User  RawShares  NormShares    RawUsage  EffectvUsage  FairShare 
+-------------------- ---------- ---------- ----------- ----------- ------------- ---------- 
+root                                          0.000000  5509757909      1.000000            
+ pi_aakhavanmasoumi+                     1    0.001330           0      0.000000            
+ pi_aakulkarni_umas+                     1    0.001330         786      0.000000            
+ pi_abangert_mtholy+                     1    0.001330       29573      0.000005            
+ pi_abecker_uri_edu                      1    0.001330          46      0.000000            
+ pi_abiti_adili_uml+                     1    0.001330           0      0.000000            
+ pi_abuttenschoe_um+                     1    0.001330           0      0.000000            
+ pi_acheung_umass_e+                     1    0.001330       91209      0.000017            
+ pi_candela_umass_e+                     1    0.001330     4729271      0.000858            
+  pi_candela_umass_+ candela_u+          1    0.500000     3037218      0.642217   0.425616 </code></pre>
+<p>Presumably we will need to wait for our FairShare score to recover back to 0.5 or above before our jobs will run with much priority. (In this particular example the two <code>gpu</code> jobs were asking for one of the better GPUs, a V100, and the three <code>cpu</code> jobs were asking for a lot of cores (64, 128, and 256) -- these factors may also have been holding up the jobs and it's not clear how if at all they are visible in the <code>sprio</code> and <code>sshare</code> output.)</p>
 </li>
 </ul>
 </li>
@@ -5441,8 +5490,10 @@ Multiply M*M=N element dense matrices
 #SBATCH -G 1                  # use one GPU
 # #SBATCH -C v100               # insist on a V100 GPU
 # #SBATCH -C a100               # insist on an A100 GPU (not avail on partition gpu)
+#SBATCH -t 0:10:00            # time limit 10 min (default is 1 hr)
 #SBATCH -p gpu                # submit to partition gpu
 # #SBATCH -p gpu,gpu-preempt    # submit to partition gpu or gpu-preempt (&lt;2 hrs)
+scontrol write batch_script $SLURM_JOB_ID -;echo # print this batch script to output
 echo nodelist=$SLURM_JOB_NODELIST    # get list of nodes used
 module purge                  # unload all modules
 module load conda/latest
@@ -6048,6 +6099,8 @@ Multiply M*M=N element dense matrices
 #SBATCH -c 6                       # use 6 CPU cores
 #SBATCH -G 1                       # use one GPU
 #SBATCH -p gpu                     # submit to partition gpu
+# #SBATCH -p gpu,gpu-preempt         # submit to partition gpu or gpu-preempt (&lt;2 hrs)
+scontrol write batch_script $SLURM_JOB_ID -;echo # print this batch script to output
 echo nodelist=$SLURM_JOB_NODELIST  # print list of nodes used
 module purge                       # unload all modules
 module load apptainer/latest
@@ -6063,6 +6116,7 @@ try-gputest$ sbatch gputest-app.sh
 Submitted batch job 29323951
 (wait until 'squeue --me' shows that job has completed)
 try-gputest$ cat slurm-29323951.out
+(prints the sbatch file)
 nodelist=gypsum-gpu096
 Loading apptainer version latest
 Loading cuda version 12.6
