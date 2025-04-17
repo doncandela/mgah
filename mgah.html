@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   4/16/25</p>
+<p>mgah.md  D. Candela   4/17/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -2485,6 +2485,7 @@ body {
 <li><p>The Kubernetes scheduling/management software typically used rather than Slurm in commercial settings, particularly with Docker.</p>
 </li>
 </ul>
+<p><strong>This document is quite long</strong> because it shows explicit examples of commands and output for many different situations -- every time I figured out how to do something, I pasted an example here -- so it is not particularly readable.</p>
 <h3 class="atx" id="parallel-computing-in-pythonlessa-iddouble-quoteparcomp-pythondouble-quotegreaterlessagreater">Parallel computing in Python<a id="parcomp-python"></a></h3>
 <p>Python is a semi-interpreted language (compiled to a byte code, like Java) and so is much more slowly executed than a fully compiled language like C++, unless an add-on like <a href="http://numba.pydata.org/">Numba</a> or <a href="https://cython.org/">Cython</a> is used (neither of these is discussed further in this document, although they may certainly be useful).</p>
 <p>Therefore good performance on large tasks is often achieved by using <strong>packages</strong> (typically written by others in a compiled language like C++) like <a href="https://numpy.org/">NumPy</a>, <a href="https://scipy.org/">SciPy</a>, <a href="https://cupy.dev/">CuPy</a>, and <a href="https://pytorch.org/">PyTorch</a>, to carry out the time-consuming <strong>inner loops</strong> of algorithms. The same is true of other high-level languages like <a href="https://www.mathworks.com/products/matlab.html">MATLAB</a> and <a href="https://www.mathematica.org/">Mathematica</a>.   While some think Python is inherently slower than C++, if the time limiting factor is, for example, a large linear algebra operation then in either language it will likely be carried out by the same highly-optimized <a href="https://www.netlib.org/blas/">BLAS</a> function on a CPU (via NumPy, for Python), or the corresponding <a href="https://developer.nvidia.com/cublas">cuBLAS</a> function on a GPU (via CuPy).</p>
@@ -3032,7 +3033,7 @@ Imput signals made by: memsigs.py 8/23/24 D.C.
 </li>
 </ul>
 </li>
-<li><p><strong>An even bigger simulation.</strong> To provide more things to compare with Unity the same code was used to run an even bigger sim,  with ten times as many grains (100,450) but otherwise identical, on <code>candela-16</code> using 16 cores with hyperthreading disabled.  Now there were 1,728 boxes giving up to 116 boxes per crate, so other factors being equal one would expect the sim to take (116/16) = 7.3 times as long to run. <strong>WORKING HERE</strong></p>
+<li><p><strong>An even bigger simulation.</strong><a id="even-bigger-sim"></a> To provide more things to compare with Unity the same code was used to run an even bigger sim,  with ten times as many grains (100,450) but otherwise identical, on <code>candela-16</code> using 16 cores with hyperthreading disabled.  Now there were 1,728 boxes giving up to 116 boxes per crate, so other factors being equal one would expect the sim to take (116/16) = 7.3 times as long to run. <strong>WORKING HERE</strong></p>
 </li>
 </ul>
 </li>
@@ -5189,7 +5190,7 @@ Using inelastic 'silicone' grainlets with en=0.7 and R=0.500mm
 <pre><code class="fenced-code-block">Warning: program compiled against libxml 213 using older 209</code></pre>
 <p>...before running successfully.  This was seen when <code>-c conda-forge</code> was supplied to the <code>conda install numpy...</code> command used in creating the Conda environment <code>dem21</code>, unlike what is shown above. However, I don't know if this is really the reason for such warnings or if, for example, it depends on the library versions installed on the Unity node allocated to the job.</p>
 </li>
-<li><p><strong>A larger <code>dem21</code> sim using <code>mx2.py</code>.</strong>  To try out a more time-consuming simulation using an sbatch job on Unity, we follow the steps shown for a PC in <a href="#mx2py">A more intensive run with <code>mx2.py</code></a> above. </p>
+<li><p><strong>Larger <code>dem21</code> sims using <code>mx2.py</code>.</strong>  To try out a more time-consuming simulation using an sbatch job on Unity, we follow the steps shown for a PC in <a href="#mx2py">A more intensive run with <code>mx2.py</code></a> above. </p>
 <ul>
 <li><p>In the directory <code>cc-expts-unity</code> containing the other needed files (not explained here) we make an sbatch script <strong><code>mx2-unity.sh</code></strong> as follows.  Since this file will be modified slightly to test various ways of running on Unity, this script <a href="#keep-sbatch">includes an <code>scontrol</code> command</a> to print the sbatch script used in the <code>slurm-&lt;jobid&gt;.out</code> file: </p>
 <pre><code class="fenced-code-block">#!/bin/bash
@@ -5278,7 +5279,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 **** SIM 1/1   forces n='hertz' t='coulh' mu=1.0 signal binwords-43 (sig 0 in 'bw6')</code></pre>
 </li>
 </ul>
-<p>Some stats from running in various ways:</p>
+<p>Some stats from running in various ways. Here external MPI = no means the environment <strong><code>dem21</code></strong> was activated and the module <code>openmpi/5.0.3</code> was not loaded. Conversely external MPI = yes means the environment <strong><code>dem21e</code></strong> was activated and the module <code>openmpi/5.0.3</code> was loaded:</p>
 <table>
 <thead>
 <tr>
@@ -5290,15 +5291,28 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <th>Unity</th>
 <th>Unity</th>
 <th>Unity</th>
+<th>Unity</th>
 </tr>
 </thead>
 <tbody><tr>
+<td>external MPI?</td>
+<td>-</td>
+<td>no</td>
+<td>no</td>
+<td>no</td>
+<td>no</td>
+<td>no</td>
+<td>no</td>
+<td>yes</td>
+</tr>
+<tr>
 <td>cores (<code>-n</code>)</td>
 <td>15</td>
 <td>15</td>
 <td>64</td>
 <td>128</td>
 <td>128</td>
+<td>256</td>
 <td>256</td>
 <td>256</td>
 </tr>
@@ -5311,9 +5325,10 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>2</td>
 <td>1</td>
 <td>1</td>
+<td>1</td>
 </tr>
 <tr>
-<td>req. number of nodes (<code>-N</code>)</td>
+<td>req. nodes (<code>-N</code>)</td>
 <td>-</td>
 <td>1</td>
 <td>1</td>
@@ -5321,6 +5336,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>no <code>-N</code></td>
 <td>no <code>-N</code></td>
 <td>2</td>
+<td>no <code>-N</code></td>
 </tr>
 <tr>
 <td><code>--exclusive</code> ?</td>
@@ -5331,9 +5347,10 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>yes</td>
 <td>yes</td>
 <td>yes</td>
+<td>yes</td>
 </tr>
 <tr>
-<td>number of nodes used, cores/node</td>
+<td>nodes used, cores/node</td>
 <td></td>
 <td>1</td>
 <td>1, 64</td>
@@ -5341,16 +5358,18 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>2, 64</td>
 <td>4, 64</td>
 <td>2, 128</td>
+<td>TODO</td>
 </tr>
 <tr>
 <td>which nodes used</td>
 <td>-</td>
-<td>cpu054</td>
-<td>umd-cscdr-045</td>
-<td>cpu061</td>
-<td>umd-cscdr-cpu[045-046]</td>
-<td>umd-cscdr-cpu[022-023,025],uri-cpu050</td>
-<td>cpu[061,064]</td>
+<td>cpu 054</td>
+<td>umd-cscdr 045</td>
+<td>cpu 061</td>
+<td>umd-cscdr-cpu [045-046]</td>
+<td>umd-cscdr-cpu [022-023, 025], uri-cpu 050</td>
+<td>cpu [061, 064]</td>
+<td></td>
 </tr>
 <tr>
 <td>inter-rank comm time</td>
@@ -5361,6 +5380,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>19.7%</td>
 <td>35.0%</td>
 <td>35.1%</td>
+<td></td>
 </tr>
 <tr>
 <td>memory used</td>
@@ -5371,6 +5391,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>11.1 GB</td>
 <td>34.0 GB</td>
 <td>28.0 GB</td>
+<td></td>
 </tr>
 <tr>
 <td>sim wall time</td>
@@ -5381,6 +5402,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>72 min = 1.19 hr</td>
 <td>50 min = 0.83 hr</td>
 <td>47 min = 0.78 hr</td>
+<td></td>
 </tr>
 <tr>
 <td>time/(step-grain)</td>
@@ -5391,6 +5413,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>0.93e-6 s</td>
 <td>0.65e-6 s</td>
 <td>0.61e-6</td>
+<td></td>
 </tr>
 <tr>
 <td>speed/candela-21</td>
@@ -5401,6 +5424,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>3.7</td>
 <td>5.3</td>
 <td>5.7</td>
+<td></td>
 </tr>
 </tbody></table>
 <p>Notes:</p>
@@ -5422,6 +5446,117 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 #SBATCH -t 300:00:00                # time limit 300 hrs (max allowed is 14 days = 336 hrs)
 #SBATCH --constraint=ib</code></pre>
 <p>The <a href="https://slurm.schedmd.com/sbatch.html">docs for <code>sbatch</code></a> seem to imply that <em>all</em> of the nodes listed in <code>--nodelist=..</code> will be allocated to the job, but experimentally only the number of nodes specified by <code>-N...</code> will be allocated.  With the <code>#SBATCH</code> settings shown above all MPI ranks were on a single node, which proved to be more efficient than some other ways of running.</p>
+</li>
+<li><p>Finally some runs were done on a simulation with ten times as many grains, as described for a PC in <a href="#even-bigger-sim">An even bigger simulation</a> above.</p>
+<table>
+<thead>
+<tr>
+<th>system</th>
+<th>candela-21</th>
+<th>Unity</th>
+<th>Unity</th>
+<th>Unity</th>
+<th>Unity</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>external MPI?</td>
+<td>-</td>
+<td>no</td>
+<td>no</td>
+<td>no</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>cores (<code>-n</code>)</td>
+<td>16</td>
+<td>64</td>
+<td>128</td>
+<td>256</td>
+<td>256</td>
+</tr>
+<tr>
+<td>max boxes / crate</td>
+<td>x</td>
+<td>x</td>
+<td>x</td>
+<td>x</td>
+<td>x</td>
+</tr>
+<tr>
+<td>req. nodes (<code>-N</code>)</td>
+<td>-</td>
+<td>no <code>-N</code></td>
+<td>no <code>-N</code></td>
+<td>no <code>-N</code></td>
+<td>no <code>N</code></td>
+</tr>
+<tr>
+<td><code>--exclusive</code> ?</td>
+<td>-</td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>nodes used, cores/node</td>
+<td>-</td>
+<td>TODO</td>
+<td>TODO</td>
+<td>TODO</td>
+<td>TODO</td>
+</tr>
+<tr>
+<td>which nodes used</td>
+<td>-</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>inter-rank comm time</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>memory used</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>sim wall time</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>time / (step-grain)</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>speed / candela-21</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody></table>
+<p>Notes</p>
 </li>
 </ul>
 </li>
@@ -5914,9 +6049,146 @@ Submitted batch job 31844213
 (use 'squeue --me' to see when job starts, time running, if done)
 ..cc-expts-unity$ cat slurm-31844213.out  # can do while running to see output so far
 (for long jobs no need to stay logged in to Unity while they run)</code></pre>
-<p>Some stats from running in various ways (all containerized):</p>
+<p>Some stats from running in various ways (all containerized).  Here external MPI = no means the environment <strong><code>ompi</code></strong> was activated and the module <code>openmpi/5.0.3</code> was not loaded.  Conversely external MPI = yes means no environment was activated and the module <code>openmpi/5.0.3</code> was loaded:</p>
 </li>
 </ul>
+<table>
+<thead>
+<tr>
+<th>system</th>
+<th>candela-21</th>
+<th>Unity</th>
+<th>Unity</th>
+<th>Unity</th>
+<th>Unity</th>
+<th>Unity</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>external MPI?</td>
+<td>-</td>
+<td>no</td>
+<td>no</td>
+<td>no</td>
+<td>no</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>cores (<code>-n</code>)</td>
+<td>15</td>
+<td>15</td>
+<td>64</td>
+<td>128</td>
+<td>256</td>
+<td>256</td>
+</tr>
+<tr>
+<td>max boxes/crate</td>
+<td>16</td>
+<td>16</td>
+<td>4</td>
+<td>2</td>
+<td>1</td>
+<td>1</td>
+</tr>
+<tr>
+<td>req. nodes (<code>-N</code>)</td>
+<td>-</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>no <code>-N</code></td>
+<td>no <code>-N</code></td>
+</tr>
+<tr>
+<td><code>--exclusive</code> ?</td>
+<td>-</td>
+<td>no</td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>nodes used, cores/node</td>
+<td></td>
+<td>1</td>
+<td>1, 64</td>
+<td>2, 64</td>
+<td>4, 64</td>
+<td>TODO</td>
+</tr>
+<tr>
+<td>which nodes used</td>
+<td>-</td>
+<td>TODO</td>
+<td>umd-cscdr-cpu 042</td>
+<td>umd-cscdr-cpu [033-034]</td>
+<td>uri-cpu [017, 022, 024-025]</td>
+<td></td>
+</tr>
+<tr>
+<td>inter-rank comm time</td>
+<td></td>
+<td>X%</td>
+<td>9.9%</td>
+<td>26.4%</td>
+<td>48.8%</td>
+<td></td>
+</tr>
+<tr>
+<td>memory used</td>
+<td>2.2 GB</td>
+<td>TODO GB</td>
+<td>16.9 GB</td>
+<td>16.9 GB</td>
+<td>50.4 GB</td>
+<td></td>
+</tr>
+<tr>
+<td>sim wall time</td>
+<td>284 min = 4.74 hr</td>
+<td>X min = X hr</td>
+<td>119 min = 1.99 hr</td>
+<td>80 min = 1.33 hr</td>
+<td>67 min = 1.12 hr</td>
+<td></td>
+</tr>
+<tr>
+<td>time/(step-grain)</td>
+<td>3.70e-6 s</td>
+<td>Xe-6 s</td>
+<td>1.56e-6 s</td>
+<td>1.04e-6 s</td>
+<td>0.88e-6 s</td>
+<td></td>
+</tr>
+<tr>
+<td>speed/candela-21</td>
+<td>1.00</td>
+<td>0.X</td>
+<td>2.4</td>
+<td>3.6</td>
+<td>4.2</td>
+<td></td>
+</tr>
+<tr>
+<td>speed / non-container</td>
+<td>0.94</td>
+<td></td>
+<td>1.00</td>
+<td>0.89</td>
+<td>0.74</td>
+<td></td>
+</tr>
+</tbody></table>
+<p>Notes:</p>
+<ul>
+<li><p>The next-to-last line compares the speed on Unity to a <a href="#dem21-container">containerized run on the <code>candela-21</code> PC</a>.</p>
+</li>
+<li><p>The last line compares the speed to <a href="#sbatch-dem21">non containerized runs</a> on the same system (PC or Unity) using the same number of cores and nodes.</p>
+</li>
+<li><p>Finally some containerized runs were done on a simulation with ten times as many grains, to compare with corresponding <a href="#sbatch-dem21">non-containerized runs</a> above.</p>
 <table>
 <thead>
 <tr>
@@ -5929,102 +6201,111 @@ Submitted batch job 31844213
 </tr>
 </thead>
 <tbody><tr>
+<td>external MPI?</td>
+<td>-</td>
+<td>no</td>
+<td>no</td>
+<td>no</td>
+<td>yes</td>
+</tr>
+<tr>
 <td>cores (<code>-n</code>)</td>
-<td>15</td>
-<td>15</td>
+<td>16</td>
 <td>64</td>
 <td>128</td>
 <td>256</td>
+<td>256</td>
 </tr>
 <tr>
-<td>max boxes/crate</td>
-<td>16</td>
-<td>16</td>
-<td>4</td>
-<td>2</td>
-<td>1</td>
+<td>max boxes / crate</td>
+<td>x</td>
+<td>x</td>
+<td>x</td>
+<td>x</td>
+<td>x</td>
 </tr>
 <tr>
-<td>req. number of nodes (<code>-N</code>)</td>
+<td>req. nodes (<code>-N</code>)</td>
 <td>-</td>
-<td>1</td>
-<td>1</td>
-<td>2</td>
 <td>no <code>-N</code></td>
+<td>no <code>-N</code></td>
+<td>no <code>-N</code></td>
+<td>no <code>N</code></td>
 </tr>
 <tr>
 <td><code>--exclusive</code> ?</td>
 <td>-</td>
-<td>no</td>
+<td>yes</td>
 <td>yes</td>
 <td>yes</td>
 <td>yes</td>
 </tr>
 <tr>
-<td>number of nodes used, cores/node</td>
-<td></td>
-<td>1</td>
-<td>1, 64</td>
-<td>2, 64</td>
-<td>4, 64</td>
+<td>nodes used, cores/node</td>
+<td>-</td>
+<td>TODO</td>
+<td>TODO</td>
+<td>TODO</td>
+<td>TODO</td>
 </tr>
 <tr>
 <td>which nodes used</td>
 <td>-</td>
-<td>TODO</td>
-<td>umd-cscdr-cpu042</td>
-<td>umd-cscdr-cpu[033-034]</td>
-<td>uri-cpu[017,022,024-025]</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
 </tr>
 <tr>
 <td>inter-rank comm time</td>
 <td></td>
-<td>X%</td>
-<td>9.9%</td>
-<td>26.4%</td>
-<td>48.8%</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
 </tr>
 <tr>
 <td>memory used</td>
-<td>2.2 GB</td>
-<td>TODO GB</td>
-<td>16.9 GB</td>
-<td>16.9 GB</td>
-<td>50.4 GB</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
 </tr>
 <tr>
 <td>sim wall time</td>
-<td>284 min = 4.74 hr</td>
-<td>X min = X hr</td>
-<td>119 min = 1.99 hr</td>
-<td>80 min = 1.33 hr</td>
-<td>67 min = 1.12 hr</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
 </tr>
 <tr>
-<td>time/(step-grain)</td>
-<td>3.70e-6 s</td>
-<td>Xe-6 s</td>
-<td>1.56e-6 s</td>
-<td>1.04e-6 s</td>
-<td>0.88e-6 s</td>
+<td>time / (step-grain)</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
 </tr>
 <tr>
-<td>speed/candela-21</td>
-<td>1.00</td>
-<td>0.X</td>
-<td>2.4</td>
-<td>3.6</td>
-<td>4.2</td>
+<td>speed / candela-21</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>speed / non-container</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
 </tr>
 </tbody></table>
-<p>Notes:</p>
-<ul>
-<li>We are comparing the speed to a <a href="#dem21-container">containerized run on the <code>candela-21</code> PC</a>, which was found to be 7% slower than a non-containerized run on the same PC.</li>
-<li>One of these jobs was repeated but now loading the <code>openmpi/5.0.3</code> module, and not loading the Conda module or the <code>ompi</code> Conda environment.  As was <a href="#ways-mpi-unity">found above</a> for non-containerized MPI jobs on Unity, this had no apparent effect on the speed at which the job ran.</li>
-<li>Compared with the corresponding <a href="#sbatch-dem21">non-containerized runs on Unity</a>,<ul>
-<li>The speed is between 0% and 34% slower, suggesting a modest speed penalty for containerizing the job (on the <code>candela-21</code> PC, containerizing this job resulted in 7% slower execution.)</li>
-<li>The speed penalty for containerizing the job appears to be worse when more nodes are used, but this may an accidental result of the particular nodes allocated.</li>
-</ul>
+<p>Notes</p>
 </li>
 </ul>
 </li>

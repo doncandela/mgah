@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   4/16/25
+mgah.md  D. Candela   4/17/25
 
 - [Introduction](#intro)  
   
@@ -128,6 +128,8 @@ Although there may be some information useful for the following topics, this doc
 - The Docker container system, other than as a source for building Apptainer containers.
 
 - The Kubernetes scheduling/management software typically used rather than Slurm in commercial settings, particularly with Docker.
+
+**This document is quite long** because it shows explicit examples of commands and output for many different situations -- every time I figured out how to do something, I pasted an example here -- so it is not particularly readable.
 
 ### Parallel computing in Python<a id="parcomp-python"></a>
 
@@ -733,7 +735,7 @@ Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (n
     
     - Now the simulation required 16,567 s = 4.602 hr, or 3.60 microsec/step-grain.  So despite the greater degree of parallelism with hyperthreading, in this case there was no overall advantage in in fact the program ran slightly slower.  It seems that whatever speed advantage was provided by hyperthreading ([expected to be of order 25%](#multiple-cores)) was negated by the the increased MPI communication required or other unknown factors.
   
-  - **An even bigger simulation.** To provide more things to compare with Unity the same code was used to run an even bigger sim,  with ten times as many grains (100,450) but otherwise identical, on `candela-16` using 16 cores with hyperthreading disabled.  Now there were 1,728 boxes giving up to 116 boxes per crate, so other factors being equal one would expect the sim to take (116/16) = 7.3 times as long to run. **WORKING HERE**
+  - **An even bigger simulation.**<a id="even-bigger-sim"></a> To provide more things to compare with Unity the same code was used to run an even bigger sim,  with ten times as many grains (100,450) but otherwise identical, on `candela-16` using 16 cores with hyperthreading disabled.  Now there were 1,728 boxes giving up to 116 boxes per crate, so other factors being equal one would expect the sim to take (116/16) = 7.3 times as long to run. **WORKING HERE**
 
 #### Hyperthreading and NumPy multithreading with MPI<a id="multithread-mpi"></a>
 
@@ -2931,7 +2933,7 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
   
   ...before running successfully.  This was seen when `-c conda-forge` was supplied to the `conda install numpy...` command used in creating the Conda environment `dem21`, unlike what is shown above. However, I don't know if this is really the reason for such warnings or if, for example, it depends on the library versions installed on the Unity node allocated to the job.
 
-- **A larger `dem21` sim using `mx2.py`.**  To try out a more time-consuming simulation using an sbatch job on Unity, we follow the steps shown for a PC in [A more intensive run with `mx2.py`](#mx2py) above. 
+- **Larger `dem21` sims using `mx2.py`.**  To try out a more time-consuming simulation using an sbatch job on Unity, we follow the steps shown for a PC in [A more intensive run with `mx2.py`](#mx2py) above. 
   
   - In the directory `cc-expts-unity` containing the other needed files (not explained here) we make an sbatch script **`mx2-unity.sh`** as follows.  Since this file will be modified slightly to test various ways of running on Unity, this script [includes an `scontrol` command](#keep-sbatch) to print the sbatch script used in the `slurm-<jobid>.out` file: 
     
@@ -3025,21 +3027,22 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
     **** SIM 1/1   forces n='hertz' t='coulh' mu=1.0 signal binwords-43 (sig 0 in 'bw6')
     ```
   
-  Some stats from running in various ways:
+  Some stats from running in various ways. Here external MPI = no means the environment **`dem21`** was activated and the module `openmpi/5.0.3` was not loaded. Conversely external MPI = yes means the environment **`dem21e`** was activated and the module `openmpi/5.0.3` was loaded:
   
-  | system                           | candela-21        | Unity             | Unity             | Unity            | Unity                  | Unity                                 | Unity            |
-  | -------------------------------- | ----------------- | ----------------- | ----------------- | ---------------- | ---------------------- | ------------------------------------- | ---------------- |
-  | cores (`-n`)                     | 15                | 15                | 64                | 128              | 128                    | 256                                   | 256              |
-  | max boxes/crate                  | 16                | 16                | 4                 | 2                | 2                      | 1                                     | 1                |
-  | req. number of nodes (`-N`)      | -                 | 1                 | 1                 | 1                | no `-N`                | no `-N`                               | 2                |
-  | `--exclusive` ?                  | -                 | no                | yes               | yes              | yes                    | yes                                   | yes              |
-  | number of nodes used, cores/node |                   | 1                 | 1, 64             | 1, 128           | 2, 64                  | 4, 64                                 | 2, 128           |
-  | which nodes used                 | -                 | cpu054            | umd-cscdr-045     | cpu061           | umd-cscdr-cpu[045-046] | umd-cscdr-cpu[022-023,025],uri-cpu050 | cpu[061,064]     |
-  | inter-rank comm time             |                   | 3.3%              | 9.8%              | 18.8%            | 19.7%                  | 35.0%                                 | 35.1%            |
-  | memory used                      | 2.1 GB            | 3.3 GB            | 10.8 GB           | 26.5 GB          | 11.1 GB                | 34.0 GB                               | 28.0 GB          |
-  | sim wall time                    | 266 min = 4.43 hr | 331 min = 5.51 hr | 119 min = 1.99 hr | 64 min = 1.07 hr | 72 min = 1.19 hr       | 50 min = 0.83 hr                      | 47 min = 0.78 hr |
-  | time/(step-grain)                | 3.46e-6 s         | 4.30e-6 s         | 1.56e-6 s         | 0.83e-6 s        | 0.93e-6 s              | 0.65e-6 s                             | 0.61e-6          |
-  | speed/candela-21                 | 1.00              | 0.80              | 2.2               | 4.2              | 3.7                    | 5.3                                   | 5.7              |
+  | system                 | candela-21        | Unity             | Unity             | Unity            | Unity                   | Unity                                     | Unity            | Unity   |
+  | ---------------------- | ----------------- | ----------------- | ----------------- | ---------------- | ----------------------- | ----------------------------------------- | ---------------- | ------- |
+  | external MPI?          | -                 | no                | no                | no               | no                      | no                                        | no               | yes     |
+  | cores (`-n`)           | 15                | 15                | 64                | 128              | 128                     | 256                                       | 256              | 256     |
+  | max boxes/crate        | 16                | 16                | 4                 | 2                | 2                       | 1                                         | 1                | 1       |
+  | req. nodes (`-N`)      | -                 | 1                 | 1                 | 1                | no `-N`                 | no `-N`                                   | 2                | no `-N` |
+  | `--exclusive` ?        | -                 | no                | yes               | yes              | yes                     | yes                                       | yes              | yes     |
+  | nodes used, cores/node |                   | 1                 | 1, 64             | 1, 128           | 2, 64                   | 4, 64                                     | 2, 128           | TODO    |
+  | which nodes used       | -                 | cpu 054           | umd-cscdr 045     | cpu 061          | umd-cscdr-cpu [045-046] | umd-cscdr-cpu [022-023, 025], uri-cpu 050 | cpu [061, 064]   |         |
+  | inter-rank comm time   |                   | 3.3%              | 9.8%              | 18.8%            | 19.7%                   | 35.0%                                     | 35.1%            |         |
+  | memory used            | 2.1 GB            | 3.3 GB            | 10.8 GB           | 26.5 GB          | 11.1 GB                 | 34.0 GB                                   | 28.0 GB          |         |
+  | sim wall time          | 266 min = 4.43 hr | 331 min = 5.51 hr | 119 min = 1.99 hr | 64 min = 1.07 hr | 72 min = 1.19 hr        | 50 min = 0.83 hr                          | 47 min = 0.78 hr |         |
+  | time/(step-grain)      | 3.46e-6 s         | 4.30e-6 s         | 1.56e-6 s         | 0.83e-6 s        | 0.93e-6 s               | 0.65e-6 s                                 | 0.61e-6          |         |
+  | speed/candela-21       | 1.00              | 0.80              | 2.2               | 4.2              | 3.7                     | 5.3                                       | 5.7              |         |
   
   Notes:
   
@@ -3064,6 +3067,25 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
     ```
     
     The [docs for `sbatch`](https://slurm.schedmd.com/sbatch.html) seem to imply that *all* of the nodes listed in `--nodelist=..` will be allocated to the job, but experimentally only the number of nodes specified by `-N...` will be allocated.  With the `#SBATCH` settings shown above all MPI ranks were on a single node, which proved to be more efficient than some other ways of running.
+  
+  - Finally some runs were done on a simulation with ten times as many grains, as described for a PC in [An even bigger simulation](#even-bigger-sim) above.
+    
+    | system                 | candela-21 | Unity   | Unity   | Unity   | Unity  |
+    | ---------------------- | ---------- | ------- | ------- | ------- | ------ |
+    | external MPI?          | -          | no      | no      | no      | yes    |
+    | cores (`-n`)           | 16         | 64      | 128     | 256     | 256    |
+    | max boxes / crate      | x          | x       | x       | x       | x      |
+    | req. nodes (`-N`)      | -          | no `-N` | no `-N` | no `-N` | no `N` |
+    | `--exclusive` ?        | -          | yes     | yes     | yes     | yes    |
+    | nodes used, cores/node | -          | TODO    | TODO    | TODO    | TODO   |
+    | which nodes used       | -          |         |         |         |        |
+    | inter-rank comm time   |            |         |         |         |        |
+    | memory used            |            |         |         |         |        |
+    | sim wall time          |            |         |         |         |        |
+    | time / (step-grain)    |            |         |         |         |        |
+    | speed / candela-21     |            |         |         |         |        |
+    
+    Notes
 
 ### Using a GPU on Unity (without Apptainer)<a id="unity-gpu"></a>
 
@@ -3643,29 +3665,49 @@ For the examples here it assumed that the needed image file (**`m4p.sif`** or **
     (for long jobs no need to stay logged in to Unity while they run)
     ```
     
-    Some stats from running in various ways (all containerized):
+    Some stats from running in various ways (all containerized).  Here external MPI = no means the environment **`ompi`** was activated and the module `openmpi/5.0.3` was not loaded.  Conversely external MPI = yes means no environment was activated and the module `openmpi/5.0.3` was loaded:
   
-  | system                           | candela-21        | Unity        | Unity             | Unity                  | Unity                    |
-  | -------------------------------- | ----------------- | ------------ | ----------------- | ---------------------- | ------------------------ |
-  | cores (`-n`)                     | 15                | 15           | 64                | 128                    | 256                      |
-  | max boxes/crate                  | 16                | 16           | 4                 | 2                      | 1                        |
-  | req. number of nodes (`-N`)      | -                 | 1            | 1                 | 2                      | no `-N`                  |
-  | `--exclusive` ?                  | -                 | no           | yes               | yes                    | yes                      |
-  | number of nodes used, cores/node |                   | 1            | 1, 64             | 2, 64                  | 4, 64                    |
-  | which nodes used                 | -                 | TODO         | umd-cscdr-cpu042  | umd-cscdr-cpu[033-034] | uri-cpu[017,022,024-025] |
-  | inter-rank comm time             |                   | X%           | 9.9%              | 26.4%                  | 48.8%                    |
-  | memory used                      | 2.2 GB            | TODO GB      | 16.9 GB           | 16.9 GB                | 50.4 GB                  |
-  | sim wall time                    | 284 min = 4.74 hr | X min = X hr | 119 min = 1.99 hr | 80 min = 1.33 hr       | 67 min = 1.12 hr         |
-  | time/(step-grain)                | 3.70e-6 s         | Xe-6 s       | 1.56e-6 s         | 1.04e-6 s              | 0.88e-6 s                |
-  | speed/candela-21                 | 1.00              | 0.X          | 2.4               | 3.6                    | 4.2                      |
+  | system                 | candela-21        | Unity        | Unity             | Unity                   | Unity                       | Unity   |
+  | ---------------------- | ----------------- | ------------ | ----------------- | ----------------------- | --------------------------- | ------- |
+  | external MPI?          | -                 | no           | no                | no                      | no                          | yes     |
+  | cores (`-n`)           | 15                | 15           | 64                | 128                     | 256                         | 256     |
+  | max boxes/crate        | 16                | 16           | 4                 | 2                       | 1                           | 1       |
+  | req. nodes (`-N`)      | -                 | 1            | 1                 | 2                       | no `-N`                     | no `-N` |
+  | `--exclusive` ?        | -                 | no           | yes               | yes                     | yes                         | yes     |
+  | nodes used, cores/node |                   | 1            | 1, 64             | 2, 64                   | 4, 64                       | TODO    |
+  | which nodes used       | -                 | TODO         | umd-cscdr-cpu 042 | umd-cscdr-cpu [033-034] | uri-cpu [017, 022, 024-025] |         |
+  | inter-rank comm time   |                   | X%           | 9.9%              | 26.4%                   | 48.8%                       |         |
+  | memory used            | 2.2 GB            | TODO GB      | 16.9 GB           | 16.9 GB                 | 50.4 GB                     |         |
+  | sim wall time          | 284 min = 4.74 hr | X min = X hr | 119 min = 1.99 hr | 80 min = 1.33 hr        | 67 min = 1.12 hr            |         |
+  | time/(step-grain)      | 3.70e-6 s         | Xe-6 s       | 1.56e-6 s         | 1.04e-6 s               | 0.88e-6 s                   |         |
+  | speed/candela-21       | 1.00              | 0.X          | 2.4               | 3.6                     | 4.2                         |         |
+  | speed / non-container  | 0.94              |              | 1.00              | 0.89                    | 0.74                        |         |
   
   Notes:
   
-  - We are comparing the speed to a [containerized run on the `candela-21` PC](#dem21-container), which was found to be 7% slower than a non-containerized run on the same PC.
-  - One of these jobs was repeated but now loading the `openmpi/5.0.3` module, and not loading the Conda module or the `ompi` Conda environment.  As was [found above](#ways-mpi-unity) for non-containerized MPI jobs on Unity, this had no apparent effect on the speed at which the job ran.
-  - Compared with the corresponding [non-containerized runs on Unity](#sbatch-dem21),
-    - The speed is between 0% and 34% slower, suggesting a modest speed penalty for containerizing the job (on the `candela-21` PC, containerizing this job resulted in 7% slower execution.)
-    - The speed penalty for containerizing the job appears to be worse when more nodes are used, but this may an accidental result of the particular nodes allocated.
+  - The next-to-last line compares the speed on Unity to a [containerized run on the `candela-21` PC](#dem21-container).
+  
+  - The last line compares the speed to [non containerized runs](#sbatch-dem21) on the same system (PC or Unity) using the same number of cores and nodes.
+  
+  - Finally some containerized runs were done on a simulation with ten times as many grains, to compare with corresponding [non-containerized runs](#sbatch-dem21) above.
+    
+    | system                 | candela-21 | Unity   | Unity   | Unity   | Unity  |
+    | ---------------------- | ---------- | ------- | ------- | ------- | ------ |
+    | external MPI?          | -          | no      | no      | no      | yes    |
+    | cores (`-n`)           | 16         | 64      | 128     | 256     | 256    |
+    | max boxes / crate      | x          | x       | x       | x       | x      |
+    | req. nodes (`-N`)      | -          | no `-N` | no `-N` | no `-N` | no `N` |
+    | `--exclusive` ?        | -          | yes     | yes     | yes     | yes    |
+    | nodes used, cores/node | -          | TODO    | TODO    | TODO    | TODO   |
+    | which nodes used       | -          |         |         |         |        |
+    | inter-rank comm time   |            |         |         |         |        |
+    | memory used            |            |         |         |         |        |
+    | sim wall time          |            |         |         |         |        |
+    | time / (step-grain)    |            |         |         |         |        |
+    | speed / candela-21     |            |         |         |         |        |
+    | speed / non-container  |            |         |         |         |        |
+    
+    Notes
 
 #### Running a container the uses a GPU<a id="unity-gpu-container"></a>
 
