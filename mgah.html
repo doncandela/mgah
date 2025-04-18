@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   4/17/25</p>
+<p>mgah.md  D. Candela   4/18/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -2420,7 +2420,7 @@ body {
 </li>
 <li><p><a href="#random-notes">Random notes on parallel computing in Python</a></p>
 <ul>
-<li><a href="#journey">A long journey</a></li>
+<li><a href="#journey">A long cheat sheet</a></li>
 <li><a href="#wall-cpu-time">Wall time and CPU time</a></li>
 <li><a href="#other-speed-factors">Factors other than parallelism affecting execution speed</a></li>
 <li><a href="#strong-weak-scaling">Strong and weak scaling</a></li>
@@ -3033,7 +3033,13 @@ Imput signals made by: memsigs.py 8/23/24 D.C.
 </li>
 </ul>
 </li>
-<li><p><strong>An even bigger simulation.</strong><a id="even-bigger-sim"></a> To provide more things to compare with Unity the same code was used to run an even bigger sim,  with ten times as many grains (100,450) but otherwise identical, on <code>candela-16</code> using 16 cores with hyperthreading disabled.  Now there were 1,728 boxes giving up to 116 boxes per crate, so other factors being equal one would expect the sim to take (116/16) = 7.3 times as long to run. <strong>WORKING HERE</strong></p>
+<li><p><strong>An even bigger simulation.</strong><a id="even-bigger-sim"></a> To provide more things to compare with Unity the same code was used to run an even bigger sim,  with ten times as many grains (100,450) but otherwise identical, on <code>candela-21</code> using 16 cores with hyperthreading disabled.  Now there were 1,728 boxes giving up to 116 boxes per crate, so other factors being equal one would expect the sim to take (116/16) = 7.3 times as long to run.</p>
+<ul>
+<li><p>This simulation required 165,900 s = 46.1 hr to run (3.69 microsec/step-grain) -- 10.4 times longer than the smaller sim, so modestly worse than weak scaling would give.</p>
+</li>
+<li><p>Only 5.5 GB of memory was required, showing that this is a very low-memory application.</p>
+</li>
+</ul>
 </li>
 </ul>
 </li>
@@ -3105,7 +3111,7 @@ I have not used PyCUDA and it is not discussed further in this document.</p>
 (base)..$ conda activate pyt
 (pyt)..$ conda install numpy scipy matplotlib jupyter    # this downgraded python to 3.12.8
 (pyt)..$ jupyter notebook                                # check that JN works</code></pre>
-<p>Next run the install PyTorch using the appropriate command from the <a href="https://pytorch.org/get-started/locally/">PyTorch Getting Started page</a>. The installation command depends on which version of CUDA is installed, if any -- since CUDA 12.2 was installed I selected the nearest version no later than 12.2 which was 12.1:</p>
+<p>Next install PyTorch by running the appropriate command from the <a href="https://pytorch.org/get-started/locally/">PyTorch Getting Started page</a>. The installation command depends on which version of CUDA is installed, if any -- since CUDA 12.2 was installed I selected the nearest version no later than 12.2 which was 12.1:</p>
 <pre><code class="fenced-code-block">(pyt-gmem)..$ pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121</code></pre>
 <p>To check that PyTorch is usable, run this code in a JN which creates a small tensor filled with random numbers:</p>
 <pre><code class="fenced-code-block">import torch
@@ -4724,6 +4730,13 @@ root                                          0.000000  5509757909      1.000000
   pi_candela_umass_+ candela_u+          1    0.500000     3037218      0.642217   0.425616 </code></pre>
 <p>Presumably we will need to wait for our FairShare score to recover back to 0.5 or above before our jobs will run with much priority. (In this particular example the two <code>gpu</code> jobs were asking for one of the better GPUs, a V100, and the three <code>cpu</code> jobs were asking for a lot of cores (64, 128, and 256) -- these factors may also have been holding up the jobs and it's not clear how if at all they are visible in the <code>sprio</code> and <code>sshare</code> output.)</p>
 </li>
+<li><p>These jobs ran after sitting in queue for a couple of days (perhaps when there was a break in usage by higher-priority users), after which my usage was up and my FairShare score was even lower:</p>
+<pre><code class="fenced-code-block">$ sshare | head -n 2; sshare | grep candela
+Account                    User  RawShares  NormShares    RawUsage  EffectvUsage  FairShare 
+-------------------- ---------- ---------- ----------- ----------- ------------- ---------- 
+ pi_candela_umass_e+                     1    0.001328    12676309      0.002223            
+  pi_candela_umass_+ candela_u+          1    0.500000    10984521      0.866539   0.269433 </code></pre>
+</li>
 </ul>
 </li>
 </ul>
@@ -5358,7 +5371,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>2, 64</td>
 <td>4, 64</td>
 <td>2, 128</td>
-<td>TODO</td>
+<td></td>
 </tr>
 <tr>
 <td>which nodes used</td>
@@ -5477,11 +5490,11 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 </tr>
 <tr>
 <td>max boxes / crate</td>
-<td>x</td>
-<td>x</td>
-<td>x</td>
-<td>x</td>
-<td>x</td>
+<td>116</td>
+<td>28</td>
+<td>14</td>
+<td>7</td>
+<td>7</td>
 </tr>
 <tr>
 <td>req. nodes (<code>-N</code>)</td>
@@ -5502,61 +5515,67 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <tr>
 <td>nodes used, cores/node</td>
 <td>-</td>
-<td>TODO</td>
-<td>TODO</td>
-<td>TODO</td>
+<td>1, 64</td>
+<td>2, 64</td>
+<td>2, 128</td>
 <td>TODO</td>
 </tr>
 <tr>
 <td>which nodes used</td>
 <td>-</td>
-<td></td>
-<td></td>
-<td></td>
+<td>umd-cscdr-cpu 041</td>
+<td>uri-cpu [011-012]</td>
+<td>cpu [056, 065]</td>
 <td></td>
 </tr>
 <tr>
 <td>inter-rank comm time</td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
+<td>13.6%</td>
+<td>13.7%</td>
+<td>12.0%</td>
+<td>20.3%</td>
 <td></td>
 </tr>
 <tr>
 <td>memory used</td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
+<td>5.5 GB</td>
+<td>17.3 GB</td>
+<td>16.6 GB</td>
+<td>37.4 GB</td>
 <td></td>
 </tr>
 <tr>
 <td>sim wall time</td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
+<td>2,777 min = 46.1 hr</td>
+<td>958 min = 16.0 hr</td>
+<td>460 min = 7.66 hr</td>
+<td>274 min = 4.56 hr</td>
 <td></td>
 </tr>
 <tr>
 <td>time / (step-grain)</td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
+<td>3.67e-6 s</td>
+<td>1.27e-6 s</td>
+<td>0.61e-6 s</td>
+<td>0.36e-6 s</td>
 <td></td>
 </tr>
 <tr>
 <td>speed / candela-21</td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
+<td>1.00</td>
+<td>2.9</td>
+<td>6.0</td>
+<td>10.1</td>
 <td></td>
 </tr>
 </tbody></table>
-<p>Notes</p>
+<p>Notes:</p>
+<ul>
+<li><p>It worked well use <code>--exclusive</code> but omit <code>-N</code> specifying the number of nodes to be used -- Slurm typically allocated 64-core nodes, but sometimes allocated 128-core nodes.</p>
+</li>
+<li><p>TODO comment on external MPI difference</p>
+</li>
+</ul>
 </li>
 </ul>
 </li>
@@ -6050,8 +6069,6 @@ Submitted batch job 31844213
 ..cc-expts-unity$ cat slurm-31844213.out  # can do while running to see output so far
 (for long jobs no need to stay logged in to Unity while they run)</code></pre>
 <p>Some stats from running in various ways (all containerized).  Here external MPI = no means the environment <strong><code>ompi</code></strong> was activated and the module <code>openmpi/5.0.3</code> was not loaded.  Conversely external MPI = yes means no environment was activated and the module <code>openmpi/5.0.3</code> was loaded:</p>
-</li>
-</ul>
 <table>
 <thead>
 <tr>
@@ -6107,7 +6124,7 @@ Submitted batch job 31844213
 <td>yes</td>
 <td>yes</td>
 <td>yes</td>
-<td>yes</td>
+<td>no</td>
 </tr>
 <tr>
 <td>nodes used, cores/node</td>
@@ -6116,7 +6133,7 @@ Submitted batch job 31844213
 <td>1, 64</td>
 <td>2, 64</td>
 <td>4, 64</td>
-<td>TODO</td>
+<td>4, 64</td>
 </tr>
 <tr>
 <td>which nodes used</td>
@@ -6125,7 +6142,7 @@ Submitted batch job 31844213
 <td>umd-cscdr-cpu 042</td>
 <td>umd-cscdr-cpu [033-034]</td>
 <td>uri-cpu [017, 022, 024-025]</td>
-<td></td>
+<td>uri-cpu [019, 022,024-025]</td>
 </tr>
 <tr>
 <td>inter-rank comm time</td>
@@ -6134,7 +6151,7 @@ Submitted batch job 31844213
 <td>9.9%</td>
 <td>26.4%</td>
 <td>48.8%</td>
-<td></td>
+<td>47.2%</td>
 </tr>
 <tr>
 <td>memory used</td>
@@ -6143,7 +6160,7 @@ Submitted batch job 31844213
 <td>16.9 GB</td>
 <td>16.9 GB</td>
 <td>50.4 GB</td>
-<td></td>
+<td>17.0 GB</td>
 </tr>
 <tr>
 <td>sim wall time</td>
@@ -6152,7 +6169,7 @@ Submitted batch job 31844213
 <td>119 min = 1.99 hr</td>
 <td>80 min = 1.33 hr</td>
 <td>67 min = 1.12 hr</td>
-<td></td>
+<td>66 min = 1.10 hr</td>
 </tr>
 <tr>
 <td>time/(step-grain)</td>
@@ -6161,7 +6178,7 @@ Submitted batch job 31844213
 <td>1.56e-6 s</td>
 <td>1.04e-6 s</td>
 <td>0.88e-6 s</td>
-<td></td>
+<td>0.86e-6 s</td>
 </tr>
 <tr>
 <td>speed/candela-21</td>
@@ -6170,7 +6187,7 @@ Submitted batch job 31844213
 <td>2.4</td>
 <td>3.6</td>
 <td>4.2</td>
-<td></td>
+<td>4.3</td>
 </tr>
 <tr>
 <td>speed / non-container</td>
@@ -6184,9 +6201,10 @@ Submitted batch job 31844213
 </tbody></table>
 <p>Notes:</p>
 <ul>
-<li><p>The next-to-last line compares the speed on Unity to a <a href="#dem21-container">containerized run on the <code>candela-21</code> PC</a>.</p>
-</li>
-<li><p>The last line compares the speed to <a href="#sbatch-dem21">non containerized runs</a> on the same system (PC or Unity) using the same number of cores and nodes.</p>
+<li>The next-to-last line compares the speed on Unity to a <a href="#dem21-container">containerized run on the <code>candela-21</code> PC</a>.</li>
+<li>The last line compares the speed to <a href="#sbatch-dem21">non containerized runs</a> on the same system (PC or Unity) using the same number of cores and nodes.  It appears that the speed penalty for containerization is up to about 25%, but some of this penalty may be due to the particular nodes allocated.</li>
+<li>The last two columns seem to show that the speed does not to depend on whether external OpenMPI (from a module load) or OpenMPI from a Conda environment was used.</li>
+</ul>
 </li>
 <li><p>Finally some containerized runs were done on a simulation with ten times as many grains, to compare with corresponding <a href="#sbatch-dem21">non-containerized runs</a> above.</p>
 <table>
@@ -6305,7 +6323,10 @@ Submitted batch job 31844213
 <td></td>
 </tr>
 </tbody></table>
-<p>Notes</p>
+<p>Notes:</p>
+<ul>
+<li>XX</li>
+</ul>
 </li>
 </ul>
 </li>
@@ -6427,13 +6448,13 @@ CPU Efficiency: 19.12% of 00:17:00 core-walltime
 Job Wall-clock time: 00:02:50
 Memory Utilized: 2.76 GB
 Memory Efficiency: 46.07% of 6.00 GB</code></pre>
-<p>TODO compare with non-containerized A100 results</p>
+<p>When most of the job time is due to computations on the GPU (vs computations on the CPU, or GPU-CPU data transfers), I see no reason why a containerized GPU job would run at a different speed than the corresponding non-containerized job -- but I haven't run tests for this.</p>
 </li>
 </ul>
 </li>
 </ul>
 <h2 class="atx" id="random-notes-on-parallel-computing-with-pythonlessa-iddouble-quoterandom-notesdouble-quotegreaterlessagreater">Random notes on parallel computing with Python<a id="random-notes"></a></h2>
-<h3 class="atx" id="a-long-journeylessa-iddouble-quotejourneydouble-quotegreaterlessagreater">A long journey<a id="journey"></a></h3>
+<h3 class="atx" id="a-long-cheat-sheetlessa-iddouble-quotejourneydouble-quotegreaterlessagreater">A long cheat sheet<a id="journey"></a></h3>
 <p>This "cheat sheet" on MPI, GPUs, Apptainer, and HPC (<strong>MGAH</strong>) has ended up longer than anticipated.  But finally this shows with examples how the elements of  MGAH can be used together in various useful combinations, including:</p>
 <ul>
 <li><p>Using a Slurm cluster, both <a href="#unity-cluster">without (<strong>H</strong>)</a> and <a href="#unity-apptainer">with (<strong>AH</strong>)</a> Apptainer.</p>
