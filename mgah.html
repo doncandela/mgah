@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   4/18/25</p>
+<p>mgah.md  D. Candela   4/21/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -5371,7 +5371,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>2, 64</td>
 <td>4, 64</td>
 <td>2, 128</td>
-<td></td>
+<td>NOT TRIED</td>
 </tr>
 <tr>
 <td>which nodes used</td>
@@ -5458,9 +5458,10 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 #SBATCH --mem=15000                 # allocate 15 GB memory (per node, one node here)
 #SBATCH -t 300:00:00                # time limit 300 hrs (max allowed is 14 days = 336 hrs)
 #SBATCH --constraint=ib</code></pre>
-<p>The <a href="https://slurm.schedmd.com/sbatch.html">docs for <code>sbatch</code></a> seem to imply that <em>all</em> of the nodes listed in <code>--nodelist=..</code> will be allocated to the job, but experimentally only the number of nodes specified by <code>-N...</code> will be allocated.  With the <code>#SBATCH</code> settings shown above all MPI ranks were on a single node, which proved to be more efficient than some other ways of running.</p>
+<p>The <a href="https://slurm.schedmd.com/sbatch.html">docs for <code>sbatch</code></a> seem to imply that <em>all</em> of the nodes listed in <code>--nodelist=..</code> will be allocated to the job, but experimentally only the number of nodes specified by <code>-N...</code> will be allocated.  With the <code>#SBATCH</code> settings shown above all MPI ranks were on a single node, which proved to be more efficient than some other ways of running.
+<a id="unity-dem21-bigger"></a></p>
 </li>
-<li><p>Finally some runs were done on a simulation with ten times as many grains, as described for a PC in <a href="#even-bigger-sim">An even bigger simulation</a> above.</p>
+<li><p>Finally some runs were done on a simulation with ten times as many grains, as described for a PC in <a href="#even-bigger-sim">An even bigger simulation</a> above. </p>
 <table>
 <thead>
 <tr>
@@ -5518,7 +5519,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>1, 64</td>
 <td>2, 64</td>
 <td>2, 128</td>
-<td>TODO</td>
+<td>4, 64</td>
 </tr>
 <tr>
 <td>which nodes used</td>
@@ -5526,7 +5527,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>umd-cscdr-cpu 041</td>
 <td>uri-cpu [011-012]</td>
 <td>cpu [056, 065]</td>
-<td></td>
+<td>umd-cscdr-cpu [039, 046], uri-cpu [007, 012]</td>
 </tr>
 <tr>
 <td>inter-rank comm time</td>
@@ -5534,7 +5535,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>13.7%</td>
 <td>12.0%</td>
 <td>20.3%</td>
-<td></td>
+<td>24.0%</td>
 </tr>
 <tr>
 <td>memory used</td>
@@ -5542,7 +5543,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>17.3 GB</td>
 <td>16.6 GB</td>
 <td>37.4 GB</td>
-<td></td>
+<td>16.0 GB</td>
 </tr>
 <tr>
 <td>sim wall time</td>
@@ -5550,7 +5551,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>958 min = 16.0 hr</td>
 <td>460 min = 7.66 hr</td>
 <td>274 min = 4.56 hr</td>
-<td></td>
+<td>284 min = 7.74 hr</td>
 </tr>
 <tr>
 <td>time / (step-grain)</td>
@@ -5558,7 +5559,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>1.27e-6 s</td>
 <td>0.61e-6 s</td>
 <td>0.36e-6 s</td>
-<td></td>
+<td>0.38e-6 s</td>
 </tr>
 <tr>
 <td>speed / candela-21</td>
@@ -5566,14 +5567,14 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <td>2.9</td>
 <td>6.0</td>
 <td>10.1</td>
-<td></td>
+<td>9.9</td>
 </tr>
 </tbody></table>
 <p>Notes:</p>
 <ul>
 <li><p>It worked well use <code>--exclusive</code> but omit <code>-N</code> specifying the number of nodes to be used -- Slurm typically allocated 64-core nodes, but sometimes allocated 128-core nodes.</p>
 </li>
-<li><p>TODO comment on external MPI difference</p>
+<li><p>Comparing the last two columns, the run using external MPI was 2% slower which is not a significant difference especially as different nodes (and a different numbers of nodes) were used.</p>
 </li>
 </ul>
 </li>
@@ -6206,7 +6207,7 @@ Submitted batch job 31844213
 <li>The last two columns seem to show that the speed does not to depend on whether external OpenMPI (from a module load) or OpenMPI from a Conda environment was used.</li>
 </ul>
 </li>
-<li><p>Finally some containerized runs were done on a simulation with ten times as many grains, to compare with corresponding <a href="#sbatch-dem21">non-containerized runs</a> above.</p>
+<li><p>Finally some containerized runs were done on a simulation with ten times as many grains, to compare with corresponding <a href="#unity-dem21-bigger">non-containerized runs</a> above.</p>
 <table>
 <thead>
 <tr>
@@ -6236,11 +6237,11 @@ Submitted batch job 31844213
 </tr>
 <tr>
 <td>max boxes / crate</td>
-<td>x</td>
-<td>x</td>
-<td>x</td>
-<td>x</td>
-<td>x</td>
+<td>116</td>
+<td>28</td>
+<td>14</td>
+<td>7</td>
+<td>7</td>
 </tr>
 <tr>
 <td>req. nodes (<code>-N</code>)</td>
@@ -6261,50 +6262,50 @@ Submitted batch job 31844213
 <tr>
 <td>nodes used, cores/node</td>
 <td>-</td>
-<td>TODO</td>
-<td>TODO</td>
-<td>TODO</td>
-<td>TODO</td>
+<td>1, 64</td>
+<td>2, 64</td>
+<td>4, 64</td>
+<td>4, 64</td>
 </tr>
 <tr>
 <td>which nodes used</td>
 <td>-</td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
+<td>umd-cscdr-cpu 040</td>
+<td>umd-cscdr-cpu [040, 046]</td>
+<td>umd-cscdr-cpu 039, uri-cpu [007, 011-012]</td>
+<td>nodelist=umd-cscdr-cpu039, uri-cpu [007, 011-012]</td>
 </tr>
 <tr>
 <td>inter-rank comm time</td>
 <td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
+<td>14.8%</td>
+<td>12.8%</td>
+<td>26.1%</td>
+<td>25.3%</td>
 </tr>
 <tr>
 <td>memory used</td>
 <td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
+<td>23.0 GB</td>
+<td>21.9 GB</td>
+<td>21.1 GB</td>
+<td>21.3 GB</td>
 </tr>
 <tr>
 <td>sim wall time</td>
 <td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
+<td>944 min = 15.7 hr</td>
+<td>473 min = 7.88 hr</td>
+<td>288 min = 4.90 hr</td>
+<td>289 min = 4.81 hr</td>
 </tr>
 <tr>
 <td>time / (step-grain)</td>
 <td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
+<td>1.25e-6 s</td>
+<td>0.63e-6 s</td>
+<td>0.38e-6 s</td>
+<td>0.38e-6 s</td>
 </tr>
 <tr>
 <td>speed / candela-21</td>
@@ -6317,15 +6318,16 @@ Submitted batch job 31844213
 <tr>
 <td>speed / non-container</td>
 <td></td>
-<td></td>
-<td></td>
-<td></td>
+<td>1.02</td>
+<td>0.97</td>
+<td>0.95</td>
 <td></td>
 </tr>
 </tbody></table>
 <p>Notes:</p>
 <ul>
-<li>XX</li>
+<li>From this table we see that this large (5 hrs on 256 cores) sim, <strong>the speed is nearly identical for non-containerized jobs, and when external MPI vs Conda-environment MPI was used</strong>.</li>
+<li>Therefore, the same maximum speedup is obtained as <a href="#unity-dem21-bigger">tabulated above</a> for non-containerized runs, which is <strong>a speedup of about 10 using 256 cores on unity compared with the 16-core PC candela-21</strong> (i.e. 16 times as many cores).</li>
 </ul>
 </li>
 </ul>
