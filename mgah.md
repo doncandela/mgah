@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   4/22/25
+mgah.md  D. Candela   4/22a/25
 
 - [Introduction](#intro)  
   
@@ -12,7 +12,7 @@ mgah.md  D. Candela   4/22/25
     - [Unity HPC cluster](#unity-intro)
   - [Pip, Conda, and APT](#pip-conda-apt)
   - [Conda environments and test code used in this document](#envs-testcode)
-  - [Installing a local package](#local-package)
+  - [Installing a local package on a PC](#local-package)
   - [Parallel execution on multiple cores](#multiple-cores)
 
 - [Part 1: MPI, GPU, and Apptainer on a Linux PC](#on-linux-pc)
@@ -76,9 +76,6 @@ mgah.md  D. Candela   4/22/25
   - [Estimating MPI communication overhead](#estimate-mpi-overhead)
 
 - [Summary and TODOs](#summary-todos)
-  
-  - [A long cheat sheet](#journey)
-  - [TODOs](#todos)
 
 ## Introduction <a id="intro"></a>
 
@@ -94,7 +91,7 @@ This the cheat sheet I that accumulated as I learned to combine several tools fo
 
 - High-performance Computing ([**HPC**](https://en.wikipedia.org/wiki/High-performance_computing)) typically refers to using a large cluster of connected computers assembled and maintained by Universities and other organizations for the use of their communities.  This document only discusses an HPC cluster running Linux and managed by  [**Slurm**](https://slurm.schedmd.com/overview.html) scheduling software, with  the the [**UMass Unity cluster**](https://unity.rc.umass.edu/index.php) as the specific HPC system used here.
 
-- A few references are made in this document to [GitHub](https://github.com/) as a place from which files can be downloaded.  Many resources are available on using Git/GitHub, including [this cheat sheet]([GitHub - doncandela/gs-git: Getting started with Git and GitHub - also Markdown, PW managers...](https://github.com/doncandela/gs-git)) that I put together.
+- A few references are made in this document to [GitHub](https://github.com/) as a place from which files can be downloaded.  Many resources are available on using Git/GitHub, including [this cheat sheet](https://github.com/doncandela/gs-git) that I put together.
 
 Why Python?  Why Linux? Because those are what I use, and this is my cheat sheet.  So this document is geared towards this work flow:
 
@@ -351,9 +348,9 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
     - **`mx2-unity-app.sh`** runs `mx2.py` on Unity using the Apptainer container built by **`dem21.def`**.
   - **`gputest-app.sh`** (defined in [Running a container the uses a GPU](#unity-gpu-container)) uses an Apptainer container to run `gputest.py`  which uses a GPU.
 
-### Installing a local package<a id="local-package"></a>
+### Installing a local package on a PC<a id="local-package"></a>
 
-sometimes it is convenient to write or otherwise come by a **package of Python modules** (containing class and function definitions), copy the package somewhere on the computer being used, and then make it possible to import the package from any directory on the same computer -- this is a **local package**, as opposed to a package downloaded from a repository of published packages like Anaconda or PyPi.  A way to structure such a local package is outlined in Appendix B of the cheat sheet  [Getting started with Git and GitHub](https://github.com/doncandela/gs-git).
+Sometimes it is convenient to write or otherwise come by a **package of Python modules** (containing class and function definitions), copy the package somewhere on the computer being used, and then make it possible to import the package from any directory on the same computer -- this is a **local package**, as opposed to a package downloaded from a repository of published packages like Anaconda or PyPi.  A way to structure such a local package is outlined in Appendix B of the cheat sheet  [Getting started with Git and GitHub](https://github.com/doncandela/gs-git).
 
 In other sections of this document it is shown how a local package like this can be [installed on an HPC cluster](#local-package-unity) like Unity (in user space), and how it can be [installed in an Apptainer container](#local-package-container) which can then be used on a PC or on an HPC cluster.  As a starting point this section shows how a local package can be installed on a Linux PC, not using Apptainer.
 
@@ -847,7 +844,7 @@ These steps are only need once on a given PC, unless updating to newer versions.
             [0.7794, 0.5492, 0.6764]])
     ```
   
-  - **Using the GPU in PyTorch.** The fundamental objects in PyTorch are **tensors**, which are NumPy arrays with lots of additional features added: the ability to store gradients, participate in backpropagation, etc.  A tensor can exist on either the CPU or the GPU, and you cannot do operations between tensors in two different places (e.g. multiply a tensor on the CPU by a tensor on the GPU).  PyTorch makes it easy to move tensors to the GPU if it exists, otherwise leave them on the CPU as this example (run in a JN) shows.
+  - **Using the GPU in PyTorch.** The fundamental objects in PyTorch are **tensors**, which are NumPy arrays with additional features: the ability to store gradients, participate in backpropagation, etc.  A tensor can exist on either the CPU or the GPU, and you cannot do operations between tensors in two different places (e.g. multiply a tensor on the CPU by a tensor on the GPU).  PyTorch makes it easy to move tensors to the GPU if it exists, otherwise leave them on the CPU as this example (run in a JN) shows.
     
     First we set a string `DEVICE` to be `'cuda'` if an NVIDIA GPU is available, otherwise `'cpu`'
     
@@ -993,8 +990,6 @@ These steps are only need once on a given PC, unless updating to newer versions.
    1,000,000 2.00e+09 2.92e-02s 8.69e-03s 2.30e+11/s 2.85e-02s 7.02e+10/s 1.01e-02s  3.17GB/s
                                           ...
   ```
-
-- **Checking usage of GPU memory (VRAM)**  xxx **TODO**
 
 #### A few of NVDIA's many GPUS, with test results<a id="gpu-list"></a>
 
@@ -1871,7 +1866,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   - [Research Computing User's Guide](http://acadix.biz/RCUG/HTML/index.html) (esp Ch. 11 "Job Scheduling with SLURM").
   - A few more advanced resources are linked in [Running batch jobs](#run-batch) below.
 
-- The nodes in a Slurm cluster are assigned to **partitions**, and one or more partitions are specified when a job is submitted.  Slurm allows a node to be assigned to multiple partitions, but I don’t think this is done much on Unity except that some `gpu` nodes are also in `cpu`, etc.  Here are the **x86_64 general-access and preempt [partitions on Unity](https://docs.unity.rc.umass.edu/documentation/cluster_specs/partitions/) (numbers and best GPUs as of 1/25):
+- The nodes in a Slurm cluster are assigned to **partitions**, and one or more partitions are specified when a job is submitted.  Slurm allows a node to be assigned to multiple partitions, but I don’t think this is done much on Unity except that some `gpu` nodes are also in `cpu`, etc.  Here are the **x86_64 general-access and preempt [partitions on Unity](https://docs.unity.rc.umass.edu/documentation/cluster_specs/partitions/)** (numbers and best GPUs as of 1/25):
   
   | Partition     | Nodes | Total cores | Cores/node | Mem/node     | GPUs/node | Best GPUs         |
   | ------------- | ----- | ----------- | ---------- | ------------ | --------- | ----------------- |
@@ -2081,7 +2076,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   # Example sbatch script - can put comments like this on any line.
   #SBATCH -c 4                  # use 4 cores per task
   #SBATCH -p cpu                # submit job to partition cpu
-  ##SBATCH -p cpu-preempt        # submit job to partition cpu-preempt (this is commented out)
+  # #SBATCH -p cpu-preempt        # submit job to partition cpu-preempt (this is commented out)
   module purge                  # unload all modules
   module load python/3.12       # load version of Python needed
   python myscript.py > output   # run myscript.py sending its output to a file
@@ -2091,7 +2086,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   
   - The first line `#!/bin/bash` indicates Bash should be used to interpret the file (you could use a different shell).
   
-  - The sbatch script is a regular shell file except that lines that **start with `#SBATCH`** (exactly like this, in all caps) are interpreted specially by the `sbatch` command.  This means `#SBATCH` lines can be commented out by doubling the initial `#`, as shown above.
+  - The sbatch script is a regular shell file except that lines that **start with `#SBATCH`** (exactly like this, in all caps) are interpreted specially by the `sbatch` command.  This means `#SBATCH` lines can be commented out by doubling the initial `#` (with or without a space as shown above).
   
   - The `#SBATCH` lines, which give information to Slurm on how to schedule the job, must come before any regular shell commands.  Any `#SBATCH` lines after other shell commands other than comments are ignored.
   
@@ -2142,10 +2137,10 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   - For an **MPI job** (for which Slurm was originally conceived) there will ordinarily be **more than one task** and **each task corresponds to an MPI rank, running an independent copy of the code.**  I believe these tasks might run on one or more nodes unless `#SBATCH -N=...` is used to fix the number of nodes.
   - [This page](https://groups.oist.jp/scs/advanced-slurm) shows how **`srun`** can be used to run multiple copies of a program that don't communicate using MPI -- thus **more than one task** (I haven't tried this).
 
-- Here are some #SBATCH settings useful for both single-task (non-MPI) and multi-task (MPI) jobs.  Note many command have two equivalent forms: a single-dash+single-letter form that does not need an equals sign, and a double-dash+multi-letter form that takes an equal sign before any supplied value.
+- Here are some #SBATCH settings useful for both single-task (non-MPI) and multi-task (MPI) jobs.  Note many command have two equivalent forms: a **single-dash+single-letter form that does not need an equals sign**, and a **double-dash+multi-letter form that takes an equal sign** before any supplied value.
   
   ```
-  SBATCH -J <name>           # set a name for job, otherwise will be script filename
+  #SBATCH -J <name>           # set a name for job, otherwise will be script filename
   #SBATCH --job-name=<name>   # “ “
   
   #SBATCH -o <ofname>         # set filename for output, otherwise will be slurm-<jobid>.out
@@ -2162,7 +2157,9 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   
   #SBATCH -t 10               # set wall-time limit for job to complete to 10 minutes
   #SBATCH --time=10           # “ “
-  #SBATCH -t 3:30:00          # set wall-time limit to 3.5 hours
+  #SBATCH -t 3:30             # set wall-time limit to 3.5 minutes
+  #SBATCH -t 3:30:00          # set wall-time limit to 3.5 hours (note needs seconds)
+  #SBATCH -t 0-3:30           # " "
   #SBATCH -t 2-3              # set wall-time limit to 2 days + 3 hours
   
   #SBATCH -c 6                # allocate 6 cores (not cpus!) per task
@@ -2213,7 +2210,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   
   - The combination of `-n` (cores, typically) and `-N` (nodes) settings can be used to limit the job to high core-count nodes.  For example `-n 64` along with `-N 1`, or `-n 128` along with `-N 2`, will limit the job to nodes with at least 64 cores per node.
   
-  - Setting `--exclusive` and `-n` without setting `-N` will also most likely result in nodes with certain minimum core counts.  For example `-n 128` with `--exclusive` will most likely run on two 64-core nodes, or one 128-core node.
+  - Setting `--exclusive` and `-n` without setting `-N` will also most likely result in nodes with certain minimum core counts.  For example `-n 128` with `--exclusive` will most likely run on two 64-core nodes, or one 128-core node.  As shown in examples below, this seems like a useful way to run jobs on even multiples of 64 cores.
   
   - `--nodelist` can limit the job to a specific set of nodes.
   
@@ -2309,7 +2306,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
 
 - **Including the sbatch script in the `slurm-<jobid>.out` file**<a id="keep-sbatch"></a>.
   
-  - Sometimes it is useful to keep a record of the sbatch script in the output file (called `slurm-<jobid>.out` by default). For example, if several jobs are run by making small changes to the sbatch script, your may want to keep a record in each output file of the precise sbatch script used to produce that output. This can be done by including the command `scontrol write batch_script $SLURM_JOB_ID -` in the sbatch file.  This sbatch script **`simple2.sh`** includes this feature:
+  - Sometimes it is useful to keep a record of the sbatch script in the output file (called `slurm-<jobid>.out` by default). For example, if several jobs are run by making small changes to the sbatch script, your may want to keep a record in each output file of the precise sbatch script used to produce that output. This can be done by including the command `scontrol write batch_script $SLURM_JOB_ID -` in the sbatch file (note the `-` at the end of this command).  This sbatch script **`simple2.sh`** includes this command, followed by `echo` to make a blank line:
     
     ```
     #!/bin/bash
@@ -3097,7 +3094,7 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
     | which nodes used       | -                   | umd-cscdr-cpu 041 | uri-cpu [011-012] | cpu [056, 065]    | umd-cscdr-cpu [039, 046], uri-cpu [007, 012] |
     | inter-rank comm time   | 13.6%               | 13.7%             | 12.0%             | 20.3%             | 24.0%                                        |
     | memory used            | 5.5 GB              | 17.3 GB           | 16.6 GB           | 37.4 GB           | 16.0 GB                                      |
-    | sim wall time          | 2,777 min = 46.1 hr | 958 min = 16.0 hr | 460 min = 7.66 hr | 274 min = 4.56 hr | 284 min = 7.74 hr                            |
+    | sim wall time          | 2,777 min = 46.1 hr | 958 min = 16.0 hr | 460 min = 7.66 hr | 274 min = 4.56 hr | 284 min = 4.74 hr                            |
     | time / (step-grain)    | 3.67e-6 s           | 1.27e-6 s         | 0.61e-6 s         | 0.36e-6 s         | 0.38e-6 s                                    |
     | speed / candela-21     | 1.00                | 2.9               | 6.0               | 10.1              | 9.9                                          |
     
@@ -3915,7 +3912,7 @@ Here is a simple model of a parallel computation that describes the (non-public)
 
 ## Summary and TODOs<a id="summary-todos"></a>
 
-### A long cheat sheet<a id="journey"></a>
+### A long cheat sheet
 
 This "cheat sheet" on MPI, GPUs, Apptainer, and HPC (**MGAH**) has ended up longer than anticipated.  But finally this shows with examples how the elements of  MGAH can be used together in various useful combinations, including:
 
@@ -3938,7 +3935,18 @@ The main advantages that emerged for each of the elements of MGAH were:
 - Containerization of code with **Apptainer (A)** does seem effective.  For example, all of the containers built and tested on PCs (using MPI, a GPU, or neither) worked without difficulty when simply copied to the Unity cluster.
 - Moving code to an **HPC cluster (H)** like Unity has proved useful to me mainly when the *volume* of work (e.g. number of simulations) increased, to enable completion of a study.  Individual jobs could be made to complete about 10 times faster than on a PC (if many cores were used for MPI, or a high-quality GPU could be used) -- but the big advantage over the PC was the ability to queue up many such jobs all at once.
 
-### TODOs<a id="todos"></a>
+### TODOs
 
-- **Choice of GPUs on an HPC cluster.**  On the Unity cluster there are [many more types of GPU](https://docs.unity.rc.umass.edu/documentation/tools/gpus/) than shown in the [table above](#gpu-list).  Requesting the better GPUs listed in this table (V100 or A100) can at present (4/25) result in long to infinite queue times, hence some concrete information on what GPU constraints to use is needed. The choices will depend on the type of calculation to be done (dense or sparse linear algebra, AI training...), the precision needed (64-bit, 32-bit, or less precise floats), and the amount of GPU memory (VRAM) needed (much more for AI training, I think, than for physics simulations).
+- **Choice of GPUs on an HPC cluster.**  On the Unity cluster there are [many more types of GPU](https://docs.unity.rc.umass.edu/documentation/tools/gpus/) than shown in the [table above](#gpu-list).  Requesting the better GPUs listed in this table (V100 or A100) can at present (4/25) result in long to infinite queue times, hence some concrete information on what GPU constraints to use is needed. The choices will depend on the type of calculation to be done (dense or sparse linear algebra, AI training...), the precision needed (64-bit, 32-bit, or less precise floats), and the amount of GPU memory (VRAM) needed (much more for AI training, I think, than for physics simulations).  Also, how can the usage of VRAM be monitored, other than seeing when "out of memory" errors occur?
+
+- **Using multiple GPUs.**  Most GPU nodes on a cluster like Unity have multiple GPUs, which could be in principle be used together to do jobs that are too big or too slow when done on a single GPU.  How to do this?  Within CuPy, for example, it seems straightforward to put objects like arrays on specific GPUs, but how can multiple GPUs used like a single large GPU might be? CuPy does have a `distributed_array` type and can use "NVIDIA NCCL" for multi-GPU communication, but how are these things used, and how efficient are they for various types of computation?
+
 - **Ways of submitting multiple `sbatch` jobs.** It might be useful to find out about **array jobs** and **checkpointing**.  Some information on these topics is [here](https://groups.oist.jp/scs/advanced-slurm) and [here](https://jhpce.jhu.edu/slurm/crafting-jobs/).
+
+- **Other ways of getting/running Apptainer containers.**  This document showed how to build an Apptainer container on a Linux PC (bootstrapping from Docker Hub), then transfer it to the Unity HPC cluster and run it there.  But there are other possibilities not detailed here:
+  
+  - Apptainer containers can be built from an Apptainer `.def` file directly on Unity -- might be useful if a suitable Linux PC were not available.
+  
+  - Apptainer containers can be obtained from others.
+  
+  - Apptainer can directly "run" Docker containers, which I believe consists in an automatic Apptainer build with cached output, so it can be done repeatedly without rebuilding.
