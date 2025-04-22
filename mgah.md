@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   4/21/25
+mgah.md  D. Candela   4/22/25
 
 - [Introduction](#intro)  
   
@@ -69,13 +69,16 @@ mgah.md  D. Candela   4/21/25
     - [Running containers that use MPI](#unity-mpi-container)
     - [Running a container the uses a GPU](#unity-gpu-container)
 
-- [Random notes on parallel computing in Python](#random-notes)
+- [Random notes on parallel computing in Python](#random-notes)  
   
-  - [A long cheat sheet](#journey)
   - [Wall time and CPU time](#wall-cpu-time)
-  - [Factors other than parallelism affecting execution speed](#other-speed-factors)
   - [Strong and weak scaling](#strong-weak-scaling)
   - [Estimating MPI communication overhead](#estimate-mpi-overhead)
+
+- [Summary and TODOs](#summary-todos)
+  
+  - [A long cheat sheet](#journey)
+  - [TODOs](#todos)
 
 ## Introduction <a id="intro"></a>
 
@@ -737,7 +740,7 @@ Here we use the discrete-element-method (DEM) simulation package **`dem21`**  (n
   
   - **An even bigger simulation.**<a id="even-bigger-sim"></a> To provide more things to compare with Unity the same code was used to run an even bigger sim,  with ten times as many grains (100,450) but otherwise identical, on `candela-21` using 16 cores with hyperthreading disabled.  Now there were 1,728 boxes giving up to 116 boxes per crate, so other factors being equal one would expect the sim to take (116/16) = 7.3 times as long to run.
     
-    - This simulation required 165,900 s = 46.1 hr to run (3.69 microsec/step-grain) -- 10.4 times longer than the smaller sim, so modestly worse than weak scaling would give.
+    - This simulation required 165,900 s = 46.1 hr to run (3.69 microsec/step-grain) -- 10.4 times longer than the smaller sim. This 
     
     - Only 5.5 GB of memory was required, showing that this is a very low-memory application.
 
@@ -3060,13 +3063,11 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
   
   Notes:
   
-  - The speed scales rather less than linearly with the number of cores (less than strong scaling). It appears useful for this particular situation to use up to 128 cores (which however is only about 5 times faster than using 15 cores, rather than the strong-scaling expectation of 8 times faster) -- but going beyond this to 256 cores did not help much, and queue times were longer for 256 cores.
+  - The speed scales rather less than linearly with the number of cores (less than [strong scaling](#strong-weak-scaling)). It appears useful for this particular situation to use up to 128 cores (which however is only about 5 times faster than using 15 cores, rather than the strong-scaling expectation of 8 times faster) -- but going beyond this to 256 cores did not help much, and queue times were longer for 256 cores.  Running on the same bank of nodes `umd-cscdr-cpu`, using 256 cores was only  1.4 times faster than using 128 cores rather than the strong-scaling speedup of 2.0.
   
   - Allowing the 128-core sims to run on 2 64-code nodes was only about 15% slower than running on 1 128-core node, and again the queue time was shorter for 64-code nodes.
   
-  - In summary the best way to run here was to used `--exclusive` and `--mem=0` to get full use of nodes with all of their memory, but to not specify `-N`  (which typically resulting in 64-core nodes) or to explicitly specify `-N` that gives 64-core nodes as Unity currently (4/25) has a lot of 64-core nodes.
-  
-  - **TODO** run job with 1e5 grains to see if can get weak-scaling advantage (i.e. better than 5x speed of candela-21 for big enough job)
+  - In summary the best way to run here was to used `--exclusive` and `--mem=0` to get full use of nodes with all of their memory, but to not specify `-N`  (which typically resulting in 64-core nodes, but occasionally 128-core nodes) or to explicitly specify `-N` that gives 64-core nodes as Unity currently (4/25) has a lot of 64-core nodes.
   
   - Here are some typical `#SBATCH` settings that someone in my group used successfully for a script that submitted many jobs similar to the job described above:
     
@@ -3105,6 +3106,8 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
     - It worked well use `--exclusive` but omit `-N` specifying the number of nodes to be used -- Slurm typically allocated 64-core nodes, but sometimes allocated 128-core nodes.
     
     - Comparing the last two columns, the run using external MPI was 2% slower which is not a significant difference especially as different nodes (and a different numbers of nodes) were used.
+    
+    - Compare with the results for the 10-times smaller simulation tabulated above, the 128-core run took 6.4 times longer while the 256-core run took 5.5 times longer. These scalings with simulation size were even better than the corresponding reductions in boxes/crates (increases in code parallelism) of 14/2=7.0 and 7/1=7.0, suggesting that [weak scaling](#strong-weak-scaling) applies here.
 
 ### Using a GPU on Unity (without Apptainer)<a id="unity-gpu"></a>
 
@@ -3862,6 +3865,56 @@ For the examples here it assumed that the needed image file (**`m4p.sif`** or **
 
 ## Random notes on parallel computing with Python<a id="random-notes"></a>
 
+### Wall time and CPU time<a id="wall-cpu-time"></a>
+
+- “Wall time” or “real time” refers to time that progresses at the same rate as physical time, independent of whether a computer program is running or is suspended, or how many cores the program is running on.  The Python function `time.perf_counter` returns wall time in seconds as a float with high resolution (order of ns) but with arbitrary origin, hence only differences between successive `time.perf_counter` calls are meaningful. Alternatively `time.perf_counter_ns` returns the wall time in nanoseconds as an integer, again with arbitrary origin.
+- “CPU time” (e.g. from `time.process_time`) may exclude time when a process is suspended, and thus advance slower than wall time.  For parallel processing CPU time (e.g. `CPU Utilized` reported by Slurm `seff`) may be the sum of the time used by all processes, and thus advance faster than wall time.
+- Elapsed wall time between program start and end might be the most appropriate measure of program execution time for discussing parallel speedup, as it gives the actual time the user must wait for the program to finish.  However it does not include the time a job waits in a cluster scheduling queue; when this is included the total queued+execution time may have a minimum for some number of cores, if (as is typical) the time waiting in queue increases with the number of cores requested.
+
+### Strong and weak scaling<a id="strong-weak-scaling"></a>
+
+- See this [helpful article](https://www.kth.se/blogs/pdc/2018/11/scalability-strong-and-weak-scaling)
+
+- Let $Q$ be the **size of the computational task**, defined so that the expected computation time is at least roughly proportional to $Q$. For a granular simulation $Q$ could be the number of grains (roughly scaling with computational time) times the number of time steps (precisely scaling with computational time). Also let $t_N(Q)$ be the **wall time to complete task $Q$ on $N$ cores**.
+
+- **Parallel speedup** can be defined as $S(N,Q)= t_1(Q)/t_N(Q)$. A plot of $S(N,Q)$ vs $N$ is called a **strong scaling plot**, and shows how a given task $Q$ can be speeded up by using more cores $N$. Ideally $S(N,Q)$ would be proportional to $N$, but **Amdahl’s law** suggests $S(N,Q)$ should level off at finite value for large $N$ due to the fraction of the code that is not parallelized. Even if the non-parallel code is negligible, $S(N,Q$) might level off at large $N$ due to the costs of breaking the problem into more and more (smaller and smaller) parallel tasks. For example in various types of simulation, if space is broken into smaller and smaller domains there will be additional costs for communication between the domains.
+
+- Often the number of cores $N$ is increased not to decrease the execution time, but rather to increase the size $Q$ of the task that can be carried out. If we take $Q = Q_1 N$ and $N$ is varied keeping the size per core $Q_1$ constant, we can define the **weak parallel speedup** $S_W(N,Q_1) = Nt_1(Q_1)/t_N(NQ_1)$. A plot of $S_W(N,Q_1)$ vs $N$ is called a **weak scaling plot**. The weak speedup $S_W$ measures how much problem can be done per unit time with $N$ cores compared with the same thing for one core, $S_W(N,Q_1)= [NQ_1/t_N(NQ_1)]/[Q_1/t_1(Q_1)]$. **Gustafson’s law** suggests that $S_W$ can sometimes increase indefinitely with $N$, unlike the strong speedup $S$.  This is trivially the case for "embarrassingly parallel" tasks that can simply be broken up into chunks that require little or no communication.
+
+### Estimating MPI communication overhead<a id="estimate-mpi-overhead"></a>
+
+Here is a simple model of a parallel computation that describes the (non-public) simulation package `dem21` used for testing in several sections above: [on a PC](#mpi-dem21), [on the Unity cluster](#sbatch-dem21), and also when containerized with Apptainer. Many parallel codes would be more complicated than this, but the idea used here might still apply:
+
+- Timers (e.g. differences between `time.perf_counter` return values) are used to measure the wall time required for various sections of the code to complete, including the total execution time for the program $t_t$.
+
+- *N* cores are used to carry out *N* processes (i.e. one process per core), of which one is a master or control process and $N−1$ are worker processes.
+
+- During some periods totaling $t_{np}$ the single master process is computing and the $N-1$ worker processes are idle. This is the time used exclusively for **non-parallel** processing.
+
+- During other periods the master process is idle, and during these periods some or all of the worker processes may be computing. Let the total time during which the $j^{th}$ worker process is computing be $t_j$. Let $t_p$ be the sum of the $N−1$ $t_j$’s. This is the total **parallel-processing time**, summed over the processes that can potentially operate in parallel (but may not, for example when one of these processes is waiting for another to reach some point, or when the master process is waiting for all of the worker processes to reach some point).
+
+- Communication between the $N$ processes may be difficult to attribute to specific processes, particularly when one process is waiting on another. To handle this simply, all communications operations (e.g. all MPI function calls) are excluded from both $t_t$ and the $t_j$’s.
+
+- If we imagine running the computation on a single core (hence no communication calls), the $N−1$ worker computations would need to be done sequentially so the total execution time should be $t_1 = t_{np} + t_p$. Thus we define the **actual, measured speedup** to be $S = t_t/( t_{np} + t_p)$.
+
+- In an ideal situation there would be negligible time spent on communication (e.g. all MPI function calls would return instantaneously) and each of the $N−1$ worker processes would require precisely the same time, $t_j = t_p/(N-1)$ for every $j$. In this case the (ideal) total execution time should be $t_{t,I} = t_{np} + t_j = t_{np} + t_p/(N−1)$. Thus the **ideal speedup** would be $S_I = t_1/ t_{t,I} = (t_{np} + t_p)/(t_{np} + t_p/(N−1))$. This ideal speedup is still limited by Amdahl’s law: So long as the non-parallel portion of the execution time $t_{np}$ is negligible, $S_I \approx N−1$, the number of parallel processes. But as $N$ increases $S_I$ tends to a finite value due to $t_{np}$.
+
+- Apart from non-negligible non-parallel processing time $t_{np}$, another reason the actual speedup $S$ is often less than the ideal speedup $S_I$ is that the $N−1$ worker computation times $t_j$ are not all equal. This is a problem of **overall load balancing** between the parallel processes, which must be addressed by writing an efficient parallel code (not discussed in this document). Let the maximum $t_j$ be $t_{j,\mathit{max}}$. If we can still ignore communication time we expect the total execution time to be $t_{t,NC} = t_{np} + t_{j,\mathit{max}}$ and the expected **speedup with no communication cost** would be $S_{NC} = t_1/t_{t,NC} = (t_{np} + \sum_j t_j)/(t_{np} + t_{j,\mathit{max}})$ which is less than $S_I$ unless all of the $t_j$’s are equal (perfect load balancing).
+
+- Finally, we can estimate the total **time required for interprocess communication and synchronization** $t_C$ as the difference between the measured total execution time and the expected total time including load imbalance, $t_C = t_t − t_{t,NC}$. What is nice about this way of measuring communication time is that it sidesteps questions of accounting for and attributing the time required for various types of communication calls (blocking or non-blocking sends and receives, broadcasts and gathers/reductions, waits for completion, synchronizations…). And provided the inferred total communication time $t_C$ is for example, less than 20% of the measured total execution time $t_t$, we know that the speedup $S$ cannot be improved by more than 20% by reducing $t_C$. This can be significant as there may be thorny issues in optimizing $t_C$, as discussed elsewhere in this document (linking to the correct communication libraries for the hardware in use, for example) and below (synchronization inefficiencies).
+
+- The ideal speedup $S_I$, the actual speedup $S$, and the fraction of execution time used by interproccess communication $t_C/t_t$ can all be measured by timings of the wall time required for execution of code blocks during single parallel run, thus sidestepping to some degree questions about variable CPU clock speed and variations of execution time with processor model.
+
+- This measure of interproccess communication time does include (in addition to actual time required to carry out communication operations such as transmitting data from one node to another) waiting time due to inefficiencies other than overall load imbalance in the structure of the parallel code. In the absence of such inefficiencies, with instantaneous interproccess communications the parallel portion of the code would take no longer than the computation time for the slowest of the $N−1$ parallel processes, $t_{j,\mathit{max}}$.
+  
+  An example of maximally inefficient code is if each parallel process $j$ waits (e.g. via an MPI receive call) for process $j−1$ to complete before it starts – in this case the code will not run in parallel at all and most of the execution time will be counted as interproccess communication time contributing to $t_C$. We can characterize such inefficiencies as **synchronization inefficiencies**: Processes cannot run because they are waiting for other processes to complete tasks.
+  
+  Here is a more realistic example of synchronization inefficiencies: All $N−1$ parallel processes are required to periodically synchronize with each other, for example to carry out time steps of a simulation. Early in the simulation one set of processes runs more slowly, causing other processes to wait (perhaps due to an imbalance in the number of particles handled by each process). Later in the simulation a different set of processes runs more slowly. In this scenario, all processes might use the same total computation time $t_j$, but the time required for the code to run will be significantly larger than $t_{np} + t_{j,\mathit{max}}$, and the excess time will contribute to $t_C$.
+
+- Clearly such synchronization inefficiencies do not dominate the overall computation time and actual speedup $S$ when $t_C$ is comparable to or smaller than $t_p$. But in the reverse case $t_C \gg t_p$ both inefficient communications operations and inefficient code structure must be investigated as possible causes.
+
+## Summary and TODOs<a id="summary-todos"></a>
+
 ### A long cheat sheet<a id="journey"></a>
 
 This "cheat sheet" on MPI, GPUs, Apptainer, and HPC (**MGAH**) has ended up longer than anticipated.  But finally this shows with examples how the elements of  MGAH can be used together in various useful combinations, including:
@@ -3885,14 +3938,7 @@ The main advantages that emerged for each of the elements of MGAH were:
 - Containerization of code with **Apptainer (A)** does seem effective.  For example, all of the containers built and tested on PCs (using MPI, a GPU, or neither) worked without difficulty when simply copied to the Unity cluster.
 - Moving code to an **HPC cluster (H)** like Unity has proved useful to me mainly when the *volume* of work (e.g. number of simulations) increased, to enable completion of a study.  Individual jobs could be made to complete about 10 times faster than on a PC (if many cores were used for MPI, or a high-quality GPU could be used) -- but the big advantage over the PC was the ability to queue up many such jobs all at once.
 
-### Wall time and CPU time<a id="wall-cpu-time"></a>
+### TODOs<a id="todos"></a>
 
-**TODO**
-
-### Factors other than parallelism affecting execution speed<a id="other-speed-factors"></a>
-
-**TODO** already have this info near intro?
-
-### Strong and weak scaling<a id="strong-weak-scaling"></a>
-
-Estimating MPI communication overhead<a id="estimate-mpi-overhead"></a>
+- **Choice of GPUs on an HPC cluster.**  On the Unity cluster there are [many more types of GPU](https://docs.unity.rc.umass.edu/documentation/tools/gpus/) than shown in the [table above](#gpu-list).  Requesting the better GPUs listed in this table (V100 or A100) can at present (4/25) result in long to infinite queue times, hence some concrete information on what GPU constraints to use is needed. The choices will depend on the type of calculation to be done (dense or sparse linear algebra, AI training...), the precision needed (64-bit, 32-bit, or less precise floats), and the amount of GPU memory (VRAM) needed (much more for AI training, I think, than for physics simulations).
+- **Ways of submitting multiple `sbatch` jobs.** It might be useful to find out about **array jobs** and **checkpointing**.  Some information on these topics is [here](https://groups.oist.jp/scs/advanced-slurm) and [here](https://jhpce.jhu.edu/slurm/crafting-jobs/).
