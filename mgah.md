@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   4/22a/25
+mgah.md  D. Candela   5/1/25
 
 - [Introduction](#intro)  
   
@@ -63,6 +63,7 @@ mgah.md  D. Candela   4/22a/25
     - [A Conda environment capable of using a GPU](#conda-gpu-unity)
     - [Run `gputest.py` on Unity interactively](#gputest-interactive)
     - [A batch job using a GPU](#gpu-sbatch)
+    - [Picking a GPU on Unity](#pick-gpu)
   - [Using Apptainer on Unity](#unity-apptainer)
     - [Getting container images on the cluster](#images-to-unity)
     - [Running a container interactively or in batch job](#unity-run-container)
@@ -1051,6 +1052,7 @@ These test results used arrays with $10^6$ elements.  Here TF = TFLOPS = $10^{12
     
     - **Calculating bond vectors from differences of node positions.**  candela-21 GPU is 3.6 times faster and A100 GPU is 81 times faster than candela-21 CPU (so using GPUs A100 is 22 times faster than candela-21).
     - **Calculating node forces by summing bond forces.**  candela-21 GPU is 2.1 times faster and A100 GPU is 83 times faster than candela-21 CPU (so using GPUs A100 is 39 times faster than candela-21).
+    - **Operations on larger sparse matrices.** For operations on sparse matrices with $10^7$ elements (ten times bigger than in the table above), the advantage of using a GPU over a CPU were somewhat bigger than with $10^6$ elements.
   
   - **Comparison of available GPUs** using **float32** and **candela-21 GPU** as reference:
     
@@ -1058,6 +1060,7 @@ These test results used arrays with $10^6$ elements.  Here TF = TFLOPS = $10^{12
     - **T4** (best GPU available free on Colab as of 11/23) is **1.9 times faster for dense operations, 1.3-3.2 times faster for sparse operations**. But **CPU operations were much slower on Colab+T4 than on candela-21.**
     - **V100** (good GPU sometimes available on Unity as of 11/23) is **3 times faster for dense operations, 4-10 times faster for sparse operations**. But again **CPU operations were slower than on candela-21.**
     - **A100** (very good GPU sometimes available on Unity as of 11/23) is **5 times faster for dense operations, 20-40 times faster for sparse operations. CPU operations were similar** to candela-21.
+    - The section [Picking a GPU on Unity](#pick-gpu) below has some summary specs for the various GPUs available on Unity, as requesting the better ones listed in the table above can result in long queue times for Unity jobs.
 
 - **Running CuPy in a Google Colab notebook.** This was quite simple, as it seems compatible Numpy, CUDA and CuPy are installed by default:
   
@@ -2195,7 +2198,8 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   ```
   #SBATCH -n 100            # allocate resources for 100 tasks (100 MPI ranks)
   #SBATCH --ntasks=100      # “ “
-  #SBATCH -C ib             # only use nodes with InfiniBand networking
+  #SBATCH -C ib             # only use nodes with InfiniBand networking...
+  #SBATCH -C "ib&mpi"       # .. also ensure consistent CPU type across nodes
   #SBATCH --gpus-per-task=1 # allocate one GPU per task
   #SBATCH --nodelist=cpu[049-068] # run on specific nodes
   #SBATCH -N 10             # run the job on 10 nodes
@@ -2981,6 +2985,8 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
     # mpirun python ../../mx2.py mx2mod    # run without displaying bindings
     ```
   
+  - All of the MPI trials show in this document used `#SBATCH -C ib` to request nodes with **InfiniBand networking**.  But for **multi-node MPI jobs** (typically jobs on more than 64 cores) probably should have used `#SBATCH -C "ib&mpi"` to additionally ensure **consistent CPU type across nodes**.  I haven't tried this yet.
+  
   - We submit the job from this directory  (`mx2.py` has been written to be run from the directory where its output should go -- this may not be true for other programs):
     
     ```
@@ -3227,7 +3233,20 @@ Unlike on my PCs, on Unity it was not necessary to explicitly specify `-c conda-
   
     Looking at the [Unity node list](https://docs.unity.rc.umass.edu/documentation/cluster_specs/nodes/) we see that node `gypsum-gpu168` has NVIDIA RTX 2080ti GPUs, which according to the [Unity GPU info](https://docs.unity.rc.umass.edu/documentation/tools/gpus/) has compute capability 7.5 in agreement with the output of `gputest.py`.
 
-- **TODO** Need more on choosing and specifying GPUs and checking VRAM used as V100s (much less A100s) not freely available.
+#### Picking a GPU on Unity<a id="pick-gpu"></a>
+
+As of 5/25 requesting (as a general-access user) a V100 GPU on Unity resulted in a several-day queue time, while a job requesting an A100 GPU seemed unwilling to run at all. Therefore this table was compiled from the Unity docs with some summary performance specs of the NVIDIA GPUs on Unity as of 5/25 (the first line shows the inexpensive GPU in the [candela-21 PC](#pcs), for comparison):
+
+| NVIDIA model, Unity constraint | GPUs on `gpu` partition | GPUs on `gpu-preempt` partition | Compute capability | VRAM per GPU | float64, float32 FLOPS | Mem. BW   |
+| ------------------------------ | ----------------------- | ------------------------------- | ------------------ | ------------ | ---------------------- | --------- |
+| GeForce GTX 1660               | --                      | --                              | 6.1                | 6 GB         | 0.16, 5.0 TF           | 0.19 TB/s |
+| A40, `a40`                     | 8                       | 4                               | 8.6                | 48 GB        | 1.1, 37 TF             | 0.70 TB/s |
+
+Notes:
+
+- With `#SBATCH -C a40` the job will only run on a node with an A40 GPU.  To allow running on a node with either an A16 or and A40 GPU use `#SBATCH -C "a16|a40"`.
+- With `#SBATCH -C sm_86` the job will run on a node with compute capability **8.6 or higher**.
+- I believe an sbatch script should include only one `#SBATCH -C ...` line; multiple constraints should be combined in a single `#SBATCH -C ...` command with and's or or's as [shown here](https://slurm.schedmd.com/sbatch.html).
 
 ### Using Apptainer on Unity<a id="unity-apptainer"></a>
 
@@ -3638,7 +3657,7 @@ For the examples here it assumed that the needed image file (**`m4p.sif`** or **
 
 - **Using a container to run a larger DEM simulation with `dem21`.**   Here we continue to follow the corresponding steps shown for a PC in [A container to run the more elaborate MPI package `dem21`](#dem21-container) above.
   
-  - Here is an appropriate sbatch script, called **`mx2-unity-app.sh`**.  As in the other examples above, this script does not load an OpenMPI module but does activate the environment `ompi` with OpenMPI installed (these choices are discussed in [Ways of running Python MPI programs on Unity](#ways-mpi-unity) above):
+  - Here is an appropriate sbatch script, called **`mx2-unity-app.sh`**.  As in the other examples above, this script does not load an OpenMPI module but does activate the environment `ompi` with OpenMPI installed (these choices are discussed in [Ways of running Python MPI programs on Unity](#ways-mpi-unity) above).  As noted in that section, this script probably should have use `#SBATCH -C "ib&mpi"` rather than `#SBATCH -C ib` as shown here to ensure **consistent CPU type** when more than one node is used (typically when more than 64 cores are requested), but I haven't tried that:
     
     ```
     #!/bin/bash
