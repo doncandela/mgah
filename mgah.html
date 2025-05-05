@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   5/1/25</p>
+<p>mgah.md  D. Candela   5/5/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -2536,7 +2536,7 @@ In this document these three terms are used interchangeably with apologies to th
 <li><strong>hoffice:</strong> Lenovo A10 510-23 purch 11/17, 2.4 GHz Intel Core i5 4-core CPU, 8 GB RAM, no NVIDIA-type GPU, running Ubuntu 24.04.</li>
 </ul>
 <h4 class="atx" id="gpuslessa-iddouble-quotegpusdouble-quotegreaterlessagreater">GPUs<a id="gpus"></a></h4>
-<p>A more detailed version of this table is in the section <a href="#gpu-list">A few of NVDIA's many GPUS, with test results</a> below. The GPUs in candela-20 and candela-21 were actually EVGA models equivalent to the NVIDIA models listed here.</p>
+<p>A more detailed version of this table is in the section <a href="#gpu-list">A few of NVDIA's many GPUS, with test results</a> below. The GPUs in candela-20 and candela-21 were actually EVGA models equivalent to the NVIDIA models listed here.  Limited information on other GPUs available on the Unity cluster is in the section <a href="#pick-gpu">Picking a GPU on Unity</a> below.</p>
 <table>
 <thead>
 <tr>
@@ -3238,7 +3238,7 @@ Multiply M*M=N element dense matrices
 </li>
 </ul>
 <h4 class="atx" id="a-few-of-nvdiaand39s-many-gpus-with-test-resultslessa-iddouble-quotegpu-listdouble-quotegreaterlessagreater">A few of NVDIA's many GPUS, with test results<a id="gpu-list"></a></h4>
-<p>NVIDA has made many different GPUs. This table shows includes the relatively small GPUs in my PCs, a somewhat bigger GPU available for free on Google Colab, and a few more powerful GPUs available on the Unity HPC cluster.</p>
+<p>NVIDA has made many different GPUs. This table shows includes the relatively small GPUs in my PCs, a somewhat bigger GPU available for free on Google Colab, and a few more powerful GPUs available on the Unity HPC cluster. Limited information on other GPUs available on the Unity cluster is in the section <a href="#pick-gpu">Picking a GPU on Unity</a> below.</p>
 <table>
 <thead>
 <tr>
@@ -5687,36 +5687,199 @@ Multiply M*M=N element dense matrices
 </li>
 </ul>
 <h4 class="atx" id="picking-a-gpu-on-unitylessa-iddouble-quotepick-gpudouble-quotegreaterlessagreater">Picking a GPU on Unity<a id="pick-gpu"></a></h4>
-<p>As of 5/25 requesting (as a general-access user) a V100 GPU on Unity resulted in a several-day queue time, while a job requesting an A100 GPU seemed unwilling to run at all. Therefore this table was compiled from the Unity docs with some summary performance specs of the NVIDIA GPUs on Unity as of 5/25 (the first line shows the inexpensive GPU in the <a href="#pcs">candela-21 PC</a>, for comparison):</p>
+<p>As of 5/25 requesting (as a general-access user) a V100 GPU on Unity resulted in a several-day queue time, while a job requesting an A100 GPU seemed unwilling to run at all. Therefore this table was compiled from the Unity docs with some summary performance specs of the NVIDIA GPUs on Unity as of 5/25 (the first line shows the inexpensive GPU in the <a href="#pcs">candela-21 PC</a>, for comparison). This information is from the <a href="https://docs.unity.rc.umass.edu/documentation/tools/gpus/">GPUs on Unity</a> page, the <a href="https://docs.unity.rc.umass.edu/documentation/cluster_specs/gpu_summary/">Unity GPU Summary List</a>, and the Wikipedia article <a href="https://en.wikipedia.org/wiki/List_of_Nvidia_graphics_processing_units">List of Nvidia graphics processing units </a>:</p>
 <table>
 <thead>
 <tr>
 <th>NVIDIA model, Unity constraint</th>
-<th>GPUs on <code>gpu</code> partition</th>
-<th>GPUs on <code>gpu-preempt</code>&nbsp;partition</th>
+<th>Total GPUs,&nbsp;<code>gpu</code> partition</th>
+<th>Total GPUs,&nbsp;<code>gpu-preempt</code>&nbsp;partition</th>
+<th>GPUs per node</th>
 <th>Compute capability</th>
 <th>VRAM per GPU</th>
+<th>Mem BW</th>
 <th>float64, float32 FLOPS</th>
-<th>Mem. BW</th>
 </tr>
 </thead>
 <tbody><tr>
 <td>GeForce GTX 1660</td>
-<td>--</td>
-<td>--</td>
-<td>6.1</td>
+<td>(candela-21)</td>
+<td>(candela-21)</td>
+<td>1</td>
+<td>7.5</td>
 <td>6 GB</td>
-<td>0.16, 5.0 TF</td>
-<td>0.19 TB/s</td>
+<td><strong>0.19 TB/s</strong></td>
+<td>0.16, <strong>5.0 TF</strong></td>
+</tr>
+<tr>
+<td>GeForce GTX TITAN X, <code>titanx</code></td>
+<td>188</td>
+<td>188</td>
+<td>4</td>
+<td>5.2</td>
+<td>x GB</td>
+<td><strong>x TB/s</strong></td>
+<td>x, <strong>x TF</strong></td>
+</tr>
+<tr>
+<td>Tesla M40 24GB, <code>m40</code></td>
+<td>76</td>
+<td>76</td>
+<td>4</td>
+<td>5.2</td>
+<td>x GB</td>
+<td><strong>x TB/s</strong></td>
+<td>x, <strong>x TF</strong></td>
+</tr>
+<tr>
+<td>GeForce GTX 1080 Ti, <code>1080ti</code></td>
+<td>312</td>
+<td>--</td>
+<td>8</td>
+<td>6.1</td>
+<td>x GB</td>
+<td><strong>x TB/s</strong></td>
+<td>x, <strong>x TF</strong></td>
+</tr>
+<tr>
+<td>V100-PCIE-16GB, <code>v100</code></td>
+<td>--</td>
+<td>--</td>
+<td></td>
+<td>7.0</td>
+<td>x GB</td>
+<td><strong>x TB/s</strong></td>
+<td>x, <strong>x TF</strong></td>
+</tr>
+<tr>
+<td>V100-SXM2-16GB, <code>v100</code></td>
+<td>17</td>
+<td>--</td>
+<td>2-3</td>
+<td>7.0</td>
+<td>x GB</td>
+<td><strong>x TB/s</strong></td>
+<td>x, <strong>x TF</strong></td>
+</tr>
+<tr>
+<td>V100-SXM2-32GB, <code>v100</code></td>
+<td>8</td>
+<td>--</td>
+<td>4</td>
+<td>7.0</td>
+<td>x GB</td>
+<td><strong>x TB/s</strong></td>
+<td>x, <strong>x TF</strong></td>
+</tr>
+<tr>
+<td>GeForce RTX 2080, <code>2080</code></td>
+<td>--</td>
+<td>368</td>
+<td>8</td>
+<td>7.5</td>
+<td>x GB</td>
+<td><strong>x TB/s</strong></td>
+<td>x, <strong>x TF</strong></td>
+</tr>
+<tr>
+<td>GeForce RTX 2080 Ti, <code>2080ti</code></td>
+<td>144</td>
+<td>--</td>
+<td>8</td>
+<td>7.5</td>
+<td>x GB</td>
+<td><strong>x TB/s</strong></td>
+<td>x, <strong>x TF</strong></td>
+</tr>
+<tr>
+<td>Quadro RTX 8000, <code>rtx8000</code></td>
+<td>--</td>
+<td>18</td>
+<td>6</td>
+<td>7.5</td>
+<td>x GB</td>
+<td><strong>x TB/s</strong></td>
+<td>x, <strong>x TF</strong></td>
+</tr>
+<tr>
+<td>A100-PCIE-40GB, <code>a100</code>, <code>a100-40g</code></td>
+<td>32 tot</td>
+<td>8</td>
+<td>4-8</td>
+<td>8.0</td>
+<td>x GB</td>
+<td><strong>x TB/s</strong></td>
+<td>x, <strong>x TF</strong></td>
+</tr>
+<tr>
+<td>A100-SXM4-80GB, <code>a100</code>, <code>a100-80g</code></td>
+<td>--</td>
+<td>133</td>
+<td></td>
+<td>8.0</td>
+<td>x GB</td>
+<td><strong>x TB/s</strong></td>
+<td>x, <strong>x TF</strong></td>
+</tr>
+<tr>
+<td>A16, <code>a16</code></td>
+<td>4</td>
+<td>64</td>
+<td>4-8</td>
+<td>8.6</td>
+<td>x GB</td>
+<td><strong>x TB/s</strong></td>
+<td>x, <strong>x TF</strong></td>
 </tr>
 <tr>
 <td>A40, <code>a40</code></td>
 <td>8</td>
 <td>4</td>
+<td>4</td>
 <td>8.6</td>
 <td>48 GB</td>
-<td>1.1, 37 TF</td>
-<td>0.70 TB/s</td>
+<td><strong>0.70 TB/s</strong></td>
+<td>1.1, <strong>37 TF</strong></td>
+</tr>
+<tr>
+<td>L40S, <code>l40s</code></td>
+<td>40</td>
+<td>56</td>
+<td>4</td>
+<td>8.9</td>
+<td>x GB</td>
+<td><strong>x TB/s</strong></td>
+<td>x, <strong>x TF</strong></td>
+</tr>
+<tr>
+<td>L4, <code>l4</code></td>
+<td>8</td>
+<td>--</td>
+<td>8</td>
+<td>8.9</td>
+<td>x GB</td>
+<td><strong>x TB/s</strong></td>
+<td>x, <strong>x TF</strong></td>
+</tr>
+<tr>
+<td>H100 80GB HBM3</td>
+<td>12</td>
+<td>4</td>
+<td>4</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>GH200, <code>gh200</code></td>
+<td>--</td>
+<td>--</td>
+<td></td>
+<td>9.0</td>
+<td>x GB</td>
+<td><strong>x TB/s</strong></td>
+<td>x, <strong>x TF</strong></td>
 </tr>
 </tbody></table>
 <p>Notes:</p>

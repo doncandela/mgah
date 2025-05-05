@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   5/1/25
+mgah.md  D. Candela   5/5/25
 
 - [Introduction](#intro)  
   
@@ -189,7 +189,7 @@ The commands and test programs shown in this document were tested on one or more
 
 #### GPUs<a id="gpus"></a>
 
-A more detailed version of this table is in the section [A few of NVDIA's many GPUS, with test results](#gpu-list) below. The GPUs in candela-20 and candela-21 were actually EVGA models equivalent to the NVIDIA models listed here.
+A more detailed version of this table is in the section [A few of NVDIA's many GPUS, with test results](#gpu-list) below. The GPUs in candela-20 and candela-21 were actually EVGA models equivalent to the NVIDIA models listed here.  Limited information on other GPUs available on the Unity cluster is in the section [Picking a GPU on Unity](#pick-gpu) below.
 
 | NVIDIA Model: | GeForce GTX 1050 Ti | GeForce GTX 1660 | Tesla T4                     | Tesla V100 DGXS    | Tesla A100 SMX4    | Hopper H100 SXM5 |
 | ------------- | ------------------- | ---------------- | ---------------------------- | ------------------ | ------------------ | ---------------- |
@@ -994,7 +994,7 @@ These steps are only need once on a given PC, unless updating to newer versions.
 
 #### A few of NVDIA's many GPUS, with test results<a id="gpu-list"></a>
 
-NVIDA has made many different GPUs. This table shows includes the relatively small GPUs in my PCs, a somewhat bigger GPU available for free on Google Colab, and a few more powerful GPUs available on the Unity HPC cluster.
+NVIDA has made many different GPUs. This table shows includes the relatively small GPUs in my PCs, a somewhat bigger GPU available for free on Google Colab, and a few more powerful GPUs available on the Unity HPC cluster. Limited information on other GPUs available on the Unity cluster is in the section [Picking a GPU on Unity](#pick-gpu) below.
 
 | NVIDIA Model:                      | GeForce GTX 1050 Ti    | GeForce GTX 1660        | Tesla T4                 | Tesla V100 DGXS    | Tesla A100 SMX4    | Hopper H100 SXM5 |
 | ---------------------------------- | ---------------------- | ----------------------- | ------------------------ | ------------------ | ------------------ | ---------------- |
@@ -3235,12 +3235,28 @@ Unlike on my PCs, on Unity it was not necessary to explicitly specify `-c conda-
 
 #### Picking a GPU on Unity<a id="pick-gpu"></a>
 
-As of 5/25 requesting (as a general-access user) a V100 GPU on Unity resulted in a several-day queue time, while a job requesting an A100 GPU seemed unwilling to run at all. Therefore this table was compiled from the Unity docs with some summary performance specs of the NVIDIA GPUs on Unity as of 5/25 (the first line shows the inexpensive GPU in the [candela-21 PC](#pcs), for comparison):
+As of 5/25 requesting (as a general-access user) a V100 GPU on Unity resulted in a several-day queue time, while a job requesting an A100 GPU seemed unwilling to run at all. Therefore this table was compiled from the Unity docs with some summary performance specs of the NVIDIA GPUs on Unity as of 5/25 (the first line shows the inexpensive GPU in the [candela-21 PC](#pcs), for comparison). This information is from the [GPUs on Unity](https://docs.unity.rc.umass.edu/documentation/tools/gpus/) page, the [Unity GPU Summary List](https://docs.unity.rc.umass.edu/documentation/cluster_specs/gpu_summary/), and the Wikipedia article [List of Nvidia graphics processing units ](https://en.wikipedia.org/wiki/List_of_Nvidia_graphics_processing_units):
 
-| NVIDIA model, Unity constraint | GPUs on `gpu` partition | GPUs on `gpu-preempt` partition | Compute capability | VRAM per GPU | float64, float32 FLOPS | Mem. BW   |
-| ------------------------------ | ----------------------- | ------------------------------- | ------------------ | ------------ | ---------------------- | --------- |
-| GeForce GTX 1660               | --                      | --                              | 6.1                | 6 GB         | 0.16, 5.0 TF           | 0.19 TB/s |
-| A40, `a40`                     | 8                       | 4                               | 8.6                | 48 GB        | 1.1, 37 TF             | 0.70 TB/s |
+| NVIDIA model, Unity constraint     | Total GPUs, `gpu` partition | Total GPUs, `gpu-preempt` partition | GPUs per node | Compute capability | VRAM per GPU | Mem BW        | float64, float32 FLOPS |
+| ---------------------------------- | --------------------------- | ----------------------------------- | ------------- | ------------------ | ------------ | ------------- | ---------------------- |
+| GeForce GTX 1660                   | (candela-21)                | (candela-21)                        | 1             | 7.5                | 6 GB         | **0.19 TB/s** | 0.16, **5.0 TF**       |
+| GeForce GTX TITAN X, `titanx`      | 188                         | 188                                 | 4             | 5.2                | x GB         | **x TB/s**    | x, **x TF**            |
+| Tesla M40 24GB, `m40`              | 76                          | 76                                  | 4             | 5.2                | x GB         | **x TB/s**    | x, **x TF**            |
+| GeForce GTX 1080 Ti, `1080ti`      | 312                         | --                                  | 8             | 6.1                | x GB         | **x TB/s**    | x, **x TF**            |
+| V100-PCIE-16GB, `v100`             | --                          | --                                  |               | 7.0                | x GB         | **x TB/s**    | x, **x TF**            |
+| V100-SXM2-16GB, `v100`             | 17                          | --                                  | 2-3           | 7.0                | x GB         | **x TB/s**    | x, **x TF**            |
+| V100-SXM2-32GB, `v100`             | 8                           | --                                  | 4             | 7.0                | x GB         | **x TB/s**    | x, **x TF**            |
+| GeForce RTX 2080, `2080`           | --                          | 368                                 | 8             | 7.5                | x GB         | **x TB/s**    | x, **x TF**            |
+| GeForce RTX 2080 Ti, `2080ti`      | 144                         | --                                  | 8             | 7.5                | x GB         | **x TB/s**    | x, **x TF**            |
+| Quadro RTX 8000, `rtx8000`         | --                          | 18                                  | 6             | 7.5                | x GB         | **x TB/s**    | x, **x TF**            |
+| A100-PCIE-40GB, `a100`, `a100-40g` | 32 tot                      | 8                                   | 4-8           | 8.0                | x GB         | **x TB/s**    | x, **x TF**            |
+| A100-SXM4-80GB, `a100`, `a100-80g` | --                          | 133                                 |               | 8.0                | x GB         | **x TB/s**    | x, **x TF**            |
+| A16, `a16`                         | 4                           | 64                                  | 4-8           | 8.6                | x GB         | **x TB/s**    | x, **x TF**            |
+| A40, `a40`                         | 8                           | 4                                   | 4             | 8.6                | 48 GB        | **0.70 TB/s** | 1.1, **37 TF**         |
+| L40S, `l40s`                       | 40                          | 56                                  | 4             | 8.9                | x GB         | **x TB/s**    | x, **x TF**            |
+| L4, `l4`                           | 8                           | --                                  | 8             | 8.9                | x GB         | **x TB/s**    | x, **x TF**            |
+| H100 80GB HBM3                     | 12                          | 4                                   | 4             |                    |              |               |                        |
+| GH200, `gh200`                     | --                          | --                                  |               | 9.0                | x GB         | **x TB/s**    | x, **x TF**            |
 
 Notes:
 
