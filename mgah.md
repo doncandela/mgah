@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   5/5/25
+mgah.md  D. Candela   5/6/25
 
 - [Introduction](#intro)  
   
@@ -3237,32 +3237,34 @@ Unlike on my PCs, on Unity it was not necessary to explicitly specify `-c conda-
 
 As of 5/25 requesting (as a general-access user) a V100 GPU on Unity resulted in a several-day queue time, while a job requesting an A100 GPU seemed unwilling to run at all. Therefore this table was compiled from the Unity docs with some summary performance specs of the NVIDIA GPUs on Unity as of 5/25 (the first line shows the inexpensive GPU in the [candela-21 PC](#pcs), for comparison). This information is from the [GPUs on Unity](https://docs.unity.rc.umass.edu/documentation/tools/gpus/) page, the [Unity GPU Summary List](https://docs.unity.rc.umass.edu/documentation/cluster_specs/gpu_summary/), and the Wikipedia article [List of Nvidia graphics processing units ](https://en.wikipedia.org/wiki/List_of_Nvidia_graphics_processing_units):
 
-| NVIDIA model, Unity constraint     | Total GPUs, `gpu` partition | Total GPUs, `gpu-preempt` partition | GPUs per node | Compute capability | VRAM per GPU | Mem BW        | float64, float32 FLOPS |
-| ---------------------------------- | --------------------------- | ----------------------------------- | ------------- | ------------------ | ------------ | ------------- | ---------------------- |
-| GeForce GTX 1660                   | (candela-21)                | (candela-21)                        | 1             | 7.5                | 6 GB         | **0.19 TB/s** | 0.16, **5.0 TF**       |
-| GeForce GTX TITAN X, `titanx`      | 188                         | 188                                 | 4             | 5.2                | x GB         | **x TB/s**    | x, **x TF**            |
-| Tesla M40 24GB, `m40`              | 76                          | 76                                  | 4             | 5.2                | x GB         | **x TB/s**    | x, **x TF**            |
-| GeForce GTX 1080 Ti, `1080ti`      | 312                         | --                                  | 8             | 6.1                | x GB         | **x TB/s**    | x, **x TF**            |
-| V100-PCIE-16GB, `v100`             | --                          | --                                  |               | 7.0                | x GB         | **x TB/s**    | x, **x TF**            |
-| V100-SXM2-16GB, `v100`             | 17                          | --                                  | 2-3           | 7.0                | x GB         | **x TB/s**    | x, **x TF**            |
-| V100-SXM2-32GB, `v100`             | 8                           | --                                  | 4             | 7.0                | x GB         | **x TB/s**    | x, **x TF**            |
-| GeForce RTX 2080, `2080`           | --                          | 368                                 | 8             | 7.5                | x GB         | **x TB/s**    | x, **x TF**            |
-| GeForce RTX 2080 Ti, `2080ti`      | 144                         | --                                  | 8             | 7.5                | x GB         | **x TB/s**    | x, **x TF**            |
-| Quadro RTX 8000, `rtx8000`         | --                          | 18                                  | 6             | 7.5                | x GB         | **x TB/s**    | x, **x TF**            |
-| A100-PCIE-40GB, `a100`, `a100-40g` | 32 tot                      | 8                                   | 4-8           | 8.0                | x GB         | **x TB/s**    | x, **x TF**            |
-| A100-SXM4-80GB, `a100`, `a100-80g` | --                          | 133                                 |               | 8.0                | x GB         | **x TB/s**    | x, **x TF**            |
-| A16, `a16`                         | 4                           | 64                                  | 4-8           | 8.6                | x GB         | **x TB/s**    | x, **x TF**            |
-| A40, `a40`                         | 8                           | 4                                   | 4             | 8.6                | 48 GB        | **0.70 TB/s** | 1.1, **37 TF**         |
-| L40S, `l40s`                       | 40                          | 56                                  | 4             | 8.9                | x GB         | **x TB/s**    | x, **x TF**            |
-| L4, `l4`                           | 8                           | --                                  | 8             | 8.9                | x GB         | **x TB/s**    | x, **x TF**            |
-| H100 80GB HBM3                     | 12                          | 4                                   | 4             |                    |              |               |                        |
-| GH200, `gh200`                     | --                          | --                                  |               | 9.0                | x GB         | **x TB/s**    | x, **x TF**            |
+| NVIDIA model, constraint           | Total GPUs, `gpu` | Total GPUs, `gpu-preempt` | GPUs per node | Compute capability, constraint | VRAM per GPU, constraint | Mem BW         | float64, float32 FLOPS |
+| ---------------------------------- | ----------------- | ------------------------- | ------------- | ------------------------------ | ------------------------ | -------------- | ---------------------- |
+| GeForce GTX 1660                   | (c-21)            | (c-21)                    | 1             | 7.5                            | 6 GB                     | **0.19 TB/s**  | 0.16, **5.0 TF**       |
+| GeForce GTX TITAN X, `titanx`      | 188               | 188                       | 4             | 5.2, `sm_52`                   | 12 GB, `vram12`          | **0.48 TB/s**  | 0.35, **10.9 TF**      |
+| Tesla M40 24GB, `m40`              | 76                | 76                        | 4             | 5.2m `sm_52`                   | 23 GB, `vram23`          | **0.29 TB/s**  | 0.17, **6.8 TF**       |
+| GeForce GTX 1080 Ti, `1080ti`      | 312               | --                        | 8             | 6.1, `sm_61`                   | 11 GB, `vram11`          | **0.32 TB/s**  | 0.25, **8.0 TF**       |
+| V100-PCIE-16GB, `v100`             | --                | --                        |               | 7.0, `sm_70`                   | 16 GB, `vram16`          | **0.90 TB/s**  | 7.0, **14.0 TF**       |
+| V100-SXM2-16GB, `v100`             | 17                | --                        | 2-3           | 7.0, `sm_70`                   | 16 GB, `vram16`          | **0.90 TB/s**  | 7.5, **14.9 TF**       |
+| V100-SXM2-32GB, `v100`             | 8                 | --                        | 4             | 7.0, `sm_70`                   | 32 GB, `vram32`          | **0.90 TB/s**  | 7.5, **14.9 TF**       |
+| GeForce RTX 2080, `2080`           | --                | 368                       | 8             | 7.5, `sm_75`                   | 8 GB, `vram8`            | **0.45 TB/s**  | 0.32, **10.1 TF**      |
+| GeForce RTX 2080 Ti, `2080ti`      | 144               | --                        | 8             | 7.5, `sm_75`                   | 11 GB, `vram11`          | **0.62 TB/s**  | 0.37, **11.8 TF**      |
+| Quadro RTX 8000, `rtx8000`         | --                | 18                        | 6             | 7.5, `sm_75`                   | 48 GB, `vram48`          | **0.67 TB/s**  | 0.35, **11.1 TF**      |
+| A100-PCIE-40GB, `a100`, `a100-40g` | 32 tot            | 8                         | 4-8           | 8.0, `sm_80`                   | 40 GB, `vram40`          | **1.56 TB/s**  | 9.7, **19.5 TF**       |
+| A100-SXM4-80GB, `a100`, `a100-80g` | --                | 133                       |               | 8.0, `sm_80`                   | 80 GB, `vram80`          | **1.56 TB/s**  | 9.7, **19.5 TF**       |
+| A16, `a16`                         | 4                 | 64                        | 4-8           | 8.6, `sm_86`                   | 16 GB, `vram16`          | **4x0.2 TB/s** | 1.09, **4x4.6 TF**     |
+| A40, `a40`                         | 8                 | 4                         | 4             | 8.6, `sm_86`                   | 48 GB, `vram48`          | **0.70 TB/s**  | 1.1, **37 TF**         |
+| L40S, `l40s`                       | 40                | 56                        | 4             | 8.9, `sm_89`                   | 48 GB, `vram48`          | **0.86 TB/s**  | 1.41, **91 TF**        |
+| L4, `l4`                           | 8                 | --                        | 8             | 8.9, `sm_89`                   | 23 GB, `vram23`          | **0.30 TB/s**  | 0.49, **67 TF**        |
+| H100 80GB HBM3                     | 12                | 4                         | 4             |                                |                          |                |                        |
+| GH200, `gh200`                     | --                | --                        |               | 9.0, `sm_90`                   | 102 GB, `vram102`        | **3.35 TB/s**  | 33.5, **67 TF**        |
 
 Notes:
 
 - With `#SBATCH -C a40` the job will only run on a node with an A40 GPU.  To allow running on a node with either an A16 or and A40 GPU use `#SBATCH -C "a16|a40"`.
-- With `#SBATCH -C sm_86` the job will run on a node with compute capability **8.6 or higher**.
+- With `#SBATCH -C sm_86` the job will run on a node with compute capability **8.6 or higher**. Except for the first line, the table above is ordered by compute capability.
+- With `#SBATCH -C vram16` the job will run on a node with compute capability **16 GB or more VRAM**.
 - I believe an sbatch script should include only one `#SBATCH -C ...` line; multiple constraints should be combined in a single `#SBATCH -C ...` command with and's or or's as [shown here](https://slurm.schedmd.com/sbatch.html).
+- Some of the more recent NVIDIA GPUs are particularly optimized for lower-precision FP operations used for AI training, not shown above.
 
 ### Using Apptainer on Unity<a id="unity-apptainer"></a>
 
