@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   5/6/25</p>
+<p>mgah.md  D. Candela   5/18/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -2404,7 +2404,8 @@ body {
 </ul>
 </li>
 <li><a href="#unity-gpu">Using a GPU on Unity (without Apptainer)</a><ul>
-<li><a href="#conda-gpu-unity">A Conda environment capable of using a GPU</a></li>
+<li><a href="#pytorch-unity">Using PyTorch on Unity</a></li>
+<li><a href="#conda-gpu-unity">A Conda environment with CuPy</a></li>
 <li><a href="#gputest-interactive">Run <code>gputest.py</code> on Unity interactively</a></li>
 <li><a href="#gpu-sbatch">A batch job using a GPU</a></li>
 <li><a href="#pick-gpu">Picking a GPU on Unity</a></li>
@@ -2654,11 +2655,11 @@ $ apt list &lt;package&gt; --installed  # list installed packages with this name
 <li><p>The following Conda environments are created and used on a PC, when Apptainer is not being used (except for <strong><code>ompi</code></strong> which is used when an Apptainer container is run). </p>
 <ul>
 <li><strong><code>p39</code></strong> (defined just above) has Python 3.9, NumPy, SciPy, etc but does not have OpenMPI, PyTorch, or CuPy.</li>
-<li><strong><code>dfs</code></strong> (defined in <a href="#local-package">Installing a local package</a> below) environment for trying out  the local package <code>dcfuncs</code>.</li>
+<li><strong><code>dfs</code></strong> (defined in <a href="#local-package">Installing a local package</a>) environment for trying out  the local package <code>dcfuncs</code>.</li>
 <li><strong><code>m4p</code></strong> (defined in <a href="#mpi-pc">MPI on a Linux PC</a>) includes OpenMPI 5 and <code>mpi4py</code>, so MPI can be used by a Python program.</li>
 <li><strong><code>dem21</code></strong> (also defined in <a href="#mpi-pc">MPI on a Linux PC</a>) is like <code>m4p</code> but additionally includes the locally-installed package <code>dem21</code> and additional packages that <code>dem21</code> imports.</li>
-<li><strong><code>pyt</code></strong> (defined in <a href="#pytorch-cupy">Installing CUDA-aware Python packages...</a> below) adds PyTorch.</li>
-<li><strong><code>gpu</code></strong> (also defined in <a href="#pytorch-cupy">Installing CUDA-aware Python packages...</a> below) adds CuPy.</li>
+<li><strong><code>pyt</code></strong> (defined in <a href="#pytorch-cupy">Installing CUDA-aware Python packages...</a>) adds PyTorch, which can be run with or without a GPU.</li>
+<li><strong><code>gpu</code></strong> (also defined in <a href="#pytorch-cupy">Installing CUDA-aware Python packages...</a>) adds CuPy, which has NumPy/SciPy-like functions that run on a GPU.</li>
 <li><strong><code>ompi</code></strong> (defined in <a href="#mpi-container">A container that can use MPI</a>) includes only OpenMPI and Python as an example of a minimal environment for running a container that uses MPI.</li>
 </ul>
 </li>
@@ -2668,7 +2669,8 @@ $ apt list &lt;package&gt; --installed  # list installed packages with this name
 <li><strong><code>dfs</code></strong> (also defined in <a href="#unity-modules-conda">Using modules and Conda</a>) has NumPy and the local package <code>dcfuncs</code> installed.</li>
 <li><strong><code>m4p</code></strong> (defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) includes OpenMPI 5.0.3, and <code>mpi4py</code>, so MPI can be used.  We also define <strong><code>m4pe</code></strong> which is like <code>m4p</code> except that it links to an external OpenMPI package which requires loading an OpenMPI module.</li>
 <li><strong><code>dem21</code></strong> (also defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) is like <code>m4p</code> but additionally includes the locally-installed package <code>dem21</code> and additional packages that <code>dem21</code> imports.  We also define <strong><code>dem21e</code></strong> which (like <code>m4pe</code>) links to an external OpenMPI package.</li>
-<li><strong><code>gpu</code></strong> (defined in <a href="#unity-gpu">Using a GPU in Unity (without Apptainer)</a>) includes CuPy, so a GPU can be used.</li>
+<li><strong><code>pyt</code></strong> (defined in <a href="#pytorch-unity">Using PyTorch on Unity</a> adds PyTorch, which can be run with or without a GPU.</li>
+<li><strong><code>gpu</code></strong> (defined in <a href="#unity-gpu">Using a GPU in Unity (without Apptainer)</a>) includes CuPy, which has NumPy/SciPy-like functions that run on a GPU.</li>
 <li><strong><code>ompi</code></strong> (defined in  <a href="#unity-mpi-container">Running containers that use MPI</a>) includes only OpenMPI and Python as an example of a minimal environment for running a container that uses MPI on Unity, when an OpenMPI module is not loaded.</li>
 </ul>
 </li>
@@ -3158,7 +3160,10 @@ Cell In[10], line 1
 
 RuntimeError: Expected all tensors to be on the same device...</code></pre>
 <p>Going the other way, we can use <code>xdvc.cpu().numpy()</code> to get the NumPy array part of a tensor or <code>xdvc[1,1].item()</code> to get the float value of a tensor element -- the results will be on the CPU, whether or not <code>xdvc</code> is on the GPU.</p>
-<p>This is as far as we will go with PyTorch in this document. </p>
+<p>This is as far as we will go in explaining PyTorch in this document, apart from some installation/useage instructions:</p>
+<ul>
+<li><a href="#pytorch-unity">Using PyTorch on Unity</a> Shows how to create an environment that can run PyTorch on Unity.</li>
+</ul>
 </li>
 </ul>
 </li>
@@ -5588,7 +5593,57 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 </li>
 </ul>
 <h3 class="atx" id="using-a-gpu-on-unity-without-apptainerlessa-iddouble-quoteunity-gpudouble-quotegreaterlessagreater">Using a GPU on Unity (without Apptainer)<a id="unity-gpu"></a></h3>
-<h4 class="atx" id="a-conda-environment-capable-of-using-a-gpulessa-iddouble-quoteconda-gpu-unitydouble-quotegreaterlessagreater">A Conda environment capable of using a GPU<a id="conda-gpu-unity"></a></h4>
+<h4 class="atx" id="using-pytorch-on-unitylessa-iddouble-quotepytorch-unitydouble-quotegreaterlessagreater">Using PyTorch on Unity<a id="pytorch-unity"></a></h4>
+<p>This section shows how to set up and test an environment to run PyTorch on Unity, using the simple <a href="#pytorch-cupy">PyTorch test code for a PC</a> shown above. As on a PC, PyTorch can be run on Unity with or without a GPU.</p>
+<p>As of 5/25 I did not find instructions on using PyTorch in the <a href="https://docs.unity.rc.umass.edu/documentation/">Unity docs</a>, but I did find <a href="https://researchcomputing.princeton.edu/support/knowledge-base/pytorch">this Princeton page</a> showing how to set up and use PyTorch on their HPC clusters.  The Princeton page has information on several addtional topics not covered here: Running batch PyTorch jobs, using multiple GPUs for big ML jobs, etc.  We start by getting a compute node with a GPU, and creating a Conda environment with PyTorch:</p>
+<pre><code class="fenced-code-block">userc@login4:~$ salloc -c 6 -G 1 -p gpu
+(wait for compute-node shell to come up)
+userc@gypsum-gpu140:~$ module load conda/latest
+userc@gypsum-gpu140:~$ conda create -n pyt python=3.12 numpy matplotlib
+userc@gypsum-gpu140:~$ conda activate pyt
+# Use pip to install Cuda-enabled PyTorch in this environment (command copied from Princeton
+# page, takes a while to run):                                  
+(pyt) userc@gypsum-gpu140:~$ pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu128</code></pre>
+<p>Now, running Python interactively, we can import PyTorch and create a PyTorch tensor (it seemed Cuda was available on this GPU node without loading a Cuda module - I don't know if that is true in general).  But when we try to transfer the tensor to the GPU, we find that the GPU on the node we we allocated is too old to run this version of PyTorch:</p>
+<pre><code class="fenced-code-block">(pyt) userc@gypsum-gpu140:~$ python
+&gt;&gt;&gt; import torch
+&gt;&gt;&gt; torch.cuda.is_available()
+True
+&gt;&gt;&gt; x = torch.rand(5, 3)
+&gt;&gt;&gt; print(x)
+tensor([[0.7946, 0.7594, 0.5193],
+        [0.4011, 0.7268, 0.3369],
+        [0.0739, 0.0982, 0.7924],
+        [0.4226, 0.0937, 0.2713],
+        [0.8465, 0.3324, 0.1237]])
+&gt;&gt;&gt; xgpu = x.to('cuda')
+/work/userc/envs/pyt/lib/python3.12/site-packages/torch/cuda/__init__.py:262: UserWarning: 
+    Found GPU0 NVIDIA GeForce GTX 1080 Ti which is of cuda capability 6.1.
+    PyTorch no longer supports this GPU because it is too old.
+    The minimum cuda capability supported by this library is 7.5.</code></pre>
+<p>So we get a different compute node, specifying the constraint <code>-C sm_75</code> to request a node with GPUs with compute capacity at least 7.5.  On this node, it is possible to transfer the tensor to the GPU:</p>
+<pre><code class="fenced-code-block">(crl-D once to get out of python, again to get back to login node.)
+userc@login4:~$ salloc -c 6 -G 1 -p gpu -C sm_75
+(wait for the compute-node shell to come up)
+userc@gpu043:~$ module load conda/latest
+userc@gpu043:~$ conda activate pyt
+(pyt) userc@gpu043:~$ python
+&gt;&gt;&gt; import torch
+&gt;&gt;&gt; x = torch.rand(5, 3)
+&gt;&gt;&gt; print(x)
+tensor([[0.0907, 0.0076, 0.0039],
+        [0.7816, 0.6944, 0.7032],
+        [0.8190, 0.8374, 0.9209],
+        [0.1205, 0.7546, 0.7082],
+        [0.2323, 0.4038, 0.5019]])
+&gt;&gt;&gt; xgpu = x.to('cuda')
+&gt;&gt;&gt; xgpu
+tensor([[0.0907, 0.0076, 0.0039],
+        [0.7816, 0.6944, 0.7032],
+        [0.8190, 0.8374, 0.9209],
+        [0.1205, 0.7546, 0.7082],
+        [0.2323, 0.4038, 0.5019]], device='cuda:0')</code></pre>
+<h4 class="atx" id="a-conda-environment-with-cupylessa-iddouble-quoteconda-gpu-unitydouble-quotegreaterlessagreater">A Conda environment with CuPy<a id="conda-gpu-unity"></a></h4>
 <p>This was called <strong><code>gpu</code></strong> was created on Unity as follows (as of 1/25 it seemed the current version of Python, 3.13, was incompatible with CuPy - hence the specification here python=3.12):</p>
 <pre><code class="fenced-code-block">$ module load conda/latest
 $ conda create -n gpu python=3.12
@@ -6736,7 +6791,7 @@ Memory Efficiency: 46.07% of 6.00 GB</code></pre>
 </ul>
 <h3 class="atx" id="todos">TODOs</h3>
 <ul>
-<li><p><strong>Choice of GPUs on an HPC cluster.</strong>  On the Unity cluster there are <a href="https://docs.unity.rc.umass.edu/documentation/tools/gpus/">many more types of GPU</a> than shown in the <a href="#gpu-list">table above</a>.  Requesting the better GPUs listed in this table (V100 or A100) can at present (4/25) result in long to infinite queue times, hence some concrete information on what GPU constraints to use is needed. The choices will depend on the type of calculation to be done (dense or sparse linear algebra, AI training...), the precision needed (64-bit, 32-bit, or less precise floats), and the amount of GPU memory (VRAM) needed (much more for AI training, I think, than for physics simulations).  Also, how can the usage of VRAM be monitored, other than seeing when "out of memory" errors occur?</p>
+<li><p><strong>Using Jupyter Notebook on Unity</strong>, including using PyTorch and GPUs from a JN, allowing a long-running JN to work without a continuous connection...</p>
 </li>
 <li><p><strong>Using multiple GPUs.</strong>  Most GPU nodes on a cluster like Unity have multiple GPUs, which could be in principle be used together to do jobs that are too big or too slow when done on a single GPU.  How to do this?  Within CuPy, for example, it seems straightforward to put objects like arrays on specific GPUs, but how can multiple GPUs used like a single large GPU might be? CuPy does have a <code>distributed_array</code> type and can use "NVIDIA NCCL" for multi-GPU communication, but how are these things used, and how efficient are they for various types of computation?</p>
 </li>
