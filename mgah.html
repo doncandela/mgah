@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   5/18/25</p>
+<p>mgah.md  D. Candela   6/19/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -2385,7 +2385,8 @@ body {
 <li><a href="#why-hpc">Why do it</a></li>
 <li><a href="#unity-cluster">Unity cluster at UMass, Amherst</a><ul>
 <li><a href="#unity-history">History</a></li>
-<li><a href="#unity-login">Logging in</a></li>
+<li><a href="#unity-interactive">Using interactive apps: Jupyter, MATLAB...</a></li>
+<li><a href="#unity-login">Logging in (terminal mode)</a></li>
 <li><a href="#unity-storage">Storage</a></li>
 <li><a href="#unity-file-transfer">Transferring files to/from Unity</a></li>
 <li><a href="#unity-slurm">Slurm on Unity</a></li>
@@ -2416,6 +2417,7 @@ body {
 <li><a href="#unity-run-container">Running a container interactively or in batch job</a></li>
 <li><a href="#unity-mpi-container">Running containers that use MPI</a></li>
 <li><a href="#unity-gpu-container">Running a container the uses a GPU</a></li>
+<li><a href="#other-apptainer">Other ways of getting/running Apptainer containers</a></li>
 </ul>
 </li>
 </ul>
@@ -2626,7 +2628,8 @@ $ conda activate p39                  # activate environment p39, will change pr
                                                           # Conda-Forge repository
 $ conda env list                     # list all defined environments
 $ conda create -n enew --clone eold  # create environment enew by cloning existing eold
-$ conda env remove -n p39            # get rid of environment p39</code></pre>
+$ conda env remove -n p39            # get rid of environment p39
+$ conda rename -n eold enew          # rename environment eold to enew (actually clones, etc.)</code></pre>
 </li>
 <li><p>Sometimes <code>conda create</code> or <code>conda install</code> will fail with the message <code>Solving environment: failed</code>.  Tips to avoid or fix this situation:</p>
 <ul>
@@ -4082,7 +4085,17 @@ Multiply M*M=N element dense matrices
 <li>Before Unity was created the HPC cluster available to UMass Amherst researchers was the <strong>UMass Shared Cluster (UMSC)</strong>.  UMSC was administered by UMass Medical School, and ran Redhat Linux and the IBM LSF scheduling system.  UMSC was shut down in 3/23.</li>
 <li>As of 1/25 the HPC cluster for general UMass use is <a href="https://unity.rc.umass.edu/"><strong>Unity</strong></a> (started in early 2022) located (as UMSC was) at the <a href="https://www.mghpcc.org/"><strong>MGHPCC</strong></a> in Holyoke. Unity runs <a href="https://ubuntu.com/"><strong>Ubuntu</strong></a> (24.04 as of 1/25) and the <a href="https://slurm.schedmd.com/documentation.html"><strong>Slurm</strong></a> scheduling system. </li>
 </ul>
-<h4 class="atx" id="logging-inlessa-iddouble-quoteunity-logindouble-quotegreaterlessagreater">Logging in<a id="unity-login"></a></h4>
+<h4 class="atx" id="using-interactive-apps-jupyter-matlablessa-iddouble-quoteunity-interactivedouble-quotegreaterlessagreater">Using interactive apps: Jupyter, MATLAB...<a id="unity-interactive"></a></h4>
+<ul>
+<li>For the most part, this document describes how to connect to and use the Unity cluster in <strong>terminal mode</strong>, by connecting from a terminal program on a remote PC.  But it is also possible to run interactive (non-terminal) applications like <strong>JupyterLab</strong>, <strong>MATLAB</strong>, <strong>Mathematica</strong>... as well as a GUI (desktop environment).  These things are all accessed via the <strong>Interactive Apps</strong> menu of the web application <a href="https://ood.unity.rc.umass.edu/pun/sys/dashboard"><strong>Unity OnDemand</strong></a>.<ul>
+<li>Unlike a terminal mode login, these interactive applications on Unity can be accessed via a <strong>web browser</strong> on any PC or laptop, without setting up SSH keys.</li>
+<li>Using Unity OnDemand requires an institutional login (for UMass, netid and password). It seems that this will then automatically direct any file activity (saved <code>.ipynb</code> files, for example) to the user's Unity home directory <code>/home/&lt;netid&gt;_umass_edu</code>. </li>
+<li>Interactive sessions using Unity OnDemand are limited to eight hours and require continuous internet connection.  If your Jupyter Notebook job might fail due to these limitations, it can be run non-interactively from a terminal-mode login using <code>nbconvert</code> or <code>papermill</code> as described <a href="https://docs.unity.rc.umass.edu/documentation/software/ondemand/jupyterlab-ondemand/">here</a>.</li>
+<li>The Unity docs have some information on using <strong>conda environments</strong> with Jupyter <a href="https://docs.unity.rc.umass.edu/documentation/software/conda/">here</a>.  I haven't tried this yet.</li>
+</ul>
+</li>
+</ul>
+<h4 class="atx" id="logging-in-terminal-modelessa-iddouble-quoteunity-logindouble-quotegreaterlessagreater">Logging in (terminal mode)<a id="unity-login"></a></h4>
 <ul>
 <li><p><strong>Logging with SSH.</strong> To login to Unity from a terminal program on a remote PC, <strong>SSH keys must be set up</strong> - here are the <a href="https://docs.unity.rc.umass.edu/documentation/connecting/ssh/">instructions in the Unity docs</a>.  While a bit of a pain to set up, SSH is convenient to use and is necessary to enable usage of the <code>scp</code> and <code>rsync</code> file transfer commands described below.</p>
 <ul>
@@ -4128,7 +4141,7 @@ ssh: Could not resolve hostname unity: Temporary failure in name resolution</cod
 </li>
 </ul>
 </li>
-<li><p><strong>Logging in with Unity OnDemand.</strong>  The <strong>Shell, &gt;_Unity Shell Access</strong> menu item of <a href="https://ood.unity.rc.umass.edu/pun/sys/dashboard"><strong>Unity OnDemand</strong></a> opens a login shell (in a browser window, not a terminal) without using ssh (Unity OnDemand is accessed with <code>netid</code> and <code>pw</code>). This is reasonably convenient for all platforms and also allows logging into Unity from Windows without setting up ssh keys and without software beyond a browser.  But there seem to be some limitations on what can be done from this browser-window shell.</p>
+<li><p><strong>Logging in with Unity OnDemand.</strong>  The <strong>Shell, &gt;_Unity Shell Access</strong> menu item of <a href="https://ood.unity.rc.umass.edu/pun/sys/dashboard"><strong>Unity OnDemand</strong></a> opens a login shell (in a browser window, not a terminal) without using SSH (Unity OnDemand is accessed with <code>netid</code> and <code>pw</code>). This is reasonably convenient for all platforms and also allows logging into Unity from Windows without setting up ssh keys and without software beyond a browser.  But there seem to be some limitations on what can be done from this browser-window shell.</p>
 </li>
 </ul>
 <h4 class="atx" id="storagelessa-iddouble-quoteunity-storagedouble-quotegreaterlessagreater">Storage<a id="unity-storage"></a></h4>
@@ -4301,6 +4314,7 @@ Are you sure you want to continue connecting (yes/no/[fingerprint])? yes</code><
 $ sacct -j &lt;jobid&gt;               # show more detailed info on a specific job
 $ scancel &lt;jobid&gt;                # kill one of my jobs.
 $ sacct -b                       # show brief info on recent jobs
+$ sacct -S 0601                  # list my jobs started June 1 or later
 $ seff &lt;jobid&gt;                   # show utilization efficiency of a completed job
 $ sinfo -p cpu -r -l             # show status of nodes in partition cpu
 $ scontrol show partition cpu    # detailed info on partition cpu
@@ -4390,6 +4404,8 @@ scipy           1.15.1</code></pre>
 <li><p>A created environment like <code>npsp</code> will persist across logins to Unity, but the <code>module load conda/latest</code>  command must be executed in every new shell before a <code>conda</code> command such as activating a previously created environment can be given.</p>
 </li>
 <li><p>It seems that on Unity Conda environments are always stored in <code>/work/&lt;userc&gt;/.conda</code> no matter which directory they were created from, and (conveniently) they are usable from both <code>/home</code> and <code>/work</code> directories.</p>
+</li>
+<li><p>Unity has commands available to create several different <strong>preset Conda environments</strong> as shown <a href="https://docs.unity.rc.umass.edu/documentation/software/conda/">here</a>.  I haven't tried this yet.</p>
 </li>
 </ul>
 </li>
@@ -5595,7 +5611,7 @@ Parallel processing mode: MPI, GHOST_ARRAY=True
 <h3 class="atx" id="using-a-gpu-on-unity-without-apptainerlessa-iddouble-quoteunity-gpudouble-quotegreaterlessagreater">Using a GPU on Unity (without Apptainer)<a id="unity-gpu"></a></h3>
 <h4 class="atx" id="using-pytorch-on-unitylessa-iddouble-quotepytorch-unitydouble-quotegreaterlessagreater">Using PyTorch on Unity<a id="pytorch-unity"></a></h4>
 <p>This section shows how to set up and test an environment to run PyTorch on Unity, using the simple <a href="#pytorch-cupy">PyTorch test code for a PC</a> shown above. As on a PC, PyTorch can be run on Unity with or without a GPU.</p>
-<p>As of 5/25 I did not find instructions on using PyTorch in the <a href="https://docs.unity.rc.umass.edu/documentation/">Unity docs</a>, but I did find <a href="https://researchcomputing.princeton.edu/support/knowledge-base/pytorch">this Princeton page</a> showing how to set up and use PyTorch on their HPC clusters.  The Princeton page has information on several addtional topics not covered here: Running batch PyTorch jobs, using multiple GPUs for big ML jobs, etc.  We start by getting a compute node with a GPU, and creating a Conda environment with PyTorch:</p>
+<p><strong>One way to set up a PyTorch environment on Unity.</strong> In 5/25 I could not find instructions on using PyTorch in the <a href="https://docs.unity.rc.umass.edu/documentation/">Unity docs</a>, but I did find <a href="https://researchcomputing.princeton.edu/support/knowledge-base/pytorch">this Princeton page</a> showing how to set up and use PyTorch on their HPC clusters.  The Princeton page has information on several addtional topics not covered here: Running batch PyTorch jobs, using multiple GPUs for big ML jobs, etc.  We start by getting a compute node with a GPU, and creating a Conda environment with PyTorch:</p>
 <pre><code class="fenced-code-block">userc@login4:~$ salloc -c 6 -G 1 -p gpu
 (wait for compute-node shell to come up)
 userc@gypsum-gpu140:~$ module load conda/latest
@@ -5604,7 +5620,45 @@ userc@gypsum-gpu140:~$ conda activate pyt
 # Use pip to install Cuda-enabled PyTorch in this environment (command copied from Princeton
 # page, takes a while to run):                                  
 (pyt) userc@gypsum-gpu140:~$ pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu128</code></pre>
-<p>Now, running Python interactively, we can import PyTorch and create a PyTorch tensor (it seemed Cuda was available on this GPU node without loading a Cuda module - I don't know if that is true in general).  But when we try to transfer the tensor to the GPU, we find that the GPU on the node we we allocated is too old to run this version of PyTorch:</p>
+<p><strong>Better way to set up a PyTorcch environment on Unity.</strong> </p>
+<p>Alternati</p>
+<pre><code class="fenced-code-block"># Get list of available pre-sets
+$ unity-conda-list
+No argument provided. Listing all available presets:
+python3-10
+python3-11
+python3-8
+python3-9
+pytorch-arm
+pytorch-latest
+pytorch-power9
+pytorch
+tensorflow
+
+# Set what's in the pre-set pytorch-latest
+$ unity-conda-list pytorch-latest
+Reporting packages for the following conda environment(s):
+     pytorch-latest
+Environment Name: pytorch-latest
+Conda Channels:
+     pytorch
+Packages to be installed: 
+     python=3.9.*
+     pip
+     numpy=1.21.5
+     pandas=1.3.5
+     {'pip': ['torch', 'torchvision', 'torchaudio']}</code></pre>
+<p>then</p>
+<pre><code class="fenced-code-block">userc@login4:~$ salloc -c 6 -G 1 -p gpu
+(wait for compute-node shell to come up)
+# Create environment pytorch-latest using the preset, then rename it pyt2:
+userc@gypsum-gpu140:~$ unity-conda-create -n pytorch-latest   # this takes quite a while to run...
+userc@gypsum-gpu140:~$ module load conda/latest
+userc@gypsum-gpu140:~$ conda rename -n pytorch-latest pyt2    # ..as does this
+# Activate the new environment, then install other packages as desired into it:
+userc@gypsum-gpu140:~$ conda activate pyt2
+(pyt2) userc@gypsum-gpu140:~$ conda install numpy matplotlib</code></pre>
+<p>The following steps were verified in both environments, <code>pyt</code> and <code>pyt2</code>. Running Python interactively, we can import PyTorch and create a PyTorch tensor (it seemed Cuda was available on this GPU node without loading a Cuda module - I don't know if that is true in general).  But when we try to transfer the tensor to the GPU, we find that the GPU on the node we we allocated is too old to run this version of PyTorch:</p>
 <pre><code class="fenced-code-block">(pyt) userc@gypsum-gpu140:~$ python
 &gt;&gt;&gt; import torch
 &gt;&gt;&gt; torch.cuda.is_available()
@@ -6718,6 +6772,16 @@ Memory Efficiency: 46.07% of 6.00 GB</code></pre>
 </ul>
 </li>
 </ul>
+<h4 class="atx" id="other-ways-of-gettingrunning-apptainer-containerslessa-iddouble-quoteother-apptainerdouble-quotegreaterlessagreater">Other ways of getting/running Apptainer containers<a id="other-apptainer"></a></h4>
+<p>This document showed how to build an Apptainer container on a Linux PC (bootstrapping from Docker Hub), then transfer it to the Unity HPC cluster and run it there.  But there are other possibilities not detailed here:</p>
+<ul>
+<li><p>Apptainer containers can be built from an Apptainer <code>.def</code> file directly on Unity -- this might be useful if a suitable Linux PC were not available.</p>
+</li>
+<li><p>Apptainer containers can be obtained from others.</p>
+</li>
+<li><p>Apptainer can directly "run" Docker containers, which I believe consists in an automatic Apptainer build with cached output, so it can be done repeatedly without rebuilding.</p>
+</li>
+</ul>
 <h2 class="atx" id="random-notes-on-parallel-computing-with-pythonlessa-iddouble-quoterandom-notesdouble-quotegreaterlessagreater">Random notes on parallel computing with Python<a id="random-notes"></a></h2>
 <h3 class="atx" id="wall-time-and-cpu-timelessa-iddouble-quotewall-cpu-timedouble-quotegreaterlessagreater">Wall time and CPU time<a id="wall-cpu-time"></a></h3>
 <ul>
@@ -6791,21 +6855,11 @@ Memory Efficiency: 46.07% of 6.00 GB</code></pre>
 </ul>
 <h3 class="atx" id="todos">TODOs</h3>
 <ul>
-<li><p><strong>Using Jupyter Notebook on Unity</strong>, including using PyTorch and GPUs from a JN, allowing a long-running JN to work without a continuous connection...</p>
+<li><p><strong>Backup/archival storage</strong> of files from Unity.  It seems that the storage provided in <code>/home</code> and <code>/work</code> directories is not considered suitable for this.</p>
 </li>
 <li><p><strong>Using multiple GPUs.</strong>  Most GPU nodes on a cluster like Unity have multiple GPUs, which could be in principle be used together to do jobs that are too big or too slow when done on a single GPU.  How to do this?  Within CuPy, for example, it seems straightforward to put objects like arrays on specific GPUs, but how can multiple GPUs used like a single large GPU might be? CuPy does have a <code>distributed_array</code> type and can use "NVIDIA NCCL" for multi-GPU communication, but how are these things used, and how efficient are they for various types of computation?</p>
 </li>
 <li><p><strong>Ways of submitting multiple <code>sbatch</code> jobs.</strong> It might be useful to find out about <strong>array jobs</strong> and <strong>checkpointing</strong>.  Some information on these topics is <a href="https://groups.oist.jp/scs/advanced-slurm">here</a> and <a href="https://jhpce.jhu.edu/slurm/crafting-jobs/">here</a>.</p>
-</li>
-<li><p><strong>Other ways of getting/running Apptainer containers.</strong>  This document showed how to build an Apptainer container on a Linux PC (bootstrapping from Docker Hub), then transfer it to the Unity HPC cluster and run it there.  But there are other possibilities not detailed here:</p>
-<ul>
-<li><p>Apptainer containers can be built from an Apptainer <code>.def</code> file directly on Unity -- might be useful if a suitable Linux PC were not available.</p>
-</li>
-<li><p>Apptainer containers can be obtained from others.</p>
-</li>
-<li><p>Apptainer can directly "run" Docker containers, which I believe consists in an automatic Apptainer build with cached output, so it can be done repeatedly without rebuilding.</p>
-</li>
-</ul>
 </li>
 </ul>
 </article>
