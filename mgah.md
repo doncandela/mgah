@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   6/19/25
+mgah.md  D. Candela   6/20/25
 
 - [Introduction](#intro)  
   
@@ -61,7 +61,7 @@ mgah.md  D. Candela   6/19/25
     - [Enabling NumPy multithreading in MPI batch jobs](#sbatch-multithread)
     - [Use `sbatch` to run `boxpct.py + dem21` with MPI](#sbatch-dem21)
   - [Using a GPU on Unity (without Apptainer)](#unity-gpu)
-    - [Using PyTorch on Unity](#pytorch-unity)
+    - [Using PyTorch with a GPU on Unity](#pytorch-unity)
     - [A Conda environment with CuPy](#conda-gpu-unity)
     - [Run `gputest.py` on Unity interactively](#gputest-interactive)
     - [A batch job using a GPU](#gpu-sbatch)
@@ -264,7 +264,8 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
     $ conda env list                     # list all defined environments
     $ conda create -n enew --clone eold  # create environment enew by cloning existing eold
     $ conda env remove -n p39            # get rid of environment p39
-    $ conda rename -n eold enew          # rename environment eold to enew (actually clones, etc.)
+    $ conda rename -n eold enew          # rename environment eold to enew (actually clones
+                                         # eold to enew then removes eold so not fast)
     ```
   
   - Sometimes `conda create` or `conda install` will fail with the message `Solving environment: failed`.  Tips to avoid or fix this situation:
@@ -1705,7 +1706,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
 
 #### Logging in (terminal mode)<a id="unity-login"></a>
 
-- **Logging with SSH.** To login to Unity from a terminal program on a remote PC, **SSH keys must be set up** - here are the [instructions in the Unity docs](https://docs.unity.rc.umass.edu/documentation/connecting/ssh/).  While a bit of a pain to set up, SSH is convenient to use and is necessary to enable usage of the `scp` and `rsync` file transfer commands described below.
+- **Logging with SSH.** To login to Unity from a terminal program on a remote PC, **SSH keys must be set up**.  Here are the [instructions in the Unity docs](https://docs.unity.rc.umass.edu/documentation/connecting/ssh/). While a bit of a pain to set up, SSH is convenient to use and is necessary to enable usage of the `scp` and `rsync` file transfer commands described below.
   
   - **Setting up keys to allow login to unity from PC.** Here **`<user>`** is a user name on a Linux PC, while **`<userc>`** is a user name on Unity (assigned by Unity admins, typically of form `netid_umass_edu`):
     
@@ -2001,7 +2002,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
 
 - **Using Conda on an HPC system.**<a id="conda-hpc"></a>
   
-  - You must start by loading the **Conda module**.  Then `conda` commands can be used to create and activate Conda environments. Both `conda install` and `pip install` can be used in a Conda environment to install packages in that environment (see [Pip and Conda](#pip-conda) above). 
+  - You must start by loading the **Conda module**.  Then `conda` commands can be used to create and activate Conda environments. Both `conda install` and `pip install` can be used in a Conda environment to install packages in that environment (see [Pip, Conda, and APT](#pip-conda-apt) above for some typical commands). 
   
   - In this example an environment **`npsp`** is created with NumPy, SciPy, Matplotlib, and a version of Python earlier than the one installed outside of environments. These commands take some time and probably should be **[run on a compute node](#run-interactive)**, not a login node. 
     
@@ -2026,7 +2027,7 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   
   - It seems that on Unity Conda environments are always stored in `/work/<userc>/.conda` no matter which directory they were created from, and (conveniently) they are usable from both `/home` and `/work` directories.
   
-  - Unity has commands available to create several different **preset Conda environments** as shown [here](https://docs.unity.rc.umass.edu/documentation/software/conda/).  I haven't tried this yet.
+  - Unity has commands available to create several different **preset Conda environments** as shown [here](https://docs.unity.rc.umass.edu/documentation/software/conda/).  This is discussed more in the section below [Using Pytorch on Unity](#pytorch-unity).
 
 - **Installing a local package on Unity.**
   
@@ -3132,26 +3133,13 @@ tri-dem21$ cp dem21/tests/box/box.yaml .
 
 ### Using a GPU on Unity (without Apptainer)<a id="unity-gpu"></a>
 
-#### Using PyTorch on Unity<a id="pytorch-unity"></a>
+#### Using PyTorch with a GPU on Unity<a id="pytorch-unity"></a>
 
-This section shows how to set up and test an environment to run PyTorch on Unity, using the simple [PyTorch test code for a PC](#pytorch-cupy) shown above. As on a PC, PyTorch can be run on Unity with or without a GPU.
+This section shows how to set up and test an environment to run PyTorch on Unity, using the simple [PyTorch test code for a PC](#pytorch-cupy) shown above.  It seems that the correct way to use PyTorch on Unity is to create a Conda environment, then use pip to install PyTorch into that environment.  As on a PC, PyTorch can be run on Unity without a GPU but that is not shown here.
 
-**One way to set up a PyTorch environment on Unity.** In 5/25 I could not find instructions on using PyTorch in the [Unity docs](https://docs.unity.rc.umass.edu/documentation/), but I did find [this Princeton page](https://researchcomputing.princeton.edu/support/knowledge-base/pytorch) showing how to set up and use PyTorch on their HPC clusters.  The Princeton page has information on several addtional topics not covered here: Running batch PyTorch jobs, using multiple GPUs for big ML jobs, etc.  We start by getting a compute node with a GPU, and creating a Conda environment with PyTorch:
+[Here](https://researchcomputing.princeton.edu/support/knowledge-base/pytorch) is a Princeton page showing how to set up and use PyTorch on their HPC clusters.  The Princeton page has information on several additional topics not covered here: Running batch PyTorch jobs, using multiple GPUs for big ML jobs, etc.  Before I found the needed info in the Unity docs I simply copied the Princeton instructions for creating a PyTorch environment, and this did work on Unity (although the installed PyTorch required GPUs with higher compute capabilities than some GPUs on Unity).
 
-```
-userc@login4:~$ salloc -c 6 -G 1 -p gpu
-(wait for compute-node shell to come up)
-userc@gypsum-gpu140:~$ module load conda/latest
-userc@gypsum-gpu140:~$ conda create -n pyt python=3.12 numpy matplotlib
-userc@gypsum-gpu140:~$ conda activate pyt
-# Use pip to install Cuda-enabled PyTorch in this environment (command copied from Princeton
-# page, takes a while to run):                                  
-(pyt) userc@gypsum-gpu140:~$ pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu128
-```
-
-**Better way to set up a PyTorcch environment on Unity.** 
-
-Alternati
+More recently (5/25) the Unity help folks pointed me to [their page on Conda](https://docs.unity.rc.umass.edu/documentation/software/conda/)  which shows commands for creating pre-set Conda environments on Unity including some for PyTorch:
 
 ```
 # Get list of available pre-sets
@@ -3167,7 +3155,7 @@ pytorch-power9
 pytorch
 tensorflow
 
-# Set what's in the pre-set pytorch-latest
+# See what's in the pre-set pytorch-latest
 $ unity-conda-list pytorch-latest
 Reporting packages for the following conda environment(s):
      pytorch-latest
@@ -3182,27 +3170,34 @@ Packages to be installed:
      {'pip': ['torch', 'torchvision', 'torchaudio']}
 ```
 
-then
+The command `unity-conda-create` can be used to create an environment `pytorch-latest` in which PyTorch is installed (it may be possible to give the created environment a different name by supplying a second argument to `unity-conda-create`, haven't tried this):
 
 ```
 userc@login4:~$ salloc -c 6 -G 1 -p gpu
 (wait for compute-node shell to come up)
-# Create environment pytorch-latest using the preset, then rename it pyt2:
-userc@gypsum-gpu140:~$ unity-conda-create -n pytorch-latest   # this takes quite a while to run...
-userc@gypsum-gpu140:~$ module load conda/latest
-userc@gypsum-gpu140:~$ conda rename -n pytorch-latest pyt2    # ..as does this
-# Activate the new environment, then install other packages as desired into it:
-userc@gypsum-gpu140:~$ conda activate pyt2
-(pyt2) userc@gypsum-gpu140:~$ conda install numpy matplotlib
+userc@gypsum-gpu140:~$ unity-conda-create -n pytorch-latest
 ```
 
-The following steps were verified in both environments, `pyt` and `pyt2`. Running Python interactively, we can import PyTorch and create a PyTorch tensor (it seemed Cuda was available on this GPU node without loading a Cuda module - I don't know if that is true in general).  But when we try to transfer the tensor to the GPU, we find that the GPU on the node we we allocated is too old to run this version of PyTorch:
+Rather than using `unity-conda-create`, it works to directly create the desired environment using Conda and pip, using the version numbers shown above by `unity-conda-list`  (these worked as shown 6/25, version numbers might change in future):
+
+```
+userc@login4:~$ salloc -c 6 -G 1 -p gpu      # get shell on compute node with a GPU
+(wait for compute-node shell to come up)
+userc@gypsum-gpu140:~$ module load conda/latest
+userc@gypsum-gpu140:~$ conda create -n pyt python=3.9 numpy=1.21.5 matplotlib
+userc@gypsum-gpu140:~$ conda activate pyt                      
+(pyt) userc@gypsum-gpu140:~$ pip install torch torchvision torchaudio
+```
+
+In this environment `pyt` it is possible to import PyTorch, and PyTorch can use the GPU:
 
 ```
 (pyt) userc@gypsum-gpu140:~$ python
 >>> import torch
->>> torch.cuda.is_available()
+>>> torch.cuda.is_available()           # check that GPU is available
 True
+>>> torch.cuda.get_device_capability()  # find CUDA compute capability of GPU (here 5.2)
+(5, 2)
 >>> x = torch.rand(5, 3)
 >>> print(x)
 tensor([[0.7946, 0.7594, 0.5193],
@@ -3211,37 +3206,15 @@ tensor([[0.7946, 0.7594, 0.5193],
         [0.4226, 0.0937, 0.2713],
         [0.8465, 0.3324, 0.1237]])
 >>> xgpu = x.to('cuda')
-/work/userc/envs/pyt/lib/python3.12/site-packages/torch/cuda/__init__.py:262: UserWarning: 
-    Found GPU0 NVIDIA GeForce GTX 1080 Ti which is of cuda capability 6.1.
-    PyTorch no longer supports this GPU because it is too old.
-    The minimum cuda capability supported by this library is 7.5.
-```
-
-So we get a different compute node, specifying the constraint `-C sm_75` to request a node with GPUs with compute capacity at least 7.5.  On this node, it is possible to transfer the tensor to the GPU:
-
-```
-(crl-D once to get out of python, again to get back to login node.)
-userc@login4:~$ salloc -c 6 -G 1 -p gpu -C sm_75
-(wait for the compute-node shell to come up)
-userc@gpu043:~$ module load conda/latest
-userc@gpu043:~$ conda activate pyt
-(pyt) userc@gpu043:~$ python
->>> import torch
->>> x = torch.rand(5, 3)
->>> print(x)
-tensor([[0.0907, 0.0076, 0.0039],
-        [0.7816, 0.6944, 0.7032],
-        [0.8190, 0.8374, 0.9209],
-        [0.1205, 0.7546, 0.7082],
-        [0.2323, 0.4038, 0.5019]])
->>> xgpu = x.to('cuda')
 >>> xgpu
-tensor([[0.0907, 0.0076, 0.0039],
-        [0.7816, 0.6944, 0.7032],
-        [0.8190, 0.8374, 0.9209],
-        [0.1205, 0.7546, 0.7082],
-        [0.2323, 0.4038, 0.5019]], device='cuda:0')
+tensor([[0.3522, 0.7894, 0.9021],
+        [0.3567, 0.0228, 0.9312],
+        [0.9708, 0.9888, 0.7526],
+        [0.8859, 0.3973, 0.9353],
+        [0.8659, 0.6805, 0.9278]], device='cuda:0')
 ```
+
+The version of PyTorch installed as above seems capable of working with the least capable GPUs on Unity ([compute capability 5.2](#pick-gpu)) as shown above. Earlier, when I installed PyTorch as shown on a Princeton page, that version of PyTorch required a compute capability of 7.5 or above.  Unity jobs can be restricted to nodes with GPUs meeting such a requirement by supplying the constraint `-C sm_75` to `salloc` or as an `#SBATCH` line.
 
 #### A Conda environment with CuPy<a id="conda-gpu-unity"></a>
 
