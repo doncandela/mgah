@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   6/20/25</p>
+<p>mgah.md  D. Candela   6/21/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -4088,13 +4088,22 @@ Multiply M*M=N element dense matrices
 </ul>
 <h4 class="atx" id="using-interactive-apps-jupyter-matlablessa-iddouble-quoteunity-interactivedouble-quotegreaterlessagreater">Using interactive apps: Jupyter, MATLAB...<a id="unity-interactive"></a></h4>
 <ul>
-<li>For the most part, this document describes how to connect to and use the Unity cluster in <strong>terminal mode</strong>, by connecting from a terminal program on a remote PC.  But it is also possible to run interactive (non-terminal) applications like <strong>JupyterLab</strong>, <strong>MATLAB</strong>, <strong>Mathematica</strong>... as well as a GUI (desktop environment).  These things are all accessed via the <strong>Interactive Apps</strong> menu of the web application <a href="https://ood.unity.rc.umass.edu/pun/sys/dashboard"><strong>Unity OnDemand</strong></a>.<ul>
+<li><strong>Unity OnDemand.</strong> For the most part, this document describes how to connect to and use the Unity cluster in <strong>terminal mode</strong>, by connecting from a terminal program on a remote PC.  But it is also possible to run interactive (non-terminal) applications like <strong>JupyterLab</strong>, <strong>MATLAB</strong>, <strong>Mathematica</strong>... as well as a GUI (desktop environment).  These things are all accessed via the <strong>Interactive Apps</strong> menu of the web application <a href="https://ood.unity.rc.umass.edu/pun/sys/dashboard"><strong>Unity OnDemand</strong></a>.<ul>
 <li>Unlike a terminal mode login, these interactive applications on Unity can be accessed via a <strong>web browser</strong> on any PC or laptop, without setting up SSH keys.</li>
 <li>Using Unity OnDemand requires an institutional login (for UMass, netid and password). It seems that this will then automatically direct any file activity (saved <code>.ipynb</code> files, for example) to the user's Unity home directory <code>/home/&lt;netid&gt;_umass_edu</code>. </li>
 <li>Interactive sessions using Unity OnDemand are limited to eight hours and require continuous internet connection.  If your Jupyter Notebook job might fail due to these limitations, it can be run non-interactively from a terminal-mode login using <code>nbconvert</code> or <code>papermill</code> as described <a href="https://docs.unity.rc.umass.edu/documentation/software/ondemand/jupyterlab-ondemand/">here</a>.</li>
 <li>The Unity docs have some information on using <strong>conda environments</strong> with Jupyter <a href="https://docs.unity.rc.umass.edu/documentation/software/conda/">here</a>.  I haven't tried this yet.</li>
 </ul>
 </li>
+<li><strong>Jupyter confusion.</strong> So far as I understand:<ul>
+<li><strong>Juptyer Notebook</strong> is an application you run on a PC which creates uses <code>.ipynb</code> (Ipython Notebook) files with a notebook interface.</li>
+<li><strong>JuptyerLab</strong> is a newer application than JN for using <code>.ipynb</code> files with more features (I haven't used much).  Like JN, it is an application you install locally.</li>
+<li><strong>Google Colab</strong> is a browser-based application (no local installation needed) with similar functions as JN - create and run <code>.ipynb</code> files but a somewhat different interface (more graphical, less shortcut-oriented).</li>
+<li><strong>JuptyerHub</strong> is an application run by servers (like the Unity folks) to provide a browser-based interface for creating and running <code>.ipynb</code> files.  JupyerHub is somewhat like Google Colab but (a) the interface is more like JN/JuptyerLab and (b) the accessed <code>.ipynb</code> files are in Unity filespace, not on Google Drive.  I think JuptyerLab/MATLAB tab on the Interactive Apps page of Unity OnDemand (or maybe all the tabs) are running JupyterHub.</li>
+<li>There are ways of accessing these things through <strong>VSCode</strong> but I haven't done that yet.</li>
+</ul>
+</li>
+<li><strong>Using Conda environments with Jupyter on Unity.</strong>  TODO</li>
 </ul>
 <h4 class="atx" id="logging-in-terminal-modelessa-iddouble-quoteunity-logindouble-quotegreaterlessagreater">Logging in (terminal mode)<a id="unity-login"></a></h4>
 <ul>
@@ -4325,11 +4334,17 @@ $ scontrol show config           # show slurm configuration including default va
 </ul>
 <h4 class="atx" id="running-jobs-interactively-salloc-or-unity-computelessa-iddouble-quoterun-interactivedouble-quotegreaterlessagreater">Running jobs interactively: <code>salloc</code> or <code>unity-compute</code><a id="run-interactive"></a></h4>
 <ul>
+<li><p>For this section <strong>interactive</strong> means running a program in the shell (terminal), directly seeing any output, and waiting for it to complete before the shell prompt returns -- just as one might run a program in a terminal window on a PC, and different from running a program in the background using <code>sbatch</code> as <a href="#run-batch">described in detail below</a>. There is a different way of running programs "interactively" in Unity, using non-terminal apps like Jupyter Notebook as <a href="#unity-interactive">described above</a>.</p>
+</li>
 <li><p>You are not supposed to run interactive jobs on a login node.  Instead, from the login-node shell, issue a command like</p>
 <pre><code class="fenced-code-block">$ salloc -c 6 -p cpu</code></pre>
 <p>to allocate 6 cores on a node in the <code>cpu</code> partition and start an interactive shell on that node -- when the compute node is allocated (which seems to take at least a few seconds, sometimes longer) you will see the node name in the prompt. Similarly to allocate 6 cores and one GPU on a node in the <code>gpu</code> partition do</p>
 <pre><code class="fenced-code-block">$ salloc -c 6 -G 1 -p gpu</code></pre>
 <p>In either case use <code>ctrl-d</code> to exit back to the login-node shell.</p>
+</li>
+<li><p>On Unity I think <code>salloc</code> jobs have a default time limit of one hour, and default memory allocation of 1 GB per core.  These can be increased as follows, using the <a href="#run-batch">same options as for <code>sbatch</code></a>:</p>
+<pre><code class="fenced-code-block">$ salloc -c 6 -p cpu -t 3:00:00          # set time limit to 3 hours
+$ salloc -c 6 -p cpu --mem-per-cpu=20G   # allocate 20 GB/core = 120 GB total</code></pre>
 </li>
 <li><p>There is another way to do this using <code>srun -pty bash</code>, but the way shown above with <code>salloc</code> seems to be recommended.  However Unity does provide a command <code>unity-compute</code> that gets a shell on a compute node in this way:</p>
 <pre><code class="fenced-code-block">$ unity-compute         # get a compute-node shell with default 2 cores

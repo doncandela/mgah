@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   6/20/25
+mgah.md  D. Candela   6/21/25
 
 - [Introduction](#intro)  
   
@@ -1698,11 +1698,18 @@ Finally, the computational resources of an HPC cluster are only useful if availa
 
 #### Using interactive apps: Jupyter, MATLAB...<a id="unity-interactive"></a>
 
-- For the most part, this document describes how to connect to and use the Unity cluster in **terminal mode**, by connecting from a terminal program on a remote PC.  But it is also possible to run interactive (non-terminal) applications like **JupyterLab**, **MATLAB**, **Mathematica**... as well as a GUI (desktop environment).  These things are all accessed via the **Interactive Apps** menu of the web application [**Unity OnDemand**](https://ood.unity.rc.umass.edu/pun/sys/dashboard).
+- **Unity OnDemand.** For the most part, this document describes how to connect to and use the Unity cluster in **terminal mode**, by connecting from a terminal program on a remote PC.  But it is also possible to run interactive (non-terminal) applications like **JupyterLab**, **MATLAB**, **Mathematica**... as well as a GUI (desktop environment).  These things are all accessed via the **Interactive Apps** menu of the web application [**Unity OnDemand**](https://ood.unity.rc.umass.edu/pun/sys/dashboard).
   - Unlike a terminal mode login, these interactive applications on Unity can be accessed via a **web browser** on any PC or laptop, without setting up SSH keys.
   - Using Unity OnDemand requires an institutional login (for UMass, netid and password). It seems that this will then automatically direct any file activity (saved `.ipynb` files, for example) to the user's Unity home directory `/home/<netid>_umass_edu`. 
   - Interactive sessions using Unity OnDemand are limited to eight hours and require continuous internet connection.  If your Jupyter Notebook job might fail due to these limitations, it can be run non-interactively from a terminal-mode login using `nbconvert` or `papermill` as described [here](https://docs.unity.rc.umass.edu/documentation/software/ondemand/jupyterlab-ondemand/).
   - The Unity docs have some information on using **conda environments** with Jupyter [here](https://docs.unity.rc.umass.edu/documentation/software/conda/).  I haven't tried this yet.
+- **Jupyter confusion.** So far as I understand:
+  - **Juptyer Notebook** is an application you run on a PC which creates uses `.ipynb` (Ipython Notebook) files with a notebook interface.
+  - **JuptyerLab** is a newer application than JN for using `.ipynb` files with more features (I haven't used much).  Like JN, it is an application you install locally.
+  - **Google Colab** is a browser-based application (no local installation needed) with similar functions as JN - create and run `.ipynb` files but a somewhat different interface (more graphical, less shortcut-oriented).
+  - **JuptyerHub** is an application run by servers (like the Unity folks) to provide a browser-based interface for creating and running `.ipynb` files.  JupyerHub is somewhat like Google Colab but (a) the interface is more like JN/JuptyerLab and (b) the accessed `.ipynb` files are in Unity filespace, not on Google Drive.  I think JuptyerLab/MATLAB tab on the Interactive Apps page of Unity OnDemand (or maybe all the tabs) are running JupyterHub.
+  - There are ways of accessing these things through **VSCode** but I haven't done that yet.
+- **Using Conda environments with Jupyter on Unity.**  TODO
 
 #### Logging in (terminal mode)<a id="unity-login"></a>
 
@@ -1933,6 +1940,8 @@ Finally, the computational resources of an HPC cluster are only useful if availa
 
 #### Running jobs interactively: `salloc` or `unity-compute`<a id="run-interactive"></a>
 
+- For this section **interactive** means running a program in the shell (terminal), directly seeing any output, and waiting for it to complete before the shell prompt returns -- just as one might run a program in a terminal window on a PC, and different from running a program in the background using `sbatch` as [described in detail below](#run-batch). There is a different way of running programs "interactively" in Unity, using non-terminal apps like Jupyter Notebook as [described above](#unity-interactive).
+
 - You are not supposed to run interactive jobs on a login node.  Instead, from the login-node shell, issue a command like
   
   ```
@@ -1946,6 +1955,13 @@ Finally, the computational resources of an HPC cluster are only useful if availa
   ```
   
   In either case use `ctrl-d` to exit back to the login-node shell.
+
+- On Unity I think `salloc` jobs have a default time limit of one hour, and default memory allocation of 1 GB per core.  These can be increased as follows, using the [same options as for `sbatch`](#run-batch):
+  
+  ```
+  $ salloc -c 6 -p cpu -t 3:00:00          # set time limit to 3 hours
+  $ salloc -c 6 -p cpu --mem-per-cpu=20G   # allocate 20 GB/core = 120 GB total
+  ```
 
 - There is another way to do this using `srun -pty bash`, but the way shown above with `salloc` seems to be recommended.  However Unity does provide a command `unity-compute` that gets a shell on a compute node in this way:
   
