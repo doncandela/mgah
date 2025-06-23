@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   6/21/25
+mgah.md  D. Candela   6/22/25
 
 - [Introduction](#intro)  
   
@@ -275,6 +275,9 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
     - Get packages from `conda-forge` as shown above.
     - If you do specify a Python version, often an **earlier Python version** will be compatible with the available Conda versions of the other packages you need.
     - An IDE like Spyder has many complex dependencies. But when used only to edit files (as opposed to running them) Spyder can be run from the base or no environment, so there is no need to install it in your environments.
+  - **Running a Jupyter Notebook in a Conda environment.**
+    - On a **Linux PC**, it seems to work fine to activate the Conda environment, then issue the `jupyter notebook` command.
+    - On an **HPC cluster like Unity** Jupyter Notebooks are can be run in a browser-based application like Unity OnDemand.  In this case `ipykernel` is used to make the environment available when a JN is launched, as detailed [here](#unity-interactive).
 
 - [**APT**](https://documentation.ubuntu.com/server/how-to/software/package-management/index.html) (Advanced Packaging Tool) is used to **install software packages system-wide** (for all users, in all environments) and **must be run with root (sudo) privilege** except  when used to find out about installed packages.  The **`apt`** command is more modern than and basically replaces the earlier **`apt-get`** although you will see references to both, often mixed together.  Some common APT commands:
   
@@ -303,6 +306,7 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
 
 - The following Conda environments are created and used on the Unity HPC cluster, when Apptainer is not being used (except for **`ompi`** which can be used when an Apptainer container is run).  They generally do the same things as the corresponding environments defined for PCs listed just above.
   
+  - **`npsp-jn`** (defined in [Using interactive apps: Jupyter, MATLAB... ](#unity-interactive)) has NumPy, SciPy, and ipykernel so the environment can be used in a Jupyter Notebook on Unity.
   - **`npsp`** (defined in [Using modules and Conda](#unity-modules-conda)) has NumPy, SciPy, and Matplotlib, but not CuPy.
   - **`dfs`** (also defined in [Using modules and Conda](#unity-modules-conda)) has NumPy and the local package `dcfuncs` installed.
   - **`m4p`** (defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) includes OpenMPI 5.0.3, and `mpi4py`, so MPI can be used.  We also define **`m4pe`** which is like `m4p` except that it links to an external OpenMPI package which requires loading an OpenMPI module.
@@ -1699,17 +1703,39 @@ Finally, the computational resources of an HPC cluster are only useful if availa
 #### Using interactive apps: Jupyter, MATLAB...<a id="unity-interactive"></a>
 
 - **Unity OnDemand.** For the most part, this document describes how to connect to and use the Unity cluster in **terminal mode**, by connecting from a terminal program on a remote PC.  But it is also possible to run interactive (non-terminal) applications like **JupyterLab**, **MATLAB**, **Mathematica**... as well as a GUI (desktop environment).  These things are all accessed via the **Interactive Apps** menu of the web application [**Unity OnDemand**](https://ood.unity.rc.umass.edu/pun/sys/dashboard).
+  
   - Unlike a terminal mode login, these interactive applications on Unity can be accessed via a **web browser** on any PC or laptop, without setting up SSH keys.
   - Using Unity OnDemand requires an institutional login (for UMass, netid and password). It seems that this will then automatically direct any file activity (saved `.ipynb` files, for example) to the user's Unity home directory `/home/<netid>_umass_edu`. 
   - Interactive sessions using Unity OnDemand are limited to eight hours and require continuous internet connection.  If your Jupyter Notebook job might fail due to these limitations, it can be run non-interactively from a terminal-mode login using `nbconvert` or `papermill` as described [here](https://docs.unity.rc.umass.edu/documentation/software/ondemand/jupyterlab-ondemand/).
-  - The Unity docs have some information on using **conda environments** with Jupyter [here](https://docs.unity.rc.umass.edu/documentation/software/conda/).  I haven't tried this yet.
+
 - **Jupyter confusion.** So far as I understand:
-  - **Juptyer Notebook** is an application you run on a PC which creates uses `.ipynb` (Ipython Notebook) files with a notebook interface.
+  
+  - **Juptyer Notebook** is an application you run on a PC which creates and uses `.ipynb` (Ipython Notebook) files with a notebook interface.
   - **JuptyerLab** is a newer application than JN for using `.ipynb` files with more features (I haven't used much).  Like JN, it is an application you install locally.
-  - **Google Colab** is a browser-based application (no local installation needed) with similar functions as JN - create and run `.ipynb` files but a somewhat different interface (more graphical, less shortcut-oriented).
-  - **JuptyerHub** is an application run by servers (like the Unity folks) to provide a browser-based interface for creating and running `.ipynb` files.  JupyerHub is somewhat like Google Colab but (a) the interface is more like JN/JuptyerLab and (b) the accessed `.ipynb` files are in Unity filespace, not on Google Drive.  I think JuptyerLab/MATLAB tab on the Interactive Apps page of Unity OnDemand (or maybe all the tabs) are running JupyterHub.
+  - **Google Colab** is a browser-based application (no local installation needed) with similar functions as JN - create and run `.ipynb` files - but with a rather different interface (more graphical, less keyboard-shortcut oriented).
+  - **JuptyerHub** is an application run by servers (like the Unity folks) to provide a browser-based interface for creating and running `.ipynb` files.  JupyerHub is like Google Colab in being browers-based but (a) the interface is more like JuptyerLab and (b) the accessed `.ipynb` files are in Unity filespace, not on Google Drive.  I think JuptyerLab/MATLAB tab on the Interactive Apps page of Unity OnDemand (or maybe all the tabs) are running JupyterHub.
   - There are ways of accessing these things through **VSCode** but I haven't done that yet.
-- **Using Conda environments with Jupyter on Unity.**  TODO
+
+- **Using a Conda environment with Jupyter on Unity.**  As rather cryptically explained in [the Unity docs for Conda](https://docs.unity.rc.umass.edu/documentation/software/conda/), the preferred way to do this is to install and use **`ipykernel`** in the environment to create a **kernel specification** for the environment which will then be available for you to select when you start a Jupyter Notebook.
+  
+  - The Conda environment is created on Unity in terminal mode, either logged in with SSH as described below or by using the Shell tab of ion [Unity OnDemand](https://ood.unity.rc.umass.edu/pun/sys/dashboard).  Here we make a simple environment **npsp-jn** with NumPy, SciPy and ipykernel, then we use the `ipykernel install` command to make a kernel spec for the environment:
+    
+    ```
+    $ unity-compute                     # get shell on a compute node
+    (wait for the compute-node shell to come up)
+    $ module load conda/latest          # needed to run Conda commands
+    $ conda create -n npsp-jn python numpy scipy ipykernel
+    $ conda activate npsp-jn
+    (npsp-jn)$ python -m ipykernel install --user --name npsp-jn --display-name="NumPy-Scipy"
+    ```
+  
+  - Then, when the  Interactive Apps tab of Unity OnDemand is used to start a JupyterLab/MATLAB session the **Launcher** will offer a button to start a `Numpy-Scipy` notebook (as it was called in the `ipykernel install` command above) and in the notebook it will be possible to import and use SciPy functions:
+    
+    ```
+    [1]: from scipy.special import jv
+    [2]: jv(3,1)     # Bessel function J_1(3)
+              np.float64(0.019563353982668414)
+    ```
 
 #### Logging in (terminal mode)<a id="unity-login"></a>
 
@@ -3231,6 +3257,8 @@ tensor([[0.3522, 0.7894, 0.9021],
 ```
 
 The version of PyTorch installed as above seems capable of working with the least capable GPUs on Unity ([compute capability 5.2](#pick-gpu)) as shown above. Earlier, when I installed PyTorch as shown on a Princeton page, that version of PyTorch required a compute capability of 7.5 or above.  Unity jobs can be restricted to nodes with GPUs meeting such a requirement by supplying the constraint `-C sm_75` to `salloc` or as an `#SBATCH` line.
+
+If it is desired to use  **PyTorch on Unity in a Jupyter Notebook** launched via Unity OnDemand, then **ipykernel** should be installed in the Conda environment and the `ipykernel install` command should be used to make the environment available in JNs as shown [here](#unity-interactive).
 
 #### A Conda environment with CuPy<a id="conda-gpu-unity"></a>
 
