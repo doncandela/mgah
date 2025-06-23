@@ -1,6 +1,6 @@
 # My cheat sheet for MPI, GPU, Apptainer, and HPC
 
-mgah.md  D. Candela   6/22/25
+mgah.md  D. Candela   6/23a/25
 
 - [Introduction](#intro)  
   
@@ -275,7 +275,9 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
     - Get packages from `conda-forge` as shown above.
     - If you do specify a Python version, often an **earlier Python version** will be compatible with the available Conda versions of the other packages you need.
     - An IDE like Spyder has many complex dependencies. But when used only to edit files (as opposed to running them) Spyder can be run from the base or no environment, so there is no need to install it in your environments.
+  
   - **Running a Jupyter Notebook in a Conda environment.**
+    
     - On a **Linux PC**, it seems to work fine to activate the Conda environment, then issue the `jupyter notebook` command.
     - On an **HPC cluster like Unity** Jupyter Notebooks are can be run in a browser-based application like Unity OnDemand.  In this case `ipykernel` is used to make the environment available when a JN is launched, as detailed [here](#unity-interactive).
 
@@ -311,7 +313,7 @@ Detailed information on using Unity is in the section [Unity cluster at UMass, A
   - **`dfs`** (also defined in [Using modules and Conda](#unity-modules-conda)) has NumPy and the local package `dcfuncs` installed.
   - **`m4p`** (defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) includes OpenMPI 5.0.3, and `mpi4py`, so MPI can be used.  We also define **`m4pe`** which is like `m4p` except that it links to an external OpenMPI package which requires loading an OpenMPI module.
   - **`dem21`** (also defined in [Using MPI on Unity (without Apptainer)](#unity-mpi)) is like `m4p` but additionally includes the locally-installed package `dem21` and additional packages that `dem21` imports.  We also define **`dem21e`** which (like `m4pe`) links to an external OpenMPI package.
-  - **`pyt`** (defined in [Using PyTorch on Unity](#pytorch-unity) adds PyTorch, which can be run with or without a GPU.
+  - **`pyt`** (defined in [Using PyTorch on Unity](#pytorch-unity) adds PyTorch, which can be run with or without a GPU.  It also includes **`ipykernel`** so PyTorch can be run interactively in an JN using Unity OnDemand.
   - **`gpu`** (defined in [Using a GPU in Unity (without Apptainer)](#unity-gpu)) includes CuPy, which has NumPy/SciPy-like functions that run on a GPU.
   - **`ompi`** (defined in  [Running containers that use MPI](#unity-mpi-container)) includes only OpenMPI and Python as an example of a minimal environment for running a container that uses MPI on Unity, when an OpenMPI module is not loaded.
 
@@ -3258,7 +3260,14 @@ tensor([[0.3522, 0.7894, 0.9021],
 
 The version of PyTorch installed as above seems capable of working with the least capable GPUs on Unity ([compute capability 5.2](#pick-gpu)) as shown above. Earlier, when I installed PyTorch as shown on a Princeton page, that version of PyTorch required a compute capability of 7.5 or above.  Unity jobs can be restricted to nodes with GPUs meeting such a requirement by supplying the constraint `-C sm_75` to `salloc` or as an `#SBATCH` line.
 
-If it is desired to use  **PyTorch on Unity in a Jupyter Notebook** launched via Unity OnDemand, then **ipykernel** should be installed in the Conda environment and the `ipykernel install` command should be used to make the environment available in JNs as shown [here](#unity-interactive).
+If it is desired to use  **PyTorch on Unity in a Jupyter Notebook** launched via n [Unity OnDemand](https://ood.unity.rc.umass.edu/pun/sys/dashboard), then **ipykernel** should be installed in the Conda environment and the `ipykernel install` command should be used to make the environment available in JNs as explained [here](#unity-interactive):
+
+```
+(pyt)$ conda install ipykernel
+(pyt)$ python -m ipykernel install --user --name pyt --display-name="PyTorch (pyt)"
+```
+
+
 
 #### A Conda environment with CuPy<a id="conda-gpu-unity"></a>
 

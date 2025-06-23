@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   6/22/25</p>
+<p>mgah.md  D. Candela   6/23a/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -2680,7 +2680,7 @@ $ apt list &lt;package&gt; --installed  # list installed packages with this name
 <li><strong><code>dfs</code></strong> (also defined in <a href="#unity-modules-conda">Using modules and Conda</a>) has NumPy and the local package <code>dcfuncs</code> installed.</li>
 <li><strong><code>m4p</code></strong> (defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) includes OpenMPI 5.0.3, and <code>mpi4py</code>, so MPI can be used.  We also define <strong><code>m4pe</code></strong> which is like <code>m4p</code> except that it links to an external OpenMPI package which requires loading an OpenMPI module.</li>
 <li><strong><code>dem21</code></strong> (also defined in <a href="#unity-mpi">Using MPI on Unity (without Apptainer)</a>) is like <code>m4p</code> but additionally includes the locally-installed package <code>dem21</code> and additional packages that <code>dem21</code> imports.  We also define <strong><code>dem21e</code></strong> which (like <code>m4pe</code>) links to an external OpenMPI package.</li>
-<li><strong><code>pyt</code></strong> (defined in <a href="#pytorch-unity">Using PyTorch on Unity</a> adds PyTorch, which can be run with or without a GPU.</li>
+<li><strong><code>pyt</code></strong> (defined in <a href="#pytorch-unity">Using PyTorch on Unity</a> adds PyTorch, which can be run with or without a GPU.  It also includes <strong><code>ipykernel</code></strong> so PyTorch can be run interactively in an JN using Unity OnDemand.</li>
 <li><strong><code>gpu</code></strong> (defined in <a href="#unity-gpu">Using a GPU in Unity (without Apptainer)</a>) includes CuPy, which has NumPy/SciPy-like functions that run on a GPU.</li>
 <li><strong><code>ompi</code></strong> (defined in  <a href="#unity-mpi-container">Running containers that use MPI</a>) includes only OpenMPI and Python as an example of a minimal environment for running a container that uses MPI on Unity, when an OpenMPI module is not loaded.</li>
 </ul>
@@ -5712,7 +5712,9 @@ tensor([[0.3522, 0.7894, 0.9021],
         [0.8859, 0.3973, 0.9353],
         [0.8659, 0.6805, 0.9278]], device='cuda:0')</code></pre>
 <p>The version of PyTorch installed as above seems capable of working with the least capable GPUs on Unity (<a href="#pick-gpu">compute capability 5.2</a>) as shown above. Earlier, when I installed PyTorch as shown on a Princeton page, that version of PyTorch required a compute capability of 7.5 or above.  Unity jobs can be restricted to nodes with GPUs meeting such a requirement by supplying the constraint <code>-C sm_75</code> to <code>salloc</code> or as an <code>#SBATCH</code> line.</p>
-<p>If it is desired to use  <strong>PyTorch on Unity in a Jupyter Notebook</strong> launched via Unity OnDemand, then <strong>ipykernel</strong> should be installed in the Conda environment and the <code>ipykernel install</code> command should be used to make the environment available in JNs as shown <a href="#unity-interactive">here</a>.</p>
+<p>If it is desired to use  <strong>PyTorch on Unity in a Jupyter Notebook</strong> launched via n <a href="https://ood.unity.rc.umass.edu/pun/sys/dashboard">Unity OnDemand</a>, then <strong>ipykernel</strong> should be installed in the Conda environment and the <code>ipykernel install</code> command should be used to make the environment available in JNs as explained <a href="#unity-interactive">here</a>:</p>
+<pre><code class="fenced-code-block">(pyt)$ conda install ipykernel
+(pyt)$ python -m ipykernel install --user --name pyt --display-name="PyTorch (pyt)"</code></pre>
 <h4 class="atx" id="a-conda-environment-with-cupylessa-iddouble-quoteconda-gpu-unitydouble-quotegreaterlessagreater">A Conda environment with CuPy<a id="conda-gpu-unity"></a></h4>
 <p>This was called <strong><code>gpu</code></strong> was created on Unity as follows (as of 1/25 it seemed the current version of Python, 3.13, was incompatible with CuPy - hence the specification here python=3.12):</p>
 <pre><code class="fenced-code-block">$ module load conda/latest
