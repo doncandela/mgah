@@ -2330,7 +2330,7 @@ body {
 </head>
 <body>
   <article class="markdown-body"><h1 class="atx" id="my-cheat-sheet-for-mpi-gpu-apptainer-and-hpc">My cheat sheet for MPI, GPU, Apptainer, and HPC</h1>
-<p>mgah.md  D. Candela   6/23a/25</p>
+<p>mgah.md  D. Candela   6/24/25</p>
 <ul>
 <li><p><a href="#intro">Introduction</a>  </p>
 <ul>
@@ -3127,7 +3127,7 @@ I have not used PyCUDA and it is not discussed further in this document.</p>
 (pyt)..$ jupyter notebook                                # check that JN works</code></pre>
 <p>Next install PyTorch by running the appropriate command from the <a href="https://pytorch.org/get-started/locally/">PyTorch Getting Started page</a>. The installation command depends on which version of CUDA is installed, if any -- since CUDA 12.2 was installed I selected the nearest version no later than 12.2 which was 12.1:</p>
 <pre><code class="fenced-code-block">(pyt-gmem)..$ pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121</code></pre>
-<p>To check that PyTorch is usable, run this code in a JN which creates a small tensor filled with random numbers:</p>
+<p>As mentioned above in remarks on <a href="#pip-conda-apt">Conda</a>, on a Linux PC a Conda environment can be used with Jupyter Notebook simply by doing <code>conda activate ...</code> to activate the environment then <code>jupyter notebook</code> to start a JN. To check that PyTorch is usable, run this code in a JN which creates a small tensor filled with random numbers (can also run this code in Python started at the terminal):</p>
 <pre><code class="fenced-code-block">import torch
 x = torch.rand(5, 3)
 print(x)
@@ -4113,7 +4113,7 @@ Multiply M*M=N element dense matrices
 </li>
 <li><p><strong>Using a Conda environment with Jupyter on Unity.</strong>  As rather cryptically explained in <a href="https://docs.unity.rc.umass.edu/documentation/software/conda/">the Unity docs for Conda</a>, the preferred way to do this is to install and use <strong><code>ipykernel</code></strong> in the environment to create a <strong>kernel specification</strong> for the environment which will then be available for you to select when you start a Jupyter Notebook.</p>
 <ul>
-<li><p>The Conda environment is created on Unity in terminal mode, either logged in with SSH as described below or by using the Shell tab of ion <a href="https://ood.unity.rc.umass.edu/pun/sys/dashboard">Unity OnDemand</a>.  Here we make a simple environment <strong>npsp-jn</strong> with NumPy, SciPy and ipykernel, then we use the <code>ipykernel install</code> command to make a kernel spec for the environment:</p>
+<li><p>The Conda environment is created on Unity in terminal mode, either logged in with SSH as described below or by using the Shell tab of ion <a href="https://ood.unity.rc.umass.edu/pun/sys/dashboard">Unity OnDemand</a>.  Here we make a simple environment <strong>npsp-jn</strong> with NumPy, SciPy and ipykernel, then we use the <code>ipykernel install</code> command to make a kernel spec for the environment (note the <code>ipykernel install</code> command seems optional, see end of this section):</p>
 <pre><code class="fenced-code-block">$ unity-compute                     # get shell on a compute node
 (wait for the compute-node shell to come up)
 $ module load conda/latest          # needed to run Conda commands
@@ -4124,7 +4124,11 @@ $ conda activate npsp-jn
 <li><p>Then, when the  Interactive Apps tab of Unity OnDemand is used to start a JupyterLab/MATLAB session the <strong>Launcher</strong> will offer a button to start a <code>Numpy-Scipy</code> notebook (as it was called in the <code>ipykernel install</code> command above) and in the notebook it will be possible to import and use SciPy functions:</p>
 <pre><code class="fenced-code-block">[1]: from scipy.special import jv
 [2]: jv(3,1)     # Bessel function J_1(3)
-          np.float64(0.019563353982668414)</code></pre>
+      np.float64(0.019563353982668414)</code></pre>
+</li>
+<li><p>It seems that a created  Conda environment is available as a kernel launch option for JupyterLab sessions in Unity OnDemand provided <code>ipykernel</code> is  installed in the environment, with a default display name like <code>Python [conda env:conda-&lt;env name&gt;]</code>, even if an <code>ipykernel install</code> command is not done.</p>
+</li>
+<li><p>It also has sometimes seemed that a kernel launch option created using <code>ipykernel install</code> remains available in JupyterLab OnDemand sessions even after the corresponding Conda environment is removed -- not sure how that is working.</p>
 </li>
 </ul>
 </li>
@@ -5683,15 +5687,16 @@ Packages to be installed:
 <pre><code class="fenced-code-block">userc@login4:~$ salloc -c 6 -G 1 -p gpu
 (wait for compute-node shell to come up)
 userc@gypsum-gpu140:~$ unity-conda-create -n pytorch-latest</code></pre>
-<p>Rather than using <code>unity-conda-create</code>, it works to directly create the desired environment using Conda and pip, using the version numbers shown above by <code>unity-conda-list</code>  (these worked as shown 6/25, version numbers might change in future):</p>
+<p>Rather than using <code>unity-conda-create</code>, it works to directly create the desired environment using Conda and pip.  While it worked to specify the specific version numbers reported by the <code>unity-conda-list pytorch-latest</code> command as shown above, this resulted in incompatibility problems when another module (<code>pickle</code> or <code>dill</code>) was installed into the environment.  The steps shown here created an environment <strong><code>pyt</code></strong> for running PyTorch on Unity that did not have this compatibility problem:</p>
 <pre><code class="fenced-code-block">userc@login4:~$ salloc -c 6 -G 1 -p gpu      # get shell on compute node with a GPU
 (wait for compute-node shell to come up)
-userc@gypsum-gpu140:~$ module load conda/latest
-userc@gypsum-gpu140:~$ conda create -n pyt python=3.9 numpy=1.21.5 matplotlib
-userc@gypsum-gpu140:~$ conda activate pyt                      
-(pyt) userc@gypsum-gpu140:~$ pip install torch torchvision torchaudio</code></pre>
+userc@gypsum-gpu073:~$ module load conda/latest
+userc@gypsum-gpu073:~$ conda create -n pyt python=3
+userc@gypsum-gpu073:~$ conda activate pyt                      
+(pyt) userc@gypsum-gpu073:~$ conda install numpy matplotlib                      
+(pyt) userc@gypsum-gpu073:~$ pip install torch torchvision torchaudio</code></pre>
 <p>In this environment <code>pyt</code> it is possible to import PyTorch, and PyTorch can use the GPU:</p>
-<pre><code class="fenced-code-block">(pyt) userc@gypsum-gpu140:~$ python
+<pre><code class="fenced-code-block">(pyt) userc@gypsum-gpu073:~$ python
 &gt;&gt;&gt; import torch
 &gt;&gt;&gt; torch.cuda.is_available()           # check that GPU is available
 True
@@ -5712,7 +5717,7 @@ tensor([[0.3522, 0.7894, 0.9021],
         [0.8859, 0.3973, 0.9353],
         [0.8659, 0.6805, 0.9278]], device='cuda:0')</code></pre>
 <p>The version of PyTorch installed as above seems capable of working with the least capable GPUs on Unity (<a href="#pick-gpu">compute capability 5.2</a>) as shown above. Earlier, when I installed PyTorch as shown on a Princeton page, that version of PyTorch required a compute capability of 7.5 or above.  Unity jobs can be restricted to nodes with GPUs meeting such a requirement by supplying the constraint <code>-C sm_75</code> to <code>salloc</code> or as an <code>#SBATCH</code> line.</p>
-<p>If it is desired to use  <strong>PyTorch on Unity in a Jupyter Notebook</strong> launched via n <a href="https://ood.unity.rc.umass.edu/pun/sys/dashboard">Unity OnDemand</a>, then <strong>ipykernel</strong> should be installed in the Conda environment and the <code>ipykernel install</code> command should be used to make the environment available in JNs as explained <a href="#unity-interactive">here</a>:</p>
+<p>If it is desired to use  <strong>PyTorch on Unity in a Jupyter Notebook</strong> launched via n <a href="https://ood.unity.rc.umass.edu/pun/sys/dashboard">Unity OnDemand</a>, then <strong>ipykernel</strong> should be installed in the Conda environment <code>pyt</code> and the <code>ipykernel install</code> command should be used to make the environment available in JNs as explained <a href="#unity-interactive">here</a>:</p>
 <pre><code class="fenced-code-block">(pyt)$ conda install ipykernel
 (pyt)$ python -m ipykernel install --user --name pyt --display-name="PyTorch (pyt)"</code></pre>
 <h4 class="atx" id="a-conda-environment-with-cupylessa-iddouble-quoteconda-gpu-unitydouble-quotegreaterlessagreater">A Conda environment with CuPy<a id="conda-gpu-unity"></a></h4>
